@@ -1,3 +1,5 @@
+import { Capacitor } from '@capacitor/core';
+import { extractNativeArticle } from '../lib/nativeFeed';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Bookmark,
@@ -142,9 +144,15 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
     if (loadingFullText || fullTextLoaded) return;
     setLoadingFullText(true);
     try {
-      const resp = await fetch(`/api/article/extract?url=${encodeURIComponent(article.link)}`);
-      if (resp.ok) {
-        const data = (await resp.json()) as { paragraphs?: string[]; ogImage?: string };
+      const data = Capacitor.isNativePlatform()
+        ? await extractNativeArticle(article.link)
+        : await (async () => {
+            const resp = await fetch(`/api/article/extract?url=${encodeURIComponent(article.link)}`);
+            return resp.ok
+              ? (await resp.json()) as { paragraphs?: string[]; ogImage?: string }
+              : null;
+          })();
+      if (data) {
         if (Array.isArray(data.paragraphs) && data.paragraphs.length > paragraphs.length) {
           setParagraphs(data.paragraphs);
         }

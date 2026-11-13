@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { fetchNativeFeeds } from './lib/nativeFeed';
 import { Bell, Bookmark, Compass, Home, Search, SlidersHorizontal } from 'lucide-react';
 import { AnimatePresence } from 'motion/react';
 import type {
@@ -131,16 +133,24 @@ export default function App() {
     if (activeSources.length === 0) return;
     setIsLoadingFeeds(true);
     try {
-      const resp = await fetch('/api/feeds/fetch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ feeds: activeSources }),
-      });
-      if (!resp.ok) return;
-      const data = (await resp.json()) as { articles?: NewsArticle[] };
-      if (Array.isArray(data.articles) && data.articles.length > 0) {
+      // Capacitor runs as a standalone APK: there is no local Node/Express server.
+      // Native HTTP fetches feeds directly and parses them on-device.
+      let articles: NewsArticle[] = [];
+      if (Capacitor.isNativePlatform()) {
+        articles = await fetchNativeFeeds(activeSources);
+      } else {
+        const resp = await fetch('/api/feeds/fetch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ feeds: activeSources }),
+        });
+        if (!resp.ok) return;
+        const data = (await resp.json()) as { articles?: NewsArticle[] };
+        articles = Array.isArray(data.articles) ? data.articles : [];
+      }
+      if (articles.length > 0) {
         const seen = new Set<string>();
-        const deduped = data.articles.filter((a) => {
+        const deduped = articles.filter((a) => {
           const key = a.title.trim().toLowerCase();
           if (seen.has(key)) return false;
           seen.add(key);

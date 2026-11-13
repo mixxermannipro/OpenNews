@@ -1,3 +1,4 @@
+import { Capacitor } from '@capacitor/core';
 import type { AIProviderConfig, AIProviderId, AISummaryResult, NewsArticle } from '../types/news';
 
 export interface AIProviderMeta {
@@ -134,8 +135,10 @@ export async function analyzeArticleWithBYOK(
   const providerLabel = `${providerMeta?.name || config.provider} · ${config.model}`;
   const prompt = buildPrompt(article);
 
-  // First try stateless server proxy (handles CORS cleanly for OpenAI/Anthropic/Mistral)
-  try {
+  // The Node server exists only in web/dev mode; installed APKs use native HTTP.
+  // Avoid attempting https://localhost/api/... in the standalone Android WebView.
+  if (!Capacitor.isNativePlatform()) {
+    try {
     const proxyResp = await fetch('/api/ai/proxy', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -165,6 +168,7 @@ export async function analyzeArticleWithBYOK(
     if (err instanceof Error && !err.message.includes('Failed to fetch')) {
       throw err;
     }
+    }
   }
 
   // Direct fallback (works in Capacitor Android/iOS or standalone static PWA)
@@ -181,6 +185,26 @@ export async function analyzeArticleWithBYOK(
     if (!res.ok) throw new Error(`Google AI Fehler (${res.status})`);
     const json = (await res.json()) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
     const text = json.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    return parseAIJsonResponse(text, providerLabel);
+  }
+
+  if (config.provider === 'anthropic') {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': config.apiKey.trim(),
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: config.model,
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    });
+    if (!response.ok) throw new Error(`Anthropic API Fehler (${response.status})`);
+    const json = (await response.json()) as { content?: Array<{ type?: string; text?: string }> };
+    const text = json.content?.find(part => part.type === 'text')?.text || '';
     return parseAIJsonResponse(text, providerLabel);
   }
 

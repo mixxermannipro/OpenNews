@@ -1,3 +1,5 @@
+import { Capacitor } from '@capacitor/core';
+import { discoverNativeFeeds } from '../lib/nativeFeed';
 import React, { useState } from 'react';
 import {
   Bell,
@@ -207,12 +209,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     if (!q) return;
     setDiscovering(true);
     try {
-      const resp = await fetch(`/api/feeds/discover?q=${encodeURIComponent(q)}`);
-      if (resp.ok) {
-        const data = (await resp.json()) as {
-          discovered?: Array<{ name: string; url: string; format: 'rss' | 'atom' | 'json' }>;
-        };
-        setDiscoveredFeeds(Array.isArray(data.discovered) ? data.discovered : []);
+      if (Capacitor.isNativePlatform()) {
+        setDiscoveredFeeds(await discoverNativeFeeds(q));
+      } else {
+        const resp = await fetch(`/api/feeds/discover?q=${encodeURIComponent(q)}`);
+        if (resp.ok) {
+          const data = (await resp.json()) as {
+            discovered?: Array<{ name: string; url: string; format: 'rss' | 'atom' | 'json' }>;
+          };
+          setDiscoveredFeeds(Array.isArray(data.discovered) ? data.discovered : []);
+        }
       }
     } catch {
       setDiscoveredFeeds([]);
