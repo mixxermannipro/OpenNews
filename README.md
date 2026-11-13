@@ -144,7 +144,8 @@ OpenNews/
 │
 ├── native/
 │   └── android/
-│       └── MainActivity.java           # Nativer Einstieg: Back-Navigation + ArticleShare
+│       ├── MainActivity.java           # Nativer Einstieg: Back-Navigation + ArticleShare
+│       └── sync-icons.sh               # Erzeugt die Android-Launcher-Icons aus dem Logo
 │
 ├── public/                             # Statisch ausgelieferte Dateien
 │   ├── assets/aistudio/                # Design-Mockups und PDF aus der Konzeptphase
@@ -245,6 +246,7 @@ OpenNews/
 | npm | 10+ | Installation und Skripte |
 | JDK | 21 | Android-Build |
 | Android SDK | aktuell | Android-Build (Android Studio empfohlen) |
+| ImageMagick (`magick` oder `convert`) | aktuell | Launcher-Icons beim Android-Sync |
 
 Für Web und PWA genügen Node.js und npm.
 
@@ -290,7 +292,7 @@ NODE_ENV=production npm start
 | `npm run lint` | `tsc --noEmit` | TypeScript-Typprüfung |
 | `npm test` | `node --import tsx --test src/lib/*.test.ts` | 27 Unit-Tests |
 | `npm run clean` | `rm -rf dist server.js` | Build-Artefakte entfernen |
-| `npm run android:sync` | Build + `cap sync` + MainActivity kopieren | Web-Assets und Android-Projekt abgleichen |
+| `npm run android:sync` | Build + `cap sync` + MainActivity + Icons | Web-Assets, natives Projekt und App-Symbole abgleichen |
 
 ## Konfiguration
 
@@ -365,7 +367,7 @@ npm run android:sync
 cd android && ./gradlew assembleDebug
 ```
 
-Die APK liegt unter `android/app/build/outputs/apk/debug/app-debug.apk`.
+Die APK liegt unter `android/app/build/outputs/apk/debug/app-debug.apk`. `npm run android:sync` baut das Web-Projekt, synchronisiert es ins native Projekt, kopiert `MainActivity.java` und erzeugt mit ImageMagick die Launcher-Icons aus `public/pwa-512x512.png`.
 
 > [!NOTE]
 > Alle CI-Builds sind mit einem Debug-Schlüssel signiert. Wegen abweichender Signaturen lässt sich eine neue APK nicht über eine ältere installieren — vorher deinstallieren (lokale Daten gehen verloren). Die APK ist nicht für den Play Store bestimmt.
