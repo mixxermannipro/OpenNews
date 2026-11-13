@@ -760,12 +760,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           {/* Empfohlene Feeds */}
           {recommendedSources.length > 0 && (
             <details className="settings-group p-5 space-y-3">
-              <div className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-blue-500" />
-                <summary className="cursor-pointer font-semibold">
-                  Empfohlene Feeds ({recommendedSources.length})
-                </summary>
-              </div>
+              <summary className="cursor-pointer font-semibold">
+                <Sparkles aria-hidden className="mr-2 inline h-4 w-4 text-blue-500" />
+                Empfohlene Feeds ({recommendedSources.length})
+              </summary>
 
               <div className="divide-y divide-black/[0.06] dark:divide-white/[0.08]">
                 {recommendedSources.map((src) => (
@@ -789,6 +787,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <button
                       type="button"
                       onClick={() => onToggleSource(src.id)}
+                      aria-label={`${src.name} abonnieren`}
                       className="inline-flex min-h-[40px] shrink-0 items-center gap-1.5 rounded-full bg-blue-600 px-3.5 text-xs font-semibold text-white transition hover:bg-blue-500"
                     >
                       <Plus className="h-3.5 w-3.5" />
