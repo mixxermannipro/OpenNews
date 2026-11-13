@@ -186,3 +186,30 @@ test('feed refresh retains articles missing from the latest RSS response', () =>
   const updated = { ...older, title: 'Aktualisierte Überschrift' };
   assert.deepEqual(mergeFeedArticles([older, previous], [updated], '4', nowMs), [updated, previous]);
 });
+
+test('Heute gives different stories room before near-identical headlines', () => {
+  const now = new Date(2026, 10, 12, 12).getTime();
+  const publishedAt = new Date(now - 60_000).toISOString();
+  const first = { ...sampleArticles[0], id: 'one', title: 'Microsoft meldet Fortschritte nach weltweiten IT-Ausfällen', publishedAt, isBreaking: true };
+  const repeated = { ...first, id: 'two', sourceId: 'another', title: 'IT-Ausfällen weltweit: Microsoft meldet deutliche Fortschritte' };
+  const different = { ...sampleArticles[1], id: 'three', title: 'Forschende entdecken neuen Exoplaneten', publishedAt };
+
+  const sections = buildHomeSections([first, repeated, different], createDefaultProfile(), DEFAULT_SOURCES, now);
+  assert.deepEqual(sections.Heute.map(article => article.id), ['one', 'three', 'two']);
+  assert.deepEqual(sections['Für dich'].map(article => article.id), ['one', 'three', 'two']);
+});
+
+test('dedicated podcast sources stay available to media without filling text feeds', () => {
+  const now = new Date(2026, 10, 12, 12).getTime();
+  const source = DEFAULT_SOURCES.find(source => source.format === 'podcast')!;
+  const episode = { ...sampleArticles[0], sourceId: source.id, publishedAt: new Date(now - 60_000).toISOString() };
+  const sections = buildHomeSections([episode], createDefaultProfile(), DEFAULT_SOURCES, now);
+  assert.deepEqual(sections, { Heute: [], 'Für dich': [], Neueste: [] });
+});
+
+test('Heute can lead with an important public story ahead of a newer leisure item', () => {
+  const now = new Date(2026, 10, 12, 12).getTime();
+  const publicStory = { ...sampleArticles[0], category: 'Politik' as const, publishedAt: new Date(now - 3_600_000).toISOString() };
+  const leisure = { ...sampleArticles[1], category: 'Kultur' as const, publishedAt: new Date(now - 60_000).toISOString() };
+  assert.deepEqual(buildHomeSections([publicStory, leisure], createDefaultProfile(), DEFAULT_SOURCES, now).Heute.map(a => a.id), ['a-pol', 'a-tech']);
+});

@@ -7,6 +7,7 @@ import { MediaPlayer } from './MediaPlayer';
 import { formatRelativeTimeDe } from '../lib/personalization';
 
 const FILTERS = { all: 'Alle', video: 'Videos', audio: 'Audio' } as const;
+type MediaFilter = keyof typeof FILTERS;
 
 export function MediaView({ articles, loading, background, onArticle, onSources }: {
   articles: NewsArticle[];
@@ -15,7 +16,7 @@ export function MediaView({ articles, loading, background, onArticle, onSources 
   onArticle: (article: NewsArticle) => void;
   onSources: () => void;
 }) {
-  const [filter, setFilter] = useState<keyof typeof FILTERS>('all');
+  const [filter, setFilter] = useState<MediaFilter>('all');
   const [selected, setSelected] = useState<string>();
   const entries = useMemo(() => {
     const seen = new Set<string>();
@@ -26,14 +27,16 @@ export function MediaView({ articles, loading, background, onArticle, onSources 
     }));
   }, [articles]);
   const current = entries.find(entry => entry.media.url === selected);
-  const visible = entries.filter(({ media }) =>
-    filter === 'all' || (filter === 'audio' ? media.type === 'audio' : media.type !== 'audio'));
+  const groups = (['video', 'audio'] as const).map(kind => ({
+    kind,
+    items: entries.filter(({ media }) => kind === 'audio' ? media.type === 'audio' : media.type !== 'audio'),
+  })).filter(group => group.items.length && (filter === 'all' || filter === group.kind));
   return (
     <section aria-labelledby="media-heading" className="space-y-5">
       <h1 id="media-heading" className="screen-title">Video &amp; Audio</h1>
       {current && (
         <section aria-label="Aktueller Beitrag" className="settings-group overflow-hidden">
-          <div className={current.media.type === 'audio' ? 'px-4 pt-4' : 'aspect-video'}>
+          <div className={current.media.type === 'audio' ? 'px-4 pt-4' : current.media.portrait ? 'mx-auto aspect-[9/16] max-w-[19rem]' : 'aspect-video'}>
             <MediaPlayer key={current.media.url} media={current.media} title={current.article.title}
               poster={current.article.imageUrl} background={background} autoPlay />
           </div>
@@ -50,9 +53,18 @@ export function MediaView({ articles, loading, background, onArticle, onSources 
             onClick={() => setFilter(key)}>{FILTERS[key]}</button>
         ))}
       </div>
-      {visible.length ? (
-        <ul className="settings-group divide-y divide-slate-400/20">
-          {visible.map(({ article, media }) => {
+      {groups.length ? groups.map(({ kind, items }) => (
+        <section key={kind} aria-labelledby={`media-${kind}`} className="space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <h2 id={`media-${kind}`} className="text-lg font-semibold">{kind === 'audio' ? 'Zum Hören' : 'Zum Ansehen'}</h2>
+            {filter === 'all' && items.length > 3 && (
+              <button className="choice-pill" type="button" onClick={() => setFilter(kind)}>
+                {kind === 'audio' ? 'Alle Audios' : 'Alle Videos'}
+              </button>
+            )}
+          </div>
+          <ul className="settings-group divide-y divide-slate-400/20">
+          {(filter === 'all' ? items.slice(0, 3) : items).map(({ article, media }) => {
             const Icon = media.type === 'audio' ? Headphones : Video;
             return (
               <li key={media.url}>
@@ -78,13 +90,15 @@ export function MediaView({ articles, loading, background, onArticle, onSources 
               </li>
             );
           })}
-        </ul>
-      ) : (
+          </ul>
+        </section>
+      )) : (
         <div className="settings-group space-y-3 p-5">
           <p role="status" className="text-sm">{loading ? 'Beiträge werden geladen …' : 'Hier sind gerade keine passenden Beiträge verfügbar.'}</p>
           {!loading && <button type="button" className="choice-pill" onClick={onSources}>Quellen verwalten</button>}
         </div>
       )}
+      {groups.length > 0 && <button type="button" className="choice-pill" onClick={onSources}>Medienquellen verwalten</button>}
     </section>
   );
 }

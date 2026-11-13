@@ -43,8 +43,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const visibleLimit = batch.category === selectedCategory ? batch.limit : 30;
   const filtered = articles.slice(0, visibleLimit);
   const hero = showHero && selectedCategory === 'Heute' ? filtered[0] : undefined;
-  const featuredSideEntries = hero ? filtered.slice(1, 4) : [];
-  const restEntries = hero ? filtered.slice(4) : filtered;
+  const isToday = selectedCategory === 'Heute';
+  const leadCount = isToday ? Math.min(4, filtered.length) : 0;
+  const featuredSideEntries = filtered.slice(hero ? 1 : 0, leadCount);
+  const restEntries = filtered.slice(leadCount);
 
   return (
     <section aria-label="Startseite Nachrichten" className="space-y-5"
@@ -131,7 +133,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </div>
       ) : (
         <div className="space-y-5">
-          {hero && <div className="grid grid-cols-1 gap-4 lg:grid-cols-12 lg:items-stretch">
+          {isToday && <section aria-label="Die wichtigsten Meldungen" className="grid grid-cols-1 gap-4 lg:grid-cols-12 lg:items-start">
+            {hero && (
             <div className={featuredSideEntries.length > 0 ? 'lg:col-span-7 flex' : 'lg:col-span-12'}>
               <HeroArticleCard
                 article={hero}
@@ -143,10 +146,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 onToggleBookmark={onToggleBookmark}
                 onToggleLike={onToggleLike}
               />
-            </div>
+            </div>)}
 
             {featuredSideEntries.length > 0 && (
-              <div className="lg:col-span-5 flex flex-col justify-between gap-3">
+              <div className={`${hero ? 'lg:col-span-5' : 'lg:col-span-12'} space-y-3`}>
+                <h2 className="text-base font-semibold">Im Überblick</h2>
                 {featuredSideEntries.map((article) => (
                   <CompactArticleCard
                     key={article.id}
@@ -160,10 +164,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 ))}
               </div>
             )}
-          </div>}
+          </section>}
 
           {restEntries.length > 0 && (
-            <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
+            <section className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
+              {isToday && <h2 className="text-base font-semibold md:col-span-2">Weitere Meldungen</h2>}
               {restEntries.map((article) => (
                 <CompactArticleCard
                   key={article.id}
@@ -175,7 +180,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   onToggleLike={onToggleLike}
                 />
               ))}
-            </div>
+            </section>
           )}
           {articles.length > visibleLimit && <button type="button" className="choice-pill" onClick={() =>
             setBatch({ category: selectedCategory, limit: visibleLimit + 30 })}>Weitere Meldungen</button>}

@@ -142,3 +142,13 @@ test('does not use an untyped video as the article image', () => {
   assert.equal(article.imageUrl, 'https://example.org/poster.jpg');
   assert.equal(article.videoUrl, 'https://example.org/clip.mp4');
 });
+
+test('keeps the portrait format for YouTube Shorts and portrait feed videos', () => {
+  const xml = `<rss><channel><item><title>Kurznachrichten</title>
+    <link>https://www.youtube.com/shorts/abcdefghijk</link>
+    <media:content url="https://example.org/clip.mp4" type="video/mp4" width="720" height="1280" />
+  </item></channel></rss>`;
+  const [article] = parseFeedPayload(xml, mockSource);
+  assert.equal(article.media?.find(item => item.type === 'youtube')?.portrait, true);
+  assert.equal(article.media?.find(item => item.type === 'video')?.portrait, true);
+});

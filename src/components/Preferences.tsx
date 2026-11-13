@@ -194,10 +194,16 @@ export function Onboarding({ onFinish, onConfigure, ...appearance }: AppearanceP
   const title = useRef<HTMLHeadingElement>(null);
   useEffect(() => { if (step > 0) title.current?.focus(); }, [step]);
   const { preferences, onPreferences } = appearance;
+  const StepIcon = [BookOpen, Compass, Palette][step];
 
   return (
     <main className="onboarding">
-      <img className="onboarding-mark" src="/logo.png" alt="" />
+      <div className="flex items-center justify-between gap-4">
+        <span className="onboarding-step-icon"><StepIcon size={32} aria-hidden /></span>
+        <div className="flex items-center gap-1.5" aria-label={`Schritt ${step + 1} von 3`} role="img">
+          {[0, 1, 2].map(index => <span key={index} className="onboarding-progress" data-current={index === step} />)}
+        </div>
+      </div>
       <div className="space-y-4">
         <p className="text-lg font-semibold">OpenNews</p>
         <h1 ref={title} tabIndex={-1} className="screen-title">{['Deine Nachrichten.', 'Was interessiert dich?', 'Deine Ansicht'][step]}</h1>
@@ -206,7 +212,16 @@ export function Onboarding({ onFinish, onConfigure, ...appearance }: AppearanceP
         </p>
       </div>
       {step === 1 && <TopicChoices topics={preferences.topics} onChange={topics => onPreferences({ ...preferences, topics })} />}
-      {step === 2 && <Appearance {...appearance} />}
+      {step === 2 && (
+        <div className="space-y-4">
+          <ThemeChoices {...appearance} />
+          <div className="settings-group space-y-2 p-4">
+            <p className="text-xs font-semibold text-[var(--muted)]">Vorschau</p>
+            <p className="text-xl font-semibold">Die Nachrichten des Tages</p>
+            <p className="text-sm">Was heute wichtig ist, liest du hier.</p>
+          </div>
+        </div>
+      )}
       <div className="space-y-3">
         <button className="primary-action w-full" type="button" onClick={() => step < 2 ? setStep(step + 1) : onFinish()}>
           {step === 2 ? 'Nachrichten öffnen' : 'Weiter'} <ArrowRight size={18} />
