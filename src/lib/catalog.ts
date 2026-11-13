@@ -340,3 +340,12 @@ export const DEFAULT_SOURCES: NewsSource[] = [
     shortCode: 'PP',
   },
 ];
+
+export const legacyCatalogUrls: Partial<Record<string, string>> = {
+  tagesschau: 'https://www.tagesschau.de/xml/rss2/',
+  zdfheute: 'https://www.zdf.de/rss/zdf/nachrichten',
+  deutschlandfunk: 'https://www.deutschlandfunk.de/die-nachrichten.353.de.rss',
+  handelsblatt: 'https://www.handelsblatt.com/contentexport/feed/schlagzeilen',
+  hackernews: 'https://hnrss.org/frontpage.jsonfeed',
+  'tagesschau-100s': 'https://www.tagesschau.de/export/video-podcast/webxl/tagesschau-in-100-sekunden/',
+};

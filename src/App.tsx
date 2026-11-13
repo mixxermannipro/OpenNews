@@ -18,7 +18,7 @@ import type {
   ThemeMode,
 } from './types/news';
 import { DEFAULT_AI_CONFIG } from './lib/aiClient';
-import { DEFAULT_SOURCES } from './lib/catalog';
+import { DEFAULT_SOURCES, legacyCatalogUrls } from './lib/catalog';
 import {
   createDefaultProfile,
   normalizeProfile,
@@ -50,10 +50,17 @@ export default function App() {
     const saved = new Map(storedSources.map(source => [source.id, source]));
     return [
       ...storedSources.filter(source => source.isCustom),
-      ...DEFAULT_SOURCES.map(source => ({
-        ...source,
-        subscribed: saved.get(source.id)?.subscribed ?? source.subscribed,
-      })),
+      ...DEFAULT_SOURCES.map(source => {
+        const previous = saved.get(source.id);
+        if (!previous) return source;
+        const url = previous.url === legacyCatalogUrls[source.id] ? source.url : previous.url;
+        return {
+          ...source,
+          ...previous,
+          url,
+          format: url === source.url && source.id === 'hackernews' ? source.format : previous.format,
+        };
+      }),
     ];
   }, [storedSources]);
   const [profile, setProfile] = useLocalStorage<PersonalizationProfile>(
