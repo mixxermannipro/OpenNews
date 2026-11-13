@@ -209,13 +209,14 @@ function collectMedia(
   const base = mediaUrl(link, feedUrl)?.href || feedUrl;
   const media = new Map<string, MediaAttachment>();
 
-  function add(value: unknown, rawMime?: unknown, medium?: unknown) {
+  function add(value: unknown, rawMime?: unknown, medium?: unknown, portrait = false) {
     const url = mediaUrl(value, base);
     if (!url) return;
     const youtubeId = extractYouTubeId(url.href);
     if (youtubeId) {
       const embedUrl = `https://www.youtube-nocookie.com/embed/${youtubeId}`;
-      media.set(embedUrl, { type: 'youtube', url: embedUrl });
+      const isShort = url.pathname.startsWith('/shorts/') || media.get(embedUrl)?.portrait;
+      media.set(embedUrl, { type: 'youtube', url: embedUrl, ...(isShort && { portrait: true }) });
       return;
     }
     if (medium === 'embed') return;
@@ -229,7 +230,9 @@ function collectMedia(
     else if (/\.(mp4|m4v|webm|ogv|mov|m3u8)$/i.test(url.pathname) || mimeType === 'application/vnd.apple.mpegurl') type = 'video';
     else if (/\.(jpe?g|png|gif|webp|avif)$/i.test(url.pathname)) type = 'image';
 
-    if (type && !media.has(url.href)) media.set(url.href, { type, url: url.href, mimeType });
+    if (type && (!media.has(url.href) || (type === 'video' && portrait))) {
+      media.set(url.href, { type, url: url.href, mimeType, ...(type === 'video' && portrait && { portrait: true }) });
+    }
   }
 
   const records = (value: unknown) => asArray(value).filter(
@@ -242,7 +245,11 @@ function collectMedia(
   for (const attachment of records(attachments)) add(attachment.url, attachment.mime_type);
 
   for (const group of [item, ...records(item['media:group'])]) {
-    for (const entry of records(group['media:content'])) add(entry['@_url'], entry['@_type'], entry['@_medium']);
+    for (const entry of records(group['media:content'])) {
+      const width = Number(entry['@_width']);
+      const height = Number(entry['@_height']);
+      add(entry['@_url'], entry['@_type'], entry['@_medium'], width > 0 && height > width);
+    }
     for (const player of records(group['media:player'])) add(player['@_url'], undefined, 'embed');
   }
   const atomContent = records(item.content)[0];

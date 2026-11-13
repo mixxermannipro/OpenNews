@@ -31,6 +31,7 @@ export interface MediaAttachment {
   type: 'image' | 'video' | 'audio' | 'youtube';
   url: string;
   mimeType?: string;
+  portrait?: boolean;
 }
 
 export interface NewsArticle {

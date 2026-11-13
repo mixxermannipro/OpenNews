@@ -90,6 +90,11 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
 
   const [paragraphs, setParagraphs] = useState<string[]>(article.paragraphs);
   const [headingIndexes, setHeadingIndexes] = useState<number[]>([]);
+  const hasStandLine = /^Stand:\s*\d{1,2}[./]\d{1,2}[./]\d{2,4}\b/i.test(paragraphs[0] ?? '');
+  const firstTextIndex = hasStandLine ? 1 : 0;
+  const leadIsHeading = headingIndexes.includes(firstTextIndex);
+  const lead = (leadIsHeading ? article.summary : paragraphs[firstTextIndex]) || article.summary;
+  const bodyStart = firstTextIndex + (leadIsHeading ? 0 : 1);
   const [heroImage, setHeroImage] = useState<string | undefined>(article.imageUrl);
   const [loadingFullText, setLoadingFullText] = useState(false);
   const [fullTextUnavailable, setFullTextUnavailable] = useState(false);
@@ -319,9 +324,7 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
             </div>
 
             <div className={`reader-prose mt-5 space-y-4 ${textSizeClass} ${fontFamily === 'serif' ? 'font-editorial-serif' : ''}`}>
-              {paragraphs.length && headingIndexes.includes(0)
-                ? <h2>{paragraphs[0]}</h2>
-                : <p>{paragraphs[0] || article.summary}</p>}
+              {lead && <p className="reader-lead">{lead}</p>}
               {heroImage && (
                 <ArticleImage
                   src={heroImage}
@@ -332,7 +335,7 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
                 />
               )}
               <ArticleMedia key={article.id} article={article} heroImage={heroImage} background={backgroundPlayback} />
-              {paragraphs.slice(1).map((paragraph, index) => headingIndexes.includes(index + 1)
+              {paragraphs.slice(bodyStart).map((paragraph, index) => headingIndexes.includes(index + bodyStart)
                 ? <h2 key={index}>{paragraph}</h2> : <p key={index}>{paragraph}</p>)}
             </div>
             {loadingFullText && <p role="status" className="mt-3 text-sm text-slate-500 dark:text-slate-400">Artikeltext wird geladen …</p>}

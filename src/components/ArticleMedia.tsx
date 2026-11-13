@@ -21,7 +21,7 @@ export function ArticleMedia({ article, heroImage, background }: { article: News
         />
       ) : (
         <div key={attachment.url} className="settings-group overflow-hidden">
-          <div className={attachment.type === 'audio' ? 'p-4' : 'aspect-video'}>
+          <div className={attachment.type === 'audio' ? 'p-4' : attachment.portrait ? 'mx-auto aspect-[9/16] max-w-[19rem]' : 'aspect-video'}>
             {attachment.type === 'audio' && <p className="mb-2 text-xs font-semibold">Audio-Beitrag</p>}
             <MediaPlayer media={{ ...attachment, type: attachment.type }} title={article.title} background={background} />
           </div>
