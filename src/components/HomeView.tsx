@@ -115,11 +115,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
       {filtered.length === 0 ? (
         <div className="liquid-glass rounded-3xl p-8 text-center">
           <p className="text-base font-semibold text-slate-900 dark:text-white">
-            Keine Artikel in „{selectedCategory}“ gefunden
+            {isLoading ? 'Nachrichten werden geladen …' : `Keine Artikel in „${selectedCategory}“ gefunden`}
           </p>
-          <p className="mt-1.5 text-sm text-slate-500 dark:text-slate-400">
+          {!isLoading && <p className="mt-1.5 text-sm text-slate-500 dark:text-slate-400">
             Aktiviere weitere RSS-Quellen in den Einstellungen oder wähle eine andere Rubrik.
-          </p>
+          </p>}
           <button
             type="button"
             onClick={() => onSelectCategory('Für dich')}

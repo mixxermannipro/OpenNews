@@ -96,3 +96,23 @@ test('reading time duration increases topic and source affinity for Für dich re
   assert.equal(ranked[0].article.id, 'a-tech');
   assert.ok(ranked[0].reason?.includes('Technologie'));
 });
+
+test('switching reactions replaces their contribution to the profile', () => {
+  const article = sampleArticles[1];
+  const empty = createDefaultProfile();
+  const liked = toggleArticleLike(empty, article);
+  const disliked = toggleArticleDislike(liked, article);
+  assert.deepEqual(disliked, toggleArticleDislike(empty, article));
+  assert.deepEqual(toggleArticleLike(disliked, article), liked);
+  assert.deepEqual(toggleArticleDislike(disliked, article), empty);
+});
+
+test('Für dich mixes similarly scored providers in the first recommendations', () => {
+  const articles = [
+    ...Array.from({ length: 5 }, (_, i) => ({ ...sampleArticles[0], id: `politics-${i}` })),
+    { ...sampleArticles[1], publishedAt: sampleArticles[0].publishedAt },
+  ];
+  const ranked = rankArticlesForYou(articles, createDefaultProfile(), DEFAULT_SOURCES, nowMs);
+  assert.equal(new Set(ranked.slice(0, 2).map(entry => entry.article.sourceId)).size, 2);
+  assert.equal(new Set(ranked.map(entry => entry.article.id)).size, articles.length);
+});
