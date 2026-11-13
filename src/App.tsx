@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Capacitor, SystemBars, SystemBarsStyle } from '@capacitor/core';
 import { fetchNativeFeeds } from './lib/nativeFeed';
 import { Bell, Compass, Home, Search, User } from 'lucide-react';
@@ -29,6 +29,7 @@ import {
   toggleArticleLike,
 } from './lib/personalization';
 import { SEED_ARTICLES } from './lib/seedArticles';
+import { trackNavigationScroll } from './lib/scrollNavigation';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { HomeView } from './components/HomeView';
 import { DiscoverView } from './components/DiscoverView';
@@ -83,6 +84,26 @@ export default function App() {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
   }, [activeTab, profilePage, settingsSection, savedPage, onboarded]);
+  const [navigationHidden, setNavigationHidden] = useState(false);
+  useLayoutEffect(() => {
+    setNavigationHidden(false);
+    if (!onboarded || activeArticle) return;
+
+    const scroller = document.scrollingElement ?? document.documentElement;
+    const trackScroll = trackNavigationScroll(Math.max(0, scroller.scrollTop));
+    let hidden = false;
+
+    const onScroll = () => {
+      const nextHidden = trackScroll(scroller.scrollTop, scroller.scrollHeight - scroller.clientHeight);
+      if (nextHidden === hidden) return;
+      hidden = nextHidden;
+      setNavigationHidden(hidden);
+    };
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [location, activeArticle, onboarded, selectedHomeTab]);
+
   const [storedSources, setSources] = useLocalStorage<NewsSource[]>('opennews_sources', DEFAULT_SOURCES);
   const sources = useMemo(() => {
     const saved = new Map(storedSources.map(source => [source.id, source]));
@@ -565,7 +586,8 @@ export default function App() {
         )}
       </main>
 
-      <nav aria-label="Mobile Navigation" className="mobile-navigation" inert={activeArticle ? true : undefined}>
+      <nav aria-label="Mobile Navigation" className="mobile-navigation"
+        data-scroll-hidden={navigationHidden} inert={activeArticle ? true : undefined}>
         <div className="liquid-glass-dock">
           {navItems.map(({ id, label, icon: Icon, action }) => (
             <button key={id} type="button" onClick={action}

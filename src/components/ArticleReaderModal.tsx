@@ -26,6 +26,7 @@ import type {
 } from '../types/news';
 import { analyzeArticleWithBYOK } from '../lib/aiClient';
 import { formatRelativeTimeDe, generateLocalExtractiveSummary } from '../lib/personalization';
+import { trackNavigationScroll } from '../lib/scrollNavigation';
 import { ArticleImage } from './ArticleImage';
 
 const ArticleShare = registerPlugin<{ share(options: { title: string; url: string }): Promise<void> }>('ArticleShare');
@@ -67,6 +68,8 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
 }) => {
   const openTimestampRef = useRef<number>(Date.now());
   const recordedRef = useRef<boolean>(false);
+  const [trackActionsScroll] = useState(() => trackNavigationScroll(0));
+  const [actionsHidden, setActionsHidden] = useState(false);
 
   useEffect(() => {
     openTimestampRef.current = Date.now();
@@ -271,7 +274,10 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
         transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
         className="relative flex h-[100dvh] sm:h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-none sm:rounded-[32px] reader-surface shadow-2xl ring-1 ring-white/15"
       >
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto" onScroll={event => {
+          const { scrollTop, scrollHeight, clientHeight } = event.currentTarget;
+          setActionsHidden(trackActionsScroll(scrollTop, scrollHeight - clientHeight));
+        }}>
           {/* Top-bleed Hero Media (Screenshot 3) */}
           <div className="relative h-64 sm:h-80 w-full bg-slate-900">
             {article.youtubeId ? (
@@ -361,7 +367,8 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
             {speechError && <p role="status" className="mt-2 text-sm">Die Sprachausgabe ist gerade nicht verfügbar.</p>}
           </div>
         </div>
-        <div className="reader-actions" aria-label="Artikelaktionen">
+        <div className="reader-actions" aria-label="Artikelaktionen"
+          data-scroll-hidden={actionsHidden && !showSummary && !shareFeedback}>
           <button ref={summaryButton} type="button" className="glass-icon" aria-label="Zusammenfassung"
             aria-haspopup="dialog" aria-controls="reader-summary" onClick={onOpenSummary}><Sparkles size={19} /></button>
           <button type="button" className="glass-icon" aria-label={isLiked ? 'Gefällt mir entfernen' : 'Gefällt mir'}
