@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, SystemBars, SystemBarsStyle } from '@capacitor/core';
 import { fetchNativeFeeds } from './lib/nativeFeed';
 import { Bell, Compass, Home, Search, User } from 'lucide-react';
 import { AnimatePresence, MotionConfig, motion } from 'motion/react';
@@ -134,6 +134,9 @@ export default function App() {
         root.classList.add('dark');
       } else {
         root.classList.remove('dark');
+      }
+      if (Capacitor.isNativePlatform()) {
+        void SystemBars.setStyle({ style: resolvedDark ? SystemBarsStyle.Dark : SystemBarsStyle.Light }).catch(() => {});
       }
       const metaTheme = document.querySelector('meta[name="theme-color"]');
       if (metaTheme) {
