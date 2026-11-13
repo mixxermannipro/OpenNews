@@ -122,16 +122,9 @@ export function recordArticleRead(
   article: NewsArticle
 ): PersonalizationProfile {
   if (profile.readIds.includes(article.id)) return profile;
-  let keywordWeights = { ...profile.keywordWeights };
-  for (const kw of article.keywords.slice(0, 4)) {
-    keywordWeights = adjustWeight(keywordWeights, kw, 0.4);
-  }
   return {
     ...profile,
     readIds: [article.id, ...profile.readIds].slice(0, 200),
-    topicWeights: adjustWeight(profile.topicWeights, article.category, 0.8),
-    sourceWeights: adjustWeight(profile.sourceWeights, article.sourceId, 0.6),
-    keywordWeights,
   };
 }
 
@@ -143,16 +136,9 @@ export function recordReadingDuration(
   const clamped = Math.max(0, Math.min(600, Math.round(seconds)));
   if (!Number.isFinite(clamped) || clamped < 3) return profile;
 
-  // Reading time boosts topic and source affinity (capped per session to avoid skew)
+  // Passive reading is a small signal, even when a reader stays open for minutes.
   const expectedSeconds = Math.max(20, article.readingTimeMin * 60);
-  const completion = Math.min(1, clamped / expectedSeconds);
-  const weightDelta = Math.min(3.5, clamped / 45 + completion * 1.7);
-  let keywordWeights = profile.keywordWeights;
-  if (clamped >= 10) {
-    for (const keyword of article.keywords.slice(0, 4)) {
-      keywordWeights = adjustWeight(keywordWeights, keyword, Math.min(1, completion));
-    }
-  }
+  const weightDelta = Math.min(0.5, clamped / expectedSeconds * 0.5);
   const nextTopicSecs = {
     ...profile.readingSecondsByTopic,
     [article.category]: (profile.readingSecondsByTopic[article.category] ?? 0) + clamped,
@@ -164,7 +150,6 @@ export function recordReadingDuration(
 
   return {
     ...profile,
-    keywordWeights,
     readingSecondsByTopic: nextTopicSecs,
     readingSecondsBySource: nextSourceSecs,
     totalReadingSeconds: (profile.totalReadingSeconds ?? 0) + clamped,
@@ -191,45 +176,25 @@ export function scoreArticle(
 
   const publishedMs = Date.parse(article.publishedAt) || nowMs;
   const ageHours = Math.max(0, (nowMs - publishedMs) / (1000 * 60 * 60));
-  // Freshness score from 10 down to 0 over ~36h
-  const freshness = 10 * Math.exp(-ageHours / 18);
-
-  const topicScore = Math.max(-8, Math.min(12, (profile.topicWeights[article.category] ?? 0) * 1.4));
-  const sourceScore = Math.max(-6, Math.min(8, (profile.sourceWeights[article.sourceId] ?? 0) * 1.3));
-  const subscribedBoost = subscribedSourceIds.has(article.sourceId) ? 2.5 : -2;
-
-  let keywordScore = 0;
-  for (const kw of article.keywords) {
-    keywordScore += (profile.keywordWeights[kw] ?? 0) * 0.8;
-  }
-  keywordScore = Math.min(8, keywordScore);
-
-  const mediaBonus = article.imageUrl ? 1.2 : 0;
-  const unreadBonus = profile.readIds.includes(article.id) ? -4 : 0.8;
-  const breakingBonus = article.isBreaking ? 2.0 : 0;
-
-  const topicReadSecs = profile.readingSecondsByTopic?.[article.category] ?? 0;
-  const sourceReadSecs = profile.readingSecondsBySource?.[article.sourceId] ?? 0;
-  const readingAffinity = Math.min(5, topicReadSecs / 30) + Math.min(4, sourceReadSecs / 35);
-
-  const interest = topicScore + sourceScore + keywordScore + readingAffinity;
-  const totalScore =
-    freshness +
-    interest * Math.exp(-ageHours / 96) +
-    subscribedBoost +
-    mediaBonus +
-    unreadBonus +
-    breakingBonus;
+  const freshness = 12 * Math.exp(-ageHours / 20);
+  const topicScore = Math.max(-3, Math.min(3, profile.topicWeights[article.category] ?? 0));
+  const sourceScore = Math.max(-1.5, Math.min(1.5, (profile.sourceWeights[article.sourceId] ?? 0) * 0.5));
+  const keywordWeight = article.keywords.reduce((sum, keyword) => sum + (profile.keywordWeights[keyword] ?? 0), 0);
+  const keywordScore = Math.max(-1.5, Math.min(1.5, keywordWeight * 0.4));
+  const interest = topicScore + sourceScore + keywordScore;
+  const breakingBonus = article.isBreaking ? 10 * Math.exp(-ageHours / 12) : 0;
+  const totalScore = freshness + breakingBonus
+    + interest * Math.exp(-ageHours / 48)
+    + (subscribedSourceIds.has(article.sourceId) ? 0.5 : 0)
+    - (profile.readIds.includes(article.id) ? 2 : 0);
 
   let reason: string | undefined;
-  if (topicScore >= 3 || topicReadSecs >= 45) {
-    reason = `Weil du ${article.category} magst`;
-  } else if (sourceScore >= 2.5 || sourceReadSecs >= 45) {
-    reason = `Oft gelesen von ${article.sourceName}`;
-  } else if (keywordScore >= 2) {
+  if (breakingBonus >= 4) {
+    reason = 'Eilmeldung';
+  } else if (topicScore >= 2) {
+    reason = `Passt zu deinem Interesse an ${article.category}`;
+  } else if (sourceScore >= 1.5 || keywordScore >= 1) {
     reason = 'Passt zu deinen Interessen';
-  } else if (article.isBreaking) {
-    reason = 'Top-Thema';
   }
 
   return { article, score: Number(totalScore.toFixed(2)), reason };
@@ -249,23 +214,31 @@ export function rankArticlesForYou(
       || a.article.id.localeCompare(b.article.id));
 
   const selected: ScoredArticle[] = [];
-  const bySource = new Map<string, number>();
-  const byTopic = new Map<string, number>();
-  const candidates = ranked.splice(0, 40);
-  const adjustedScore = ({ article, score }: ScoredArticle) =>
-    score - 3 * (bySource.get(article.sourceId) ?? 0) - 1.5 * (byTopic.get(article.category) ?? 0);
-  while (selected.length < 12 && candidates.length) {
-    let best = 0;
-    for (let i = 1; i < candidates.length; i++) {
-      if (adjustedScore(candidates[i]) > adjustedScore(candidates[best])) best = i;
+  // Mix each page of recommendations. Consider other topics even if one source
+  // supplies most of the initial candidates.
+  while (ranked.length) {
+    const bySource = new Map<string, number>();
+    const byTopic = new Map<string, number>();
+    const adjustedScore = ({ article, score }: ScoredArticle) =>
+      score - 2 * (bySource.get(article.sourceId) ?? 0) - 3 * (byTopic.get(article.category) ?? 0);
+    for (let slot = 0; slot < 12 && ranked.length; slot++) {
+      let best = 0;
+      let bestScore = adjustedScore(ranked[best]);
+      for (let i = 1; i < ranked.length && ranked[i].score >= bestScore; i++) {
+        const score = adjustedScore(ranked[i]);
+        if (score > bestScore) {
+          best = i;
+          bestScore = score;
+        }
+      }
+      const [entry] = ranked.splice(best, 1);
+      selected.push(entry);
+      const { sourceId, category } = entry.article;
+      bySource.set(sourceId, (bySource.get(sourceId) ?? 0) + 1);
+      byTopic.set(category, (byTopic.get(category) ?? 0) + 1);
     }
-    const [entry] = candidates.splice(best, 1);
-    selected.push(entry);
-    const { sourceId, category } = entry.article;
-    bySource.set(sourceId, (bySource.get(sourceId) ?? 0) + 1);
-    byTopic.set(category, (byTopic.get(category) ?? 0) + 1);
   }
-  return [...selected, ...candidates, ...ranked];
+  return selected;
 }
 
 export function generateLocalExtractiveSummary(article: NewsArticle): AISummaryResult {

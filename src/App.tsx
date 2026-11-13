@@ -37,7 +37,7 @@ import { ArticleReaderModal } from './components/ArticleReaderModal';
 import { SettingsView, type SettingsSectionTab } from './components/SettingsView';
 import { OfflineIndicator } from './components/PWAInstallButton';
 
-import { DEFAULT_PREFERENCES, EDITIONS, resolveHomeTabs, type AppPreferences, type HomeTab } from './lib/preferences';
+import { DEFAULT_PREFERENCES, applyEditionSources, resolveHomeTabs, type AppPreferences, type HomeTab } from './lib/preferences';
 import { Onboarding, ProfileView, type ProfilePage } from './components/Preferences';
 
 type AppLocation = {
@@ -46,6 +46,7 @@ type AppLocation = {
   settings: SettingsSectionTab;
   saved: 'bookmarks' | 'history';
   article: NewsArticle | null;
+  summary?: boolean;
 };
 const HOME_LOCATION: AppLocation = { tab: 'home', profile: 'profile', settings: 'overview', saved: 'bookmarks', article: null };
 
@@ -53,7 +54,7 @@ export default function App() {
   const [location, setLocation] = useState<AppLocation>(HOME_LOCATION);
   const { tab: activeTab, settings: settingsSection, profile: profilePage, saved: savedPage, article: activeArticle } = location;
   const navigate = (next: Partial<AppLocation>) => {
-    const destination = { ...location, article: null, ...next };
+    const destination = { ...location, article: null, summary: false, ...next };
     if (JSON.stringify(destination) === JSON.stringify(location)) return;
     window.history.pushState({ openNews: destination }, '');
     setLocation(destination);
@@ -63,22 +64,21 @@ export default function App() {
   }, []);
   useEffect(() => {
     window.history.replaceState(null, '');
-    const restore = (event: PopStateEvent) => setLocation(event.state?.openNews ?? HOME_LOCATION);
+    const restore = (event: PopStateEvent) => {
+      const next: AppLocation = event.state?.openNews ?? HOME_LOCATION;
+      setLocation(current => next.article && next.article.id === current.article?.id
+        ? { ...next, article: current.article }
+        : next);
+    };
     window.addEventListener('popstate', restore);
     return () => window.removeEventListener('popstate', restore);
   }, []);
   const [preferences, setPreferences] = useLocalStorage<AppPreferences>('opennews_preferences', DEFAULT_PREFERENCES);
   const [homeCategory, setHomeCategory] = useState<HomeTab>(preferences.home);
   const homeTabs = useMemo(() => resolveHomeTabs(preferences), [preferences]);
-  const edition = EDITIONS[preferences.edition] ?? EDITIONS.balanced;
   const selectedHomeTab = homeTabs.includes(homeCategory) ? homeCategory : homeTabs[0];
   const [onboarded, setOnboarded] = useLocalStorage('opennews_onboarded', false);
   const [theme, setTheme] = useLocalStorage<ThemeMode>('opennews_theme', 'system');
-
-  const updatePreferences = (next: AppPreferences) => {
-    if (next.home !== preferences.home) setHomeCategory(next.home);
-    setPreferences(next);
-  };
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
@@ -101,6 +101,22 @@ export default function App() {
       }),
     ];
   }, [storedSources]);
+  const applySourcePreset = (edition: AppPreferences['edition']) => {
+    setSources(applyEditionSources(sources, edition));
+  };
+
+  const updatePreferences = (next: AppPreferences) => {
+    if (next.home !== preferences.home) setHomeCategory(next.home);
+    if (next.edition !== preferences.edition) applySourcePreset(next.edition);
+    setPreferences({ ...next, sourcePresetApplied: true });
+  };
+
+  useEffect(() => {
+    if (!preferences.sourcePresetApplied && preferences.edition && preferences.edition !== 'balanced') {
+      applySourcePreset(preferences.edition);
+      setPreferences({ ...preferences, sourcePresetApplied: true });
+    }
+  }, [preferences, sources]);
   const [profile, setProfile] = useLocalStorage<PersonalizationProfile>(
     'opennews_profile',
     createDefaultProfile()
@@ -177,13 +193,13 @@ export default function App() {
   // Escape key closes Article Reader
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && activeArticle) {
+      if (e.key === 'Escape' && activeArticle && !location.summary) {
         goBack();
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [activeArticle, goBack]);
+  }, [activeArticle, goBack, location.summary]);
 
   const enabledFormats = useMemo(() => {
     return new Set<string>([
@@ -195,8 +211,8 @@ export default function App() {
   }, [formatPrefs]);
 
   const activeSources = useMemo(
-    () => sources.filter((s) => (s.subscribed || (edition.sources as readonly string[]).includes(s.id)) && (enabledFormats.has(s.format) || s.isCustom)),
-    [sources, enabledFormats, edition]
+    () => sources.filter((s) => s.subscribed && (enabledFormats.has(s.format) || s.isCustom)),
+    [sources, enabledFormats]
   );
 
   const normalizedProfile = useMemo(() => normalizeProfile(profile), [profile]);
@@ -209,14 +225,14 @@ export default function App() {
   useEffect(() => {
     setSavedArticles(previous => {
       const entries = new Map(Object.entries(previous).filter(([id]) => savedIds.has(id)));
-      for (const article of [...cachedLiveArticles, ...SEED_ARTICLES]) {
+      for (const article of [...cachedLiveArticles, ...readArticles, ...SEED_ARTICLES]) {
         if (savedIds.has(article.id) && !entries.has(article.id)) entries.set(article.id, article);
       }
       if (entries.size === Object.keys(previous).length
         && [...entries.keys()].every(id => Object.hasOwn(previous, id))) return previous;
       return Object.fromEntries(entries);
     });
-  }, [cachedLiveArticles, savedIds, setSavedArticles]);
+  }, [cachedLiveArticles, readArticles, savedIds, setSavedArticles]);
 
   const announcedArticles = useRef(new Set<string>());
   const feedHasLoaded = useRef(cachedLiveArticles.length > 0);
@@ -310,12 +326,16 @@ export default function App() {
     }
   }, [activeSources, checkForAlert, setCachedLiveArticles]);
 
-  const initialFeedRefresh = useRef(false);
+  const fetchLatest = useRef(fetchLiveFeeds);
+  useEffect(() => { fetchLatest.current = fetchLiveFeeds; }, [fetchLiveFeeds]);
   useEffect(() => {
-    if (initialFeedRefresh.current) return;
-    initialFeedRefresh.current = true;
-    void fetchLiveFeeds();
-  }, [fetchLiveFeeds]);
+    void fetchLatest.current();
+    return () => {
+      refresh.current?.abort();
+      refresh.current = null;
+      setIsLoadingFeeds(false);
+    };
+  }, [activeSources]);
 
   const allArticles = useMemo(() => {
     const activeIds = new Set(activeSources.map(source => source.id));
@@ -330,10 +350,6 @@ export default function App() {
     },
     [allArticles, normalizedProfile, sources, preferences.topics]
   );
-
-  const editionArticles = useMemo(() => edition.sources.length
-    ? scoredArticles.filter(({ article }) => (edition.sources as readonly string[]).includes(article.sourceId))
-    : scoredArticles, [edition, scoredArticles]);
 
   const openSettings = (sec: SettingsSectionTab = 'overview') => {
     navigate({ tab: 'settings', settings: sec });
@@ -352,10 +368,16 @@ export default function App() {
   };
 
   const handleToggleBookmark = (article: NewsArticle) => {
+    if (!normalizedProfile.bookmarkedIds.includes(article.id)) {
+      setSavedArticles(previous => ({ ...previous, [article.id]: article }));
+    }
     setProfile((prev) => toggleArticleBookmark(normalizeProfile(prev), article));
   };
 
   const handleToggleLike = (article: NewsArticle) => {
+    if (!normalizedProfile.likedIds.includes(article.id)) {
+      setSavedArticles(previous => ({ ...previous, [article.id]: article }));
+    }
     setProfile((prev) => toggleArticleLike(normalizeProfile(prev), article));
   };
 
@@ -444,9 +466,6 @@ export default function App() {
               </button>
             ))}
           </nav>
-          <div className="flex items-center gap-2">
-            <button type="button" className="glass-icon" aria-label="Benachrichtigungen öffnen" onClick={() => openSettings('app')}><Bell size={19} /></button>
-          </div>
         </div>
       </header>
 
@@ -454,15 +473,13 @@ export default function App() {
         {activeTab === 'home' && (
           <HomeView
             tabs={homeTabs}
-            edition={preferences.edition ?? 'balanced'}
-            scoredArticles={editionArticles}
+            scoredArticles={scoredArticles}
             showHero={preferences.hero}
             selectedCategory={selectedHomeTab}
             onSelectCategory={setHomeCategory}
             profile={normalizedProfile}
             isLoading={isLoadingFeeds}
             onRefresh={fetchLiveFeeds}
-            onOpenNotifications={() => openSettings('app')}
             onOpenArticle={handleOpenArticle}
             onToggleBookmark={handleToggleBookmark}
             onToggleLike={handleToggleLike}
@@ -578,6 +595,8 @@ export default function App() {
             onToggleDislike={handleToggleDislike}
             onRecordReadingDuration={handleRecordReadingDuration}
             onOpenAISettings={() => openSettings('ai')}
+            showSummary={Boolean(location.summary)}
+            onOpenSummary={() => navigate({ article: activeArticle, summary: true })}
             onClose={goBack}
           />
         )}

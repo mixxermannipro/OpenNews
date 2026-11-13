@@ -1,8 +1,8 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { ArrowDown, Bell, LoaderCircle, Sparkles } from 'lucide-react';
+import { ArrowDown, LoaderCircle, Sparkles } from 'lucide-react';
 import type { NewsArticle, PersonalizationProfile } from '../types/news';
 import { type ScoredArticle } from '../lib/personalization';
-import type { Edition, HomeTab } from '../lib/preferences';
+import type { HomeTab } from '../lib/preferences';
 import { CompactArticleCard, HeroArticleCard } from './ArticleCards';
 
 interface HomeViewProps {
@@ -10,12 +10,10 @@ interface HomeViewProps {
   showHero: boolean;
   selectedCategory: HomeTab;
   tabs: HomeTab[];
-  edition: Edition;
   onSelectCategory: (cat: HomeTab) => void;
   profile: PersonalizationProfile;
   isLoading: boolean;
   onRefresh: () => Promise<void>;
-  onOpenNotifications: () => void;
   onOpenArticle: (article: NewsArticle) => void;
   onToggleBookmark: (article: NewsArticle) => void;
   onToggleLike: (article: NewsArticle) => void;
@@ -26,12 +24,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
   showHero,
   selectedCategory,
   tabs,
-  edition,
   onSelectCategory,
   profile,
   isLoading,
   onRefresh,
-  onOpenNotifications,
   onOpenArticle,
   onToggleBookmark,
   onToggleLike,
@@ -68,7 +64,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const restEntries = heroEntry ? filtered.slice(4) : filtered;
 
   return (
-    <section aria-label="Startseite Nachrichten" className="space-y-5" data-edition={edition}
+    <section aria-label="Startseite Nachrichten" className="space-y-5"
       onTouchStart={event => {
         if (window.scrollY > 1 || isLoading || event.touches.length !== 1) return;
         const { clientX, clientY } = event.touches[0];
@@ -106,12 +102,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               : <ArrowDown size={17} aria-label="Zum Aktualisieren nach unten ziehen" />}
           </div>
         )}
-        <div className="flex items-center justify-between gap-3">
-          <h1 className="text-slate-900 dark:text-white">Heute</h1>
-          <button type="button" className="glass-icon md:hidden" aria-label="Benachrichtigungen öffnen" onClick={onOpenNotifications}>
-            <Bell size={20} aria-hidden="true" />
-          </button>
-        </div>
+        <h1 className="text-slate-900 dark:text-white">Heute</h1>
         <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
           {new Intl.DateTimeFormat('de-DE', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())}
         </p>

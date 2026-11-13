@@ -139,7 +139,7 @@ export function ProfileView({ page, onPage, onBack, onSaved, onHistory, onSource
             options={Object.fromEntries(Object.entries(EDITIONS).map(([key, value]) => [key, value.label])) as Record<Edition, string>}
             onChange={edition => onPreferences({ ...preferences, edition })} />
           <p className="px-4 pb-3 text-sm text-slate-600 dark:text-slate-300">
-            {(EDITIONS[preferences.edition] ?? EDITIONS.balanced).description} Neue Quellen werden beim nächsten Abruf geladen.
+            {(EDITIONS[preferences.edition] ?? EDITIONS.balanced).description} Die Auswahl ersetzt die Abos aus dem Quellenkatalog. Eigene Quellen bleiben erhalten.
           </p>
         </div>
         <div className="settings-group">

@@ -1,4 +1,5 @@
-import type { NewsCategory } from '../types/news';
+import { DEFAULT_SOURCES } from './catalog';
+import type { NewsCategory, NewsSource } from '../types/news';
 
 export const TOPICS = [
   'Politik', 'Wirtschaft', 'Technologie', 'Wissenschaft', 'Europa', 'Gesellschaft', 'Kultur', 'Sport',
@@ -8,13 +9,23 @@ export const HOME_TABS = ['Für dich', 'Alle', 'Schlagzeilen', 'Eilmeldungen', .
 export type HomeTab = typeof HOME_TABS[number];
 
 export const EDITIONS = {
-  balanced: { label: 'Ausgewogen', sources: [], description: 'Deine abonnierten Quellen im gewohnten Layout.' },
-  public: { label: 'Nachrichten', sources: ['tagesschau', 'zdfheute', 'deutschlandfunk', 'dw'], description: 'Nachrichtenüberblick mit ruhiger Typografie und kompakten Bildern.' },
-  analysis: { label: 'Analyse & Hintergrund', sources: ['zeit', 'faz', 'sueddeutsche', 'handelsblatt'], description: 'Politik und Wirtschaft im Magazinlayout.' },
-  technology: { label: 'Technologie & KI', sources: ['heise', 'the-decoder', 'golem', 't3n'], description: 'Techniknachrichten und KI mit kompakten Karten.' },
-  tabloid: { label: 'Boulevard', sources: ['bild'], description: 'BILD mit großen Bildern und markanten Überschriften.' },
+  balanced: { label: 'Ausgewogen', sources: [], description: 'Die Standardauswahl deckt allgemeine Nachrichten, Wirtschaft, Technik und Wissenschaft ab.' },
+  public: { label: 'Öffentlich-rechtliche Nachrichten', sources: ['tagesschau', 'zdfheute', 'deutschlandfunk', 'dw'], description: 'Tagesschau, ZDFheute, Deutschlandfunk und Deutsche Welle.' },
+  analysis: { label: 'Analyse & Hintergrund', sources: ['zeit', 'faz', 'sueddeutsche', 'handelsblatt', 'spiegel'], description: 'ZEIT, F.A.Z., Süddeutsche Zeitung, Handelsblatt und SPIEGEL.' },
+  technology: { label: 'Technologie & KI', sources: ['heise', 'the-decoder', 'golem', 't3n', 'arstechnica'], description: 'heise, THE DECODER, Golem, t3n und Ars Technica.' },
+  tabloid: { label: 'Boulevard & Aktuelles', sources: ['bild', 'ntv', 'welt'], description: 'BILD, ntv und WELT.' },
 } as const;
 export type Edition = keyof typeof EDITIONS;
+
+export function applyEditionSources(sources: NewsSource[], edition: Edition): NewsSource[] {
+  const preset = EDITIONS[edition] ?? EDITIONS.balanced;
+  const ids = new Set<string>(edition === 'balanced'
+    ? DEFAULT_SOURCES.filter(source => source.subscribed).map(source => source.id)
+    : preset.sources);
+  return sources.map(source => source.isCustom
+    ? source
+    : { ...source, subscribed: ids.has(source.id) });
+}
 
 export interface AppPreferences {
   accent: 'system' | 'blue' | 'green' | 'violet';
@@ -26,6 +37,7 @@ export interface AppPreferences {
   home: HomeTab;
   homeTabs: HomeTab[];
   edition: Edition;
+  sourcePresetApplied?: boolean;
   hero: boolean;
   images: boolean;
   topics: NewsCategory[];
