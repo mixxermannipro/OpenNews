@@ -36,13 +36,15 @@ npm run dev
 
 Die Android-Version ist ein **Debug-Build ausschließlich zum eigenen Testen**, keine produktionsreife App.
 
-- Unter [GitHub Actions](https://github.com/mixxermannipro/OpenNews/actions/workflows/android-test-apk.yml) kann der Workflow `OpenNews Android Test APK` manuell gestartet werden (`Run workflow` auf `main`). Beim ersten Merge dieser Workflow-Datei wird einmalig ein Build gestartet.
+- Unter [GitHub Actions](https://github.com/mixxermannipro/OpenNews/actions/workflows/android-test-apk.yml) kann der Workflow `OpenNews Android Test APK` manuell gestartet werden (`Run workflow`).
 - Nach einem erfolgreichen Build liegt die APK als **privates Pre-Release** unter [GitHub Releases](https://github.com/mixxermannipro/OpenNews/releases); in PRs ist sie ausschließlich als kurzlebiges Actions-Artefakt verfügbar.
 - Datei `OpenNews-debug.apk` auf dein Android-Gerät herunterladen und öffnen. Android kann nach einer Erlaubnis für die Installation aus dieser Quelle fragen.
 - Alle Debug-Builds sind mit einem lokalen CI-Debug-Schlüssel signiert. Folgeversionen aus separaten CI-Läufen können wegen unterschiedlicher Signaturen **nicht über eine alte APK installiert** werden; dazu die vorherige Version deinstallieren (lokale App-Daten gehen dabei verloren).
 - Die nativen Nachrichtenabrufe erfolgen lokal über CapacitorHttp, ohne einen mitzuliefernden Node-Server. Einige RSS-Anbieter können Anfragen blockieren. Artikelvolltext und BYOK-KI sind Beta-Funktionen.
 
 ### Lokaler Android-Build (optional)
+
+Für die Android-App-Symbole muss ImageMagick (`magick` oder `convert`) verfügbar sein.
 
 ```bash
 npm install

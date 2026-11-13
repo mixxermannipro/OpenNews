@@ -11,7 +11,7 @@
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
     "test": "node --import tsx --test src/lib/*.test.ts",
-    "android:sync": "npm run build && npx cap sync android && cp native/android/MainActivity.java android/app/src/main/java/io/opennews/app/MainActivity.java"
+    "android:sync": "npm run build && npx cap sync android && cp native/android/MainActivity.java android/app/src/main/java/io/opennews/app/MainActivity.java && bash native/android/sync-icons.sh"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
