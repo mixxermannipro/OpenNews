@@ -17,7 +17,7 @@ export function PreferenceSelect<T extends string>({ label, value, options, onCh
   onChange: (value: T) => void;
 }) {
   return (
-    <label className="preference-row">
+    <label className="preference-row preference-select">
       <span>{label}</span>
       <select className="preference-input" value={value} onChange={event => onChange(event.target.value as T)}>
         {Object.entries(options).map(([id, title]) => <option key={id} value={id}>{String(title)}</option>)}
