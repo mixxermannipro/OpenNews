@@ -24,14 +24,16 @@ const CATEGORY_BADGE_STYLES: Record<string, string> = {
   Sport: 'bg-orange-500/12 text-orange-700 dark:bg-orange-400/15 dark:text-orange-300',
 };
 
-function ArticleActions({ article, isBookmarked, isLiked, onToggleBookmark, onToggleLike, overlay = false }:
-  Omit<CardActionsProps, 'onOpen'> & { overlay?: boolean }) {
+function ArticleActions({ article, isBookmarked, isLiked, onToggleBookmark, onToggleLike, layout = 'column' }:
+  Omit<CardActionsProps, 'onOpen'> & { layout?: 'column' | 'row' | 'overlay' }) {
+  const overlay = layout === 'overlay';
   const style = overlay
     ? 'bg-black/45 text-white ring-1 ring-white/25 backdrop-blur-md hover:bg-black/65'
     : 'text-slate-600 hover:bg-slate-500/12 dark:text-slate-300';
+  const position = { column: 'flex flex-col', row: 'flex', overlay: 'absolute bottom-3 right-3 z-20 flex gap-1.5' };
   const buttonStyle = `flex h-11 w-11 items-center justify-center rounded-full transition active:scale-95 ${style}`;
   return (
-    <div className={overlay ? 'absolute bottom-3 right-3 z-20 flex gap-1.5' : 'flex shrink-0 flex-col items-center'}>
+    <div className={`${position[layout]} shrink-0 items-center`}>
       <button type="button" className={buttonStyle}
         onClick={() => onToggleLike(article)} aria-pressed={isLiked}
         aria-label={isLiked ? `Gefällt mir entfernen: ${article.title}` : `Gefällt mir: ${article.title}`}>
@@ -112,10 +114,64 @@ export const HeroArticleCard: React.FC<CardActionsProps & { badgeLabel?: string;
         </div>
       </button>
 
-      <ArticleActions article={article} {...actions} overlay />
+      <ArticleActions article={article} {...actions} layout="overlay" />
     </article>
   );
 };
+
+export function HeadlineArticleCard({ article, lead = false, onOpen, ...actions }:
+  CardActionsProps & { lead?: boolean }) {
+  const Heading = lead ? 'h2' : 'h3';
+  const hasVideo = Boolean(article.videoUrl || article.youtubeId);
+
+  return (
+    <article className="min-w-0 border-b border-slate-300 dark:border-slate-700">
+      <button
+        type="button"
+        onClick={() => onOpen(article)}
+        className="group block w-full text-left focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-red-700"
+      >
+        {article.imageUrl && (
+          <div className={`relative overflow-hidden bg-slate-200 dark:bg-slate-800 ${lead ? 'aspect-[16/9]' : 'aspect-[4/3] sm:aspect-[16/9]'}`}>
+            <ArticleImage
+              key={article.imageUrl}
+              src={article.imageUrl}
+              alt=""
+              sourceShortCode={article.sourceShortCode}
+              sourceColor={article.sourceColor}
+              className="h-full w-full"
+            />
+            {hasVideo && (
+              <span className="absolute bottom-2 right-2 flex items-center gap-1.5 bg-black/80 px-2 py-1 text-xs font-bold text-white">
+                <Play size={12} fill="currentColor" aria-hidden="true" />
+                Video
+              </span>
+            )}
+          </div>
+        )}
+        <div className={lead ? 'pt-3' : 'pt-2'}>
+          <p className="text-xs font-bold tracking-wide text-red-800 dark:text-red-400">
+            {article.isBreaking ? `Eilmeldung · ${article.category}` : article.category}
+          </p>
+          <Heading className={`mt-1 font-extrabold leading-[1.1] tracking-tight text-slate-950 [overflow-wrap:anywhere] group-hover:underline group-hover:decoration-2 group-hover:underline-offset-4 dark:text-white ${lead ? 'text-[clamp(1.7rem,6vw,3.25rem)]' : 'text-[clamp(1.05rem,4.5vw,1.5rem)]'}`}>
+            {article.title}
+          </Heading>
+          {lead && article.summary && (
+            <p className="mt-2 line-clamp-2 max-w-[65ch] text-sm leading-snug text-slate-700 sm:text-base dark:text-slate-300">
+              {article.summary}
+            </p>
+          )}
+        </div>
+      </button>
+      <div className="flex flex-wrap items-center justify-between gap-x-2">
+        <p className="min-w-0 py-1 text-xs leading-snug text-slate-600 [overflow-wrap:anywhere] dark:text-slate-400">
+          {article.sourceName} <span aria-hidden="true">·</span> {formatRelativeTimeDe(article.publishedAt)}
+        </p>
+        <ArticleActions article={article} {...actions} layout="row" />
+      </div>
+    </article>
+  );
+}
 
 export const CompactArticleCard: React.FC<CardActionsProps> = ({
   article,
@@ -225,7 +281,7 @@ export const BentoArticleCard: React.FC<CardActionsProps & { tall?: boolean; cla
           </div>
         </div>
       </button>
-      <ArticleActions article={article} {...actions} overlay />
+      <ArticleActions article={article} {...actions} layout="overlay" />
     </article>
   );
 };

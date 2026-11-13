@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react';
 import { ArrowDown, LoaderCircle, Sparkles } from 'lucide-react';
 import type { NewsArticle, PersonalizationProfile } from '../types/news';
 import { HOME_TABS, type HomeTab } from '../lib/preferences';
-import { CompactArticleCard, HeroArticleCard } from './ArticleCards';
+import { CompactArticleCard, HeadlineArticleCard } from './ArticleCards';
 
 interface HomeViewProps {
   articles: NewsArticle[];
@@ -41,12 +41,19 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
   const [batch, setBatch] = useState({ category: selectedCategory, limit: 30 });
   const visibleLimit = batch.category === selectedCategory ? batch.limit : 30;
-  const filtered = articles.slice(0, visibleLimit);
-  const hero = showHero && selectedCategory === 'Heute' ? filtered[0] : undefined;
+  const visibleArticles = articles.slice(0, visibleLimit);
   const isToday = selectedCategory === 'Heute';
-  const leadCount = isToday ? Math.min(4, filtered.length) : 0;
-  const featuredSideEntries = filtered.slice(hero ? 1 : 0, leadCount);
-  const restEntries = filtered.slice(leadCount);
+  const lead = isToday && showHero ? visibleArticles[0] : undefined;
+  const headlines = visibleArticles.slice(lead ? 1 : 0);
+  const overviewCount = 4;
+  const cardProps = (article: NewsArticle) => ({
+    article,
+    isBookmarked: profile.bookmarkedIds.includes(article.id),
+    isLiked: profile.likedIds.includes(article.id),
+    onOpen: onOpenArticle,
+    onToggleBookmark,
+    onToggleLike,
+  });
 
   return (
     <section aria-label="Startseite Nachrichten" className="space-y-5"
@@ -87,16 +94,18 @@ export const HomeView: React.FC<HomeViewProps> = ({
               : <ArrowDown size={17} aria-label="Zum Aktualisieren nach unten ziehen" />}
           </div>
         )}
-        <h1 className="text-slate-900 dark:text-white">Heute</h1>
-        <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-          {new Intl.DateTimeFormat('de-DE', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())}
-        </p>
+        <div className={isToday ? 'flex flex-wrap items-end justify-between gap-x-4 gap-y-1 border-b-2 border-red-700 pb-2 dark:border-red-400' : undefined}>
+          <h1 className="text-slate-900 dark:text-white">Heute</h1>
+          <p className={isToday ? 'pb-0.5 text-sm font-medium text-slate-600 dark:text-slate-400' : 'mt-0.5 text-sm text-slate-500 dark:text-slate-400'}>
+            {new Intl.DateTimeFormat('de-DE', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())}
+          </p>
+        </div>
       </div>
 
       <div
         role="group"
         aria-label="Ansicht der Startseite"
-        className="grid grid-cols-3 gap-2"
+        className={`grid grid-cols-3 ${isToday ? 'gap-0 border-b border-slate-300 dark:border-slate-700' : 'gap-2'}`}
       >
         {HOME_TABS.map((cat) => {
           const active = selectedCategory === cat;
@@ -106,10 +115,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
               type="button"
               aria-pressed={active}
               onClick={() => onSelectCategory(cat)}
-              className={`inline-flex min-h-[40px] shrink-0 items-center justify-center gap-1.5 rounded-full px-2 py-2 text-xs font-semibold whitespace-nowrap transition active:scale-95 ${
-                active
-                  ? 'bg-[#2C2F36] text-white shadow-sm dark:bg-white dark:text-slate-950'
-                  : 'liquid-glass-subtle text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'
+              className={`inline-flex shrink-0 items-center justify-center gap-1.5 px-2 py-2 text-xs font-semibold whitespace-nowrap transition focus-visible:outline-2 ${
+                isToday
+                  ? active
+                    ? 'min-h-11 border-b-2 border-slate-900 text-slate-950 dark:border-white dark:text-white'
+                    : 'min-h-11 border-b-2 border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'
+                  : active
+                    ? 'min-h-[40px] rounded-full active:scale-95 bg-[#2C2F36] text-white shadow-sm dark:bg-white dark:text-slate-950'
+                    : 'min-h-[40px] liquid-glass-subtle rounded-full active:scale-95 text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'
               }`}
             >
               {cat === 'Für dich' && <Sparkles className="h-3.5 w-3.5" />}
@@ -119,7 +132,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         })}
       </div>
 
-      {filtered.length === 0 ? (
+      {visibleArticles.length === 0 ? (
         <div className="liquid-glass rounded-3xl p-8 text-center">
           <p className="text-base font-semibold text-slate-900 dark:text-white">
             {isLoading ? 'Nachrichten werden geladen …' : selectedCategory === 'Heute'
@@ -133,54 +146,36 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </div>
       ) : (
         <div className="space-y-5">
-          {isToday && <section aria-label="Die wichtigsten Meldungen" className="grid grid-cols-1 gap-4 lg:grid-cols-12 lg:items-start">
-            {hero && (
-            <div className={featuredSideEntries.length > 0 ? 'lg:col-span-7 flex' : 'lg:col-span-12'}>
-              <HeroArticleCard
-                article={hero}
-                badgeLabel="Top-Thema"
-                className="w-full"
-                isBookmarked={profile.bookmarkedIds.includes(hero.id)}
-                isLiked={profile.likedIds.includes(hero.id)}
-                onOpen={onOpenArticle}
-                onToggleBookmark={onToggleBookmark}
-                onToggleLike={onToggleLike}
-              />
-            </div>)}
-
-            {featuredSideEntries.length > 0 && (
-              <div className={`${hero ? 'lg:col-span-5' : 'lg:col-span-12'} space-y-3`}>
-                <h2 className="text-base font-semibold">Im Überblick</h2>
-                {featuredSideEntries.map((article) => (
-                  <CompactArticleCard
-                    key={article.id}
-                    article={article}
-                    isBookmarked={profile.bookmarkedIds.includes(article.id)}
-                    isLiked={profile.likedIds.includes(article.id)}
-                    onOpen={onOpenArticle}
-                    onToggleBookmark={onToggleBookmark}
-                    onToggleLike={onToggleLike}
-                  />
-                ))}
-              </div>
-            )}
-          </section>}
-
-          {restEntries.length > 0 && (
-            <section className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
-              {isToday && <h2 className="text-base font-semibold md:col-span-2">Weitere Meldungen</h2>}
-              {restEntries.map((article) => (
-                <CompactArticleCard
-                  key={article.id}
-                  article={article}
-                  isBookmarked={profile.bookmarkedIds.includes(article.id)}
-                  isLiked={profile.likedIds.includes(article.id)}
-                  onOpen={onOpenArticle}
-                  onToggleBookmark={onToggleBookmark}
-                  onToggleLike={onToggleLike}
-                />
+          {isToday ? (
+            <>
+              {lead && <HeadlineArticleCard {...cardProps(lead)} lead />}
+              {headlines.length > 0 && (
+                <section aria-labelledby="today-headlines">
+                  <h2 id="today-headlines" className="mb-3 text-xl font-bold tracking-tight">Schlagzeilen</h2>
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-4 sm:gap-x-5 lg:grid-cols-4">
+                    {headlines.slice(0, overviewCount).map(article => (
+                      <HeadlineArticleCard key={article.id} {...cardProps(article)} />
+                    ))}
+                  </div>
+                </section>
+              )}
+              {headlines.length > overviewCount && (
+                <section aria-labelledby="today-more">
+                  <h2 id="today-more" className="mb-3 text-xl font-bold tracking-tight">Weitere Meldungen</h2>
+                  <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
+                    {headlines.slice(overviewCount).map(article => (
+                      <CompactArticleCard key={article.id} {...cardProps(article)} />
+                    ))}
+                  </div>
+                </section>
+              )}
+            </>
+          ) : (
+            <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
+              {visibleArticles.map(article => (
+                <CompactArticleCard key={article.id} {...cardProps(article)} />
               ))}
-            </section>
+            </div>
           )}
           {articles.length > visibleLimit && <button type="button" className="choice-pill" onClick={() =>
             setBatch({ category: selectedCategory, limit: visibleLimit + 30 })}>Weitere Meldungen</button>}
