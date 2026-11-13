@@ -103,12 +103,13 @@ export function MediaView({ articles, loading, background, onArticle, onSources,
   const renderCard = ({ article, media }: (typeof entries)[number], clip = false) => {
     const playing = selected === media.url;
     const audio = media.type === 'audio';
+    const embeddedClip = clip && playing && media.type === 'youtube';
     const artwork = article.imageUrl;
     const Icon = audio ? Headphones : Video;
     return (
       <li key={media.url} data-media-url={media.url}
         className={clip ? 'relative h-full snap-start snap-always overflow-hidden bg-black text-white' : 'settings-group overflow-hidden'}>
-        <div className={clip ? 'absolute inset-0 bg-black' : audio ? 'relative aspect-square max-h-72 bg-slate-900' : media.portrait ? 'relative mx-auto aspect-[9/16] max-h-[65svh] bg-black' : 'relative aspect-video bg-black'}>
+        <div className={embeddedClip ? 'absolute inset-x-0 top-[12%] bottom-[34%] bg-black' : clip ? 'absolute inset-0 bg-black' : audio ? 'relative aspect-square max-h-72 bg-slate-900' : media.portrait ? 'relative mx-auto aspect-[9/16] max-h-[65svh] bg-black' : 'relative aspect-video bg-black'}>
           {playing && !audio ? (
             <MediaPlayer media={media} title={article.title} poster={artwork} background={!clip && background} autoPlay onEngaged={seconds => onEngaged(article, seconds)} />
           ) : (
@@ -128,7 +129,7 @@ export function MediaView({ articles, loading, background, onArticle, onSources,
           )}
         </div>
         {playing && audio && <div className="px-4 pt-3"><MediaPlayer media={media} title={article.title} background={background} autoPlay onEngaged={seconds => onEngaged(article, seconds)} /></div>}
-        <div className={clip
+        <div className={embeddedClip ? 'absolute inset-x-0 top-[66%] bottom-0 overflow-auto px-4 pt-3 pb-safe space-y-1.5' : clip
           ? 'pointer-events-none absolute inset-x-0 bottom-0 space-y-1.5 bg-gradient-to-t from-black via-black/70 to-transparent px-4 pt-16 pb-[calc(3.5rem+env(safe-area-inset-bottom))] [&_a]:pointer-events-auto [&_button]:pointer-events-auto'
           : 'space-y-1.5 px-4 py-3'}>
           <p className={clip ? 'text-xs text-slate-300' : 'text-xs text-slate-600 dark:text-slate-300'}>
