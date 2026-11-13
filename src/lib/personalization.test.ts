@@ -1,4 +1,6 @@
 import test from 'node:test';
+import { buildHomeSections, DAY_MS, mergeFeedArticles, pruneFeedArticles } from './newsFeed';
+import { resolveRetention } from './preferences';
 import assert from 'node:assert/strict';
 import {
   createDefaultProfile,
@@ -149,4 +151,36 @@ test('a fresh breaking story leads even with a strong interest in another topic'
   const profile = toggleArticleLike(createDefaultProfile(), article);
   const breaking = { ...sampleArticles[0], publishedAt: article.publishedAt, isBreaking: true };
   assert.equal(rankArticlesForYou([article, breaking], profile, DEFAULT_SOURCES, nowMs)[0].article.id, breaking.id);
+});
+
+test('Heute favors important stories and mixes sources independently of personal dislikes', () => {
+  const [politics, technology] = sampleArticles;
+  const breaking = { ...politics, id: 'breaking', isBreaking: true, publishedAt: technology.publishedAt };
+  const profile = { ...createDefaultProfile(), dislikedIds: ['breaking'] };
+  const sections = buildHomeSections([politics, breaking, technology], profile, DEFAULT_SOURCES, nowMs);
+  assert.deepEqual(sections.Heute.map(article => article.id), ['breaking', 'a-tech', 'a-pol']);
+  assert.deepEqual(sections.Neueste.map(article => article.id), ['a-pol', 'a-tech', 'breaking']);
+  assert.ok(!sections['Für dich'].some(article => article.id === 'breaking'));
+});
+
+test('older stories stay available in Neueste without filling Heute or Für dich', () => {
+  const older = { ...sampleArticles[0], publishedAt: new Date(nowMs - 3 * DAY_MS).toISOString() };
+  const sections = buildHomeSections([older], createDefaultProfile(), DEFAULT_SOURCES, nowMs);
+  assert.deepEqual(sections, { Heute: [], 'Für dich': [], Neueste: [older] });
+});
+
+test('feed retention expires at the chosen cutoff and falls back to four days', () => {
+  const expired = { ...sampleArticles[0], publishedAt: new Date(nowMs - 4 * DAY_MS).toISOString() };
+  const fresh = { ...sampleArticles[1], publishedAt: new Date(nowMs - 4 * DAY_MS + 1).toISOString() };
+  assert.equal(resolveRetention(undefined), '4');
+  assert.equal(resolveRetention('invalid'), '4');
+  assert.deepEqual(pruneFeedArticles([expired, fresh], '4', nowMs), [fresh]);
+  assert.deepEqual(pruneFeedArticles([expired, fresh], '7', nowMs), [expired, fresh]);
+});
+
+test('feed refresh retains articles missing from the latest RSS response', () => {
+  const [older, latest] = sampleArticles;
+  const previous = { ...older, id: 'previous', publishedAt: latest.publishedAt };
+  const updated = { ...older, title: 'Aktualisierte Überschrift' };
+  assert.deepEqual(mergeFeedArticles([older, previous], [updated], '4', nowMs), [updated, previous]);
 });

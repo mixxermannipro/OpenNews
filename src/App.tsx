@@ -21,13 +21,13 @@ import { DEFAULT_SOURCES, legacyCatalogUrls } from './lib/catalog';
 import {
   createDefaultProfile,
   normalizeProfile,
-  rankArticlesForYou,
   recordArticleRead,
   recordReadingDuration,
   toggleArticleBookmark,
   toggleArticleDislike,
   toggleArticleLike,
 } from './lib/personalization';
+import { buildHomeSections, mergeFeedArticles, pruneFeedArticles } from './lib/newsFeed';
 import { SEED_ARTICLES } from './lib/seedArticles';
 import { trackNavigationScroll } from './lib/scrollNavigation';
 import { useLocalStorage } from './hooks/useLocalStorage';
@@ -39,7 +39,7 @@ import { ArticleReaderModal } from './components/ArticleReaderModal';
 import { SettingsView, type SettingsSectionTab } from './components/SettingsView';
 import { OfflineIndicator } from './components/PWAInstallButton';
 
-import { DEFAULT_PREFERENCES, applyEditionSources, resolveHomeTabs, type AppPreferences, type HomeTab } from './lib/preferences';
+import { DEFAULT_PREFERENCES, applyEditionSources, resolveHomeTab, resolveRetention, type AppPreferences, type HomeTab } from './lib/preferences';
 import { Onboarding, ProfileView, type ProfilePage } from './components/Preferences';
 
 type AppLocation = {
@@ -76,16 +76,17 @@ export default function App() {
     return () => window.removeEventListener('popstate', restore);
   }, []);
   const [preferences, setPreferences] = useLocalStorage<AppPreferences>('opennews_preferences', DEFAULT_PREFERENCES);
-  const [homeCategory, setHomeCategory] = useState<HomeTab>(preferences.home);
-  const homeTabs = useMemo(() => resolveHomeTabs(preferences), [preferences]);
-  const selectedHomeTab = homeTabs.includes(homeCategory) ? homeCategory : homeTabs[0];
+  const [homeCategory, setHomeCategory] = useState<HomeTab>(() => resolveHomeTab(preferences.home));
+  const retention = resolveRetention(preferences.retention);
+  const latestRetention = useRef(retention);
+  useLayoutEffect(() => { latestRetention.current = retention; }, [retention]);
   const [onboarded, setOnboarded] = useLocalStorage('opennews_onboarded', false);
   const [backgroundPlayback, setBackgroundPlayback] = useLocalStorage('opennews_background_playback', false);
   const [theme, setTheme] = useLocalStorage<ThemeMode>('opennews_theme', 'system');
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
-  }, [activeTab, profilePage, settingsSection, savedPage, onboarded]);
+  }, [activeTab, profilePage, settingsSection, savedPage, onboarded, homeCategory]);
   const [navigationHidden, setNavigationHidden] = useState(false);
   useLayoutEffect(() => {
     setNavigationHidden(false);
@@ -104,7 +105,7 @@ export default function App() {
 
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
-  }, [location, activeArticle, onboarded, selectedHomeTab]);
+  }, [location, activeArticle, onboarded, homeCategory]);
 
   const [storedSources, setSources] = useLocalStorage<NewsSource[]>('opennews_sources', DEFAULT_SOURCES);
   const sources = useMemo(() => {
@@ -129,7 +130,7 @@ export default function App() {
   };
 
   const updatePreferences = (next: AppPreferences) => {
-    if (next.home !== preferences.home) setHomeCategory(next.home);
+    if (next.home !== preferences.home) setHomeCategory(resolveHomeTab(next.home));
     if (next.edition !== preferences.edition) applySourcePreset(next.edition);
     setPreferences({ ...next, sourcePresetApplied: true });
   };
@@ -176,6 +177,16 @@ export default function App() {
     'opennews_cached_articles',
     []
   );
+  const [feedClock, setFeedClock] = useState(Date.now);
+  useEffect(() => {
+    const updateClock = () => setFeedClock(Date.now());
+    const timer = window.setInterval(updateClock, 60_000);
+    document.addEventListener('visibilitychange', updateClock);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', updateClock);
+    };
+  }, []);
   const [savedArticles, setSavedArticles] = useLocalStorage<Record<string, NewsArticle>>(
     'opennews_saved_articles',
     {}
@@ -257,6 +268,10 @@ export default function App() {
     });
   }, [cachedLiveArticles, readArticles, savedIds, setSavedArticles]);
 
+  useEffect(() => {
+    setCachedLiveArticles(previous => pruneFeedArticles(previous, retention, Date.now()));
+  }, [feedClock, retention, setCachedLiveArticles]);
+
   const announcedArticles = useRef(new Set<string>());
   const feedHasLoaded = useRef(cachedLiveArticles.length > 0);
   const alertTimer = useRef<number | undefined>(undefined);
@@ -299,26 +314,9 @@ export default function App() {
     const applyArticles = (articles: NewsArticle[]) => {
       if (controller.signal.aborted || !articles.length) return;
       checkForAlert(articles);
-      const updatedSources = new Set(articles.map(article => article.sourceId));
-      setCachedLiveArticles(previous => {
-        if (controller.signal.aborted) return previous;
-        const seen = new Set<string>();
-        return [
-          ...articles,
-          ...previous.filter(article => !updatedSources.has(article.sourceId)),
-        ]
-          .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))
-          .filter(article => {
-            if (seen.has(article.id)) return false;
-            seen.add(article.id);
-            return true;
-          })
-          .slice(0, 600)
-          .map(article => ({
-            ...article,
-            paragraphs: article.paragraphs.slice(0, 6).map(paragraph => paragraph.slice(0, 500)),
-          }));
-      });
+      setCachedLiveArticles(previous => controller.signal.aborted
+        ? previous
+        : mergeFeedArticles(previous, articles, latestRetention.current, Date.now()));
     };
 
     try {
@@ -362,16 +360,17 @@ export default function App() {
 
   const allArticles = useMemo(() => {
     const activeIds = new Set(activeSources.map(source => source.id));
-    return cachedLiveArticles.filter(article => activeIds.has(article.sourceId));
-  }, [activeSources, cachedLiveArticles]);
+    return pruneFeedArticles(cachedLiveArticles, retention, feedClock)
+      .filter(article => activeIds.has(article.sourceId));
+  }, [activeSources, cachedLiveArticles, feedClock, retention]);
 
-  const scoredArticles = useMemo(
+  const homeSections = useMemo(
     () => {
       const topicWeights = { ...normalizedProfile.topicWeights };
       for (const topic of preferences.topics) topicWeights[topic] = (topicWeights[topic] ?? 0) + 4;
-      return rankArticlesForYou(allArticles, { ...normalizedProfile, topicWeights }, sources);
+      return buildHomeSections(allArticles, { ...normalizedProfile, topicWeights }, sources, feedClock);
     },
-    [allArticles, normalizedProfile, sources, preferences.topics]
+    [allArticles, normalizedProfile, sources, preferences.topics, feedClock]
   );
 
   const openSettings = (sec: SettingsSectionTab = 'overview') => {
@@ -495,10 +494,9 @@ export default function App() {
       <main className="app-content" inert={activeArticle ? true : undefined}>
         {activeTab === 'home' && (
           <HomeView
-            tabs={homeTabs}
-            scoredArticles={scoredArticles}
+            articles={homeSections[homeCategory]}
             showHero={preferences.hero}
-            selectedCategory={selectedHomeTab}
+            selectedCategory={homeCategory}
             onSelectCategory={setHomeCategory}
             profile={normalizedProfile}
             isLoading={isLoadingFeeds}

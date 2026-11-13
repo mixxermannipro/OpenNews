@@ -6,6 +6,7 @@ import React, { useMemo, useState } from 'react';
 import { Check, ChevronRight, Plus } from 'lucide-react';
 import type { NewsArticle, NewsCategory, NewsSource, PersonalizationProfile } from '../types/news';
 import { BentoArticleCard, CompactArticleCard, HeroArticleCard } from './ArticleCards';
+import { TOPICS } from '../lib/preferences';
 import { DiscoverSearch } from './DiscoverSearch';
 
 interface DiscoverViewProps {
@@ -19,17 +20,7 @@ interface DiscoverViewProps {
   onOpenSourcesSettings: () => void;
 }
 
-const DISCOVER_CATEGORIES: NewsCategory[] = [
-  'Alle',
-  'Politik',
-  'Wirtschaft',
-  'Technologie',
-  'Wissenschaft',
-  'Europa',
-  'Gesellschaft',
-  'Kultur',
-  'Sport',
-];
+const DISCOVER_CATEGORIES = ['Alle', ...TOPICS] as const;
 
 const featuredTopics = [
   { topic: 'Politik', image: politicsImage },
