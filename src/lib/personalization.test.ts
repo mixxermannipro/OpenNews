@@ -154,10 +154,12 @@ test('a fresh breaking story leads even with a strong interest in another topic'
 });
 
 test('Heute favors important stories and mixes sources independently of personal dislikes', () => {
-  const [politics, technology] = sampleArticles;
+  const localNoon = new Date(2026, 10, 12, 12).getTime();
+  const politics = { ...sampleArticles[0], publishedAt: new Date(localNoon - 30 * 60_000).toISOString() };
+  const technology = { ...sampleArticles[1], publishedAt: new Date(localNoon - 4 * 60 * 60_000).toISOString() };
   const breaking = { ...politics, id: 'breaking', isBreaking: true, publishedAt: technology.publishedAt };
   const profile = { ...createDefaultProfile(), dislikedIds: ['breaking'] };
-  const sections = buildHomeSections([politics, breaking, technology], profile, DEFAULT_SOURCES, nowMs);
+  const sections = buildHomeSections([politics, breaking, technology], profile, DEFAULT_SOURCES, localNoon);
   assert.deepEqual(sections.Heute.map(article => article.id), ['breaking', 'a-tech', 'a-pol']);
   assert.deepEqual(sections.Neueste.map(article => article.id), ['a-pol', 'a-tech', 'breaking']);
   assert.ok(!sections['Für dich'].some(article => article.id === 'breaking'));
