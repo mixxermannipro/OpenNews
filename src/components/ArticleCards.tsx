@@ -1,5 +1,5 @@
 import React from 'react';
-import { Flame, Heart, Play, Sparkles } from 'lucide-react';
+import { Bookmark, Flame, Heart, Play, Sparkles } from 'lucide-react';
 import type { NewsArticle } from '../types/news';
 import { formatRelativeTimeDe } from '../lib/personalization';
 import { ArticleImage } from './ArticleImage';
@@ -24,13 +24,34 @@ const CATEGORY_BADGE_STYLES: Record<string, string> = {
   Sport: 'bg-orange-500/12 text-orange-700 dark:bg-orange-400/15 dark:text-orange-300',
 };
 
+function ArticleActions({ article, isBookmarked, isLiked, onToggleBookmark, onToggleLike, overlay = false }:
+  Omit<CardActionsProps, 'onOpen'> & { overlay?: boolean }) {
+  const style = overlay
+    ? 'bg-black/45 text-white ring-1 ring-white/25 backdrop-blur-md hover:bg-black/65'
+    : 'text-slate-600 hover:bg-slate-500/12 dark:text-slate-300';
+  const buttonStyle = `flex h-11 w-11 items-center justify-center rounded-full transition active:scale-95 ${style}`;
+  return (
+    <div className={overlay ? 'absolute bottom-3 right-3 z-20 flex gap-1.5' : 'flex shrink-0 flex-col items-center'}>
+      <button type="button" className={buttonStyle}
+        onClick={() => onToggleLike(article)} aria-pressed={isLiked}
+        aria-label={isLiked ? `Gefällt mir entfernen: ${article.title}` : `Gefällt mir: ${article.title}`}>
+        <Heart size={17} className={isLiked ? 'fill-current text-rose-400' : undefined} aria-hidden="true" />
+      </button>
+      <button type="button" className={buttonStyle}
+        onClick={() => onToggleBookmark(article)} aria-pressed={isBookmarked}
+        aria-label={isBookmarked ? `Lesezeichen entfernen: ${article.title}` : `Artikel speichern: ${article.title}`}>
+        <Bookmark size={17} fill={isBookmarked ? 'currentColor' : 'none'} aria-hidden="true" />
+      </button>
+    </div>
+  );
+}
+
 export const HeroArticleCard: React.FC<CardActionsProps & { badgeLabel?: string; className?: string }> = ({
   article,
-  isLiked,
   badgeLabel = 'Top-Thema',
   className = '',
   onOpen,
-  onToggleLike,
+  ...actions
 }) => {
   const hasMedia = Boolean(article.videoUrl || article.youtubeId || article.audioUrl);
 
@@ -91,31 +112,15 @@ export const HeroArticleCard: React.FC<CardActionsProps & { badgeLabel?: string;
         </div>
       </button>
 
-      {/* Bottom-right Frosted Glass Action Circles */}
-      <div className="absolute bottom-4 right-4 z-20 flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => onToggleLike(article)}
-          aria-label={isLiked ? `Gefällt mir entfernen: ${article.title}` : `Gefällt mir: ${article.title}`}
-          aria-pressed={isLiked}
-          className={`flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full backdrop-blur-xl transition active:scale-95 ${
-            isLiked
-              ? 'bg-rose-500/90 text-white ring-1 ring-rose-300/40'
-              : 'bg-white/20 text-white hover:bg-white/30 ring-1 ring-white/25'
-          }`}
-        >
-          <Heart className={`h-4 w-4 ${isLiked ? 'fill-current' : ''}`} />
-        </button>
-      </div>
+      <ArticleActions article={article} {...actions} overlay />
     </article>
   );
 };
 
 export const CompactArticleCard: React.FC<CardActionsProps> = ({
   article,
-  isLiked,
   onOpen,
-  onToggleLike,
+  ...actions
 }) => {
   const catBadge =
     CATEGORY_BADGE_STYLES[article.category] ||
@@ -165,21 +170,7 @@ export const CompactArticleCard: React.FC<CardActionsProps> = ({
         </div>
       </button>
 
-      <div className="flex shrink-0 flex-col items-center gap-0.5">
-        <button
-          type="button"
-          onClick={() => onToggleLike(article)}
-          aria-label={isLiked ? `Gefällt mir entfernen: ${article.title}` : `Gefällt mir: ${article.title}`}
-          aria-pressed={isLiked}
-          className={`flex min-h-[40px] min-w-[40px] items-center justify-center rounded-full transition active:scale-95 ${
-            isLiked
-              ? 'text-rose-500 bg-rose-500/12'
-              : 'text-slate-400 hover:text-rose-500 dark:text-slate-500 dark:hover:text-rose-400'
-          }`}
-        >
-          <Heart className={`h-3.5 w-3.5 ${isLiked ? 'fill-current' : ''}`} />
-        </button>
-      </div>
+      <ArticleActions article={article} {...actions} />
     </article>
   );
 };
@@ -189,6 +180,7 @@ export const BentoArticleCard: React.FC<CardActionsProps & { tall?: boolean; cla
   tall = false,
   className = '',
   onOpen,
+  ...actions
 }) => {
   return (
     <article
@@ -198,7 +190,7 @@ export const BentoArticleCard: React.FC<CardActionsProps & { tall?: boolean; cla
         type="button"
         onClick={() => onOpen(article)}
         className={`relative flex w-full flex-col justify-between gap-4 p-3.5 sm:p-4 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
-          tall ? 'h-full min-h-[300px] sm:min-h-[350px]' : 'h-full min-h-[144px] sm:min-h-[168px]'
+          tall ? 'h-full min-h-[300px] sm:min-h-[350px]' : 'h-full min-h-[176px] sm:min-h-[190px]'
         }`}
         aria-label={`Artikel öffnen: ${article.title}`}
       >
@@ -219,7 +211,7 @@ export const BentoArticleCard: React.FC<CardActionsProps & { tall?: boolean; cla
           </span>
         </div>
 
-        <div className="relative z-10 pr-9 sm:pr-11">
+        <div className="relative z-10 pb-12">
           <h3 className={`${tall ? 'text-base sm:text-xl line-clamp-3' : 'text-[13px] sm:text-[15px] line-clamp-2'} font-bold leading-snug text-white [text-wrap:balance]`}>
             {article.title}
           </h3>
@@ -233,6 +225,7 @@ export const BentoArticleCard: React.FC<CardActionsProps & { tall?: boolean; cla
           </div>
         </div>
       </button>
+      <ArticleActions article={article} {...actions} overlay />
     </article>
   );
 };

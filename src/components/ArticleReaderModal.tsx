@@ -14,6 +14,7 @@ import {
   Share2,
   Sparkles,
   ThumbsDown,
+  X,
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import type {
@@ -42,6 +43,8 @@ interface ArticleReaderModalProps {
   onToggleDislike: (article: NewsArticle) => void;
   onRecordReadingDuration: (article: NewsArticle, seconds: number) => void;
   onOpenAISettings: () => void;
+  showSummary: boolean;
+  onOpenSummary: () => void;
   onClose: () => void;
 }
 
@@ -58,6 +61,8 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
   onToggleDislike,
   onRecordReadingDuration,
   onOpenAISettings,
+  showSummary,
+  onOpenSummary,
   onClose,
 }) => {
   const openTimestampRef = useRef<number>(Date.now());
@@ -92,7 +97,8 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
 
   const [speaking, setSpeaking] = useState(false);
   const [speechError, setSpeechError] = useState(false);
-  const [showSummary, setShowSummary] = useState(false);
+  const summaryDialog = useRef<HTMLDialogElement>(null);
+  const summaryButton = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLDetailsElement>(null);
   useEffect(() => {
     const dismiss = (event: PointerEvent) => {
@@ -105,7 +111,6 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
   }, []);
 
   const backButton = useRef<HTMLButtonElement>(null);
-  const summaryTitle = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -117,7 +122,12 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
   }, []);
 
   useEffect(() => {
-    if (showSummary) { summaryTitle.current?.focus(); summaryTitle.current?.scrollIntoView({ block: 'start' }); }
+    const dialog = summaryDialog.current;
+    if (showSummary && !dialog?.open) dialog?.showModal();
+    if (!showSummary && dialog?.open) {
+      dialog.close();
+      summaryButton.current?.focus({ preventScroll: true });
+    }
   }, [showSummary]);
 
   const toggleSpeech = () => {
@@ -349,61 +359,13 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
             {loadingFullText && <p role="status" className="mt-3 text-sm text-slate-500 dark:text-slate-400">Artikeltext wird geladen …</p>}
             {fullTextUnavailable && <a href={article.link} target="_blank" rel="noopener noreferrer" className="mt-3 inline-block text-sm underline">Bei der Quelle weiterlesen</a>}
             {speechError && <p role="status" className="mt-2 text-sm">Die Sprachausgabe ist gerade nicht verfügbar.</p>}
-            {/* "Kurz zusammengefasst" Frosted Sage-Tinted Card (Screenshot 3) */}
-            <div id="reader-summary" hidden={!showSummary} className="liquid-glass-sage relative mt-6 overflow-hidden rounded-[24px] p-5 space-y-3.5">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                  <h2 ref={summaryTitle} tabIndex={-1} className="text-base font-bold text-slate-900 dark:text-white">
-                    Das Wichtigste in Kürze
-                  </h2>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                    {aiLoading ? 'Analysiere…' : aiResult?.providerLabel}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleRunBYOK}
-                    disabled={aiLoading}
-                    className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full bg-slate-900 px-3.5 py-1 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
-                  >
-                    {aiLoading ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : hasBYOKKey ? (
-                      <Sparkles className="h-3.5 w-3.5" />
-                    ) : (
-                      <Settings className="h-3.5 w-3.5" />
-                    )}
-                    {hasBYOKKey ? 'KI aktualisieren' : 'KI-Key verbinden'}
-                  </button>
-                </div>
-              </div>
-
-              {aiError && (
-                <div className="rounded-2xl bg-rose-500/10 p-3 text-xs text-rose-600 dark:text-rose-400">
-                  {aiError}
-                </div>
-              )}
-
-              {aiResult && (
-                <div className="space-y-3 text-sm leading-relaxed text-slate-800 dark:text-slate-200">
-                  <ul className="space-y-2 pl-4 list-disc marker:text-emerald-600 dark:marker:text-emerald-400">
-                    {aiResult.bullets.map((b, i) => (
-                      <li key={i}>{b}</li>
-                    ))}
-                  </ul>
-
-                </div>
-              )}
-            </div>
-
           </div>
         </div>
         <div className="reader-actions" aria-label="Artikelaktionen">
-          <button type="button" className="glass-icon" aria-label="Zusammenfassung" aria-expanded={showSummary}
-            aria-controls="reader-summary" onClick={() => setShowSummary(!showSummary)}><Sparkles size={19} /></button>
+          <button ref={summaryButton} type="button" className="glass-icon" aria-label="Zusammenfassung"
+            aria-haspopup="dialog" aria-controls="reader-summary" onClick={onOpenSummary}><Sparkles size={19} /></button>
+          <button type="button" className="glass-icon" aria-label={isLiked ? 'Gefällt mir entfernen' : 'Gefällt mir'}
+            aria-pressed={isLiked} onClick={() => onToggleLike(article)}><Heart size={19} fill={isLiked ? 'currentColor' : 'none'} /></button>
           <button type="button" className="glass-icon" aria-label={isBookmarked ? 'Lesezeichen entfernen' : 'Artikel speichern'}
             aria-pressed={isBookmarked} onClick={() => onToggleBookmark(article)}><Bookmark size={19} fill={isBookmarked ? 'currentColor' : 'none'} /></button>
           <button type="button" className="glass-icon" aria-label="Teilen" onClick={handleShare}><Share2 size={19} /></button>
@@ -411,8 +373,6 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
           <details ref={menu} className="reader-menu">
             <summary className="glass-icon" aria-label="Weitere Artikelaktionen"><Ellipsis size={20} /></summary>
             <div className="settings-group">
-              <button type="button" className="preference-row settings-link" aria-pressed={isLiked}
-                onClick={() => { if (menu.current) menu.current.open = false; onToggleLike(article); }}><Heart fill={isLiked ? 'currentColor' : 'none'} /><span>Gefällt mir</span></button>
               <button type="button" className="preference-row settings-link" aria-pressed={isDisliked}
                 onClick={() => onToggleDislike(article)}><ThumbsDown /><span>Weniger davon</span></button>
               {'speechSynthesis' in window && <button type="button" className="preference-row settings-link" onClick={toggleSpeech}>
@@ -422,6 +382,61 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
           </details>
         </div>
       </motion.div>
+      <dialog ref={summaryDialog} id="reader-summary" className="reader-summary"
+        aria-labelledby="reader-summary-title"
+        onCancel={event => { event.preventDefault(); onClose(); }}
+        onClick={event => { if (event.target === event.currentTarget) onClose(); }}>
+        <div className="reader-summary-content space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              <h2 id="reader-summary-title" className="text-base font-bold text-slate-900 dark:text-white">
+                Das Wichtigste in Kürze
+              </h2>
+            </div>
+
+            <button type="button" autoFocus className="glass-icon" aria-label="Zusammenfassung schließen" onClick={onClose}>
+              <X size={20} />
+            </button>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+              {aiLoading ? 'Analysiere…' : aiResult?.providerLabel}
+            </span>
+            <button
+              type="button"
+              onClick={handleRunBYOK}
+              disabled={aiLoading}
+              className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full bg-slate-900 px-3.5 py-1 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
+            >
+              {aiLoading ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : hasBYOKKey ? (
+                <Sparkles className="h-3.5 w-3.5" />
+              ) : (
+                <Settings className="h-3.5 w-3.5" />
+              )}
+              {hasBYOKKey ? 'KI aktualisieren' : 'KI-Key verbinden'}
+            </button>
+          </div>
+
+          {aiError && (
+            <div className="rounded-2xl bg-rose-500/10 p-3 text-xs text-rose-600 dark:text-rose-400">
+              {aiError}
+            </div>
+          )}
+
+          {aiResult && (
+            <div className="space-y-3 text-sm leading-relaxed text-slate-800 dark:text-slate-200">
+              <ul className="space-y-2 pl-4 list-disc marker:text-emerald-600 dark:marker:text-emerald-400">
+                {aiResult.bullets.map((b, i) => (
+                  <li key={i}>{b}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      </dialog>
     </div>
   );
 };

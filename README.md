@@ -6,13 +6,13 @@ Datenschutzfreundliche, Apple-inspirierte Nachrichten-App für freie RSS-, Atom-
 - **Freie Nachrichtenagenturen**: Tagesschau, ZDFheute, Deutschlandfunk, FAZ, Der Spiegel, ZEIT ONLINE, Süddeutsche Zeitung, Handelsblatt, WELT, BILD, Heise Online, Golem.de, t3n, The Guardian, BBC World News, Hacker News, Ars Technica, NASA u. v. m.
 - **Eigene RSS-/Atom-/JSON-Feeds**: Beliebige Feed-URLs hinzufügen, aktivieren oder pausieren.
 - **100 % Lokal auf dem Gerät**: Abos, Likes, Lesezeichen, Algorithmus-Gewichte, Benachrichtigungsregeln und API-Keys verbleiben im lokalen Speicher deines Geräts.
-- **Like-Algorithmus ("Für dich")**: Lernt lokal anhand von Likes, Lesezeichen und Lesezeit, welche Themen, Anbieter und Schlagwörter dich interessieren.
+- **Like-Algorithmus ("Für dich")**: Sortiert nach Aktualität, Eilmeldungen und deinen Interessen. Likes zählen stärker als Lesezeit. Die Liste mischt Themen und Quellen.
 - **Eigene KI-Integration (BYOK)**: Unterstützt Google AI Studio (Gemini), OpenAI, Anthropic (Claude), Mistral AI sowie OpenRouter / eigene OpenAI-kompatible Endpunkte (z. B. lokales Ollama).
-- **Medien & Reader**: Bilder, Videos/Podcasts, anpassbare Schriftgröße (`A | A`), Serif/Sans-Switch, Volltext-Extraktion und lokale Textzusammenfassung ohne API-Key.
+- **Medien & Reader**: Bilder, Videos/Podcasts, anpassbare Schriftgröße (`A | A`), Serif/Sans-Switch, Volltext-Extraktion und ein animiertes Fenster für die Zusammenfassung, auch ohne API-Key.
 
 ## Darstellung und Einrichtung
 
-Beim ersten Start kannst du Interessen und Darstellung wählen oder direkt mit den empfohlenen Einstellungen beginnen. Im Profil findest du die Einstellungen für Farben, Transparenz, Karten, Schrift, Startseite und Bewegung. Deine Änderungen werden auf dem Gerät gespeichert.
+Beim ersten Start kannst du Interessen und Darstellung wählen oder direkt mit den empfohlenen Einstellungen beginnen. Im Profil findest du die Einstellungen für Farben, Transparenz, Karten, Schrift, Startseite und Bewegung. Unter „Feed und Startseite“ wählen journalistische Voreinstellungen passende Quellen aus. Die Darstellung bleibt einheitlich. Deine Änderungen werden auf dem Gerät gespeichert.
 
 Google AI Studio bietet `gemini-flash-latest` und `gemini-flash-lite-latest` an. Google hält diese Modellnamen aktuell. Im Feld „Modell-ID“ kannst du auch eine eigene ID hinterlegen.
 

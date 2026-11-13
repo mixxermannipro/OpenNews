@@ -85,7 +85,7 @@ test('bookmarking and local extractive summary work deterministically', () => {
   assert.ok(summary.bullets.length >= 2);
 });
 
-test('reading time duration increases topic and source affinity for Für dich recommendations', () => {
+test('reading time records affinity without lifting a much older story', () => {
   let profile = createDefaultProfile();
   profile = recordReadingDuration(profile, sampleArticles[1], 90);
   assert.equal(profile.totalReadingSeconds, 90);
@@ -93,8 +93,8 @@ test('reading time duration increases topic and source affinity for Für dich re
   assert.equal(profile.readingSecondsBySource['heise'], 90);
 
   const ranked = rankArticlesForYou(sampleArticles, profile, DEFAULT_SOURCES, nowMs);
-  assert.equal(ranked[0].article.id, 'a-tech');
-  assert.ok(ranked[0].reason?.includes('Technologie'));
+  assert.equal(ranked[0].article.id, 'a-pol');
+  assert.ok(profile.topicWeights.Technologie > 0);
 });
 
 test('switching reactions replaces their contribution to the profile', () => {
@@ -115,4 +115,38 @@ test('Für dich mixes similarly scored providers in the first recommendations', 
   const ranked = rankArticlesForYou(articles, createDefaultProfile(), DEFAULT_SOURCES, nowMs);
   assert.equal(new Set(ranked.slice(0, 2).map(entry => entry.article.sourceId)).size, 2);
   assert.equal(new Set(ranked.map(entry => entry.article.id)).size, articles.length);
+});
+
+test('a long reading session has less influence than a like', () => {
+  const article = sampleArticles[1];
+  const empty = createDefaultProfile();
+  const reading = recordReadingDuration(empty, article, 600);
+  const liked = toggleArticleLike(empty, article);
+  assert.ok((reading.topicWeights[article.category] ?? 0) < liked.topicWeights[article.category] / 4);
+});
+
+test('legacy reading activity cannot crowd other recent topics out of the feed', () => {
+  const profile = {
+    ...createDefaultProfile(),
+    topicWeights: { Politik: 30 },
+    sourceWeights: { tagesschau: 30 },
+    keywordWeights: { bundestag: 30, haushalt: 30 },
+    readingSecondsByTopic: { Politik: 6000 },
+    readingSecondsBySource: { tagesschau: 6000 },
+  };
+  const articles = [
+    ...Array.from({ length: 70 }, (_, i) => ({ ...sampleArticles[0], id: `politics-${i}` })),
+    ...sampleArticles.slice(1),
+    { ...sampleArticles[1], id: 'science', category: 'Wissenschaft' as const, sourceId: 'dw' },
+  ];
+  const ranked = rankArticlesForYou(articles, profile, DEFAULT_SOURCES, nowMs);
+  assert.equal(new Set(ranked.slice(0, 6).map(({ article }) => article.category)).size, 3);
+  assert.equal(ranked.length, articles.length);
+});
+
+test('a fresh breaking story leads even with a strong interest in another topic', () => {
+  const article = sampleArticles[1];
+  const profile = toggleArticleLike(createDefaultProfile(), article);
+  const breaking = { ...sampleArticles[0], publishedAt: article.publishedAt, isBreaking: true };
+  assert.equal(rankArticlesForYou([article, breaking], profile, DEFAULT_SOURCES, nowMs)[0].article.id, breaking.id);
 });
