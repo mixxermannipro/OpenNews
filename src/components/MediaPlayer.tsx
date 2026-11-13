@@ -1,17 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
 import type { PlayableMedia } from '../lib/articleMedia';
 
-export function MediaPlayer({ media, title, poster, background, autoPlay = false }: {
+export function MediaPlayer({ media, title, poster, background, autoPlay = false, onEngaged }: {
   media: PlayableMedia;
   title: string;
   poster?: string;
   background: boolean;
   autoPlay?: boolean;
+  onEngaged?: (seconds: number) => void;
 }) {
   const element = useRef<HTMLMediaElement | null>(null);
   const soundtrack = useRef<HTMLAudioElement>(null);
   const wasPlaying = useRef(false);
   const resumeFromAudio = useRef(false);
+  const engagementRecorded = useRef(false);
   const initialEmbed = useRef(true);
   const [failed, setFailed] = useState(false);
   const [hidden, setHidden] = useState(document.hidden);
@@ -63,6 +65,17 @@ export function MediaPlayer({ media, title, poster, background, autoPlay = false
     },
     onPause: () => {
       if (!document.hidden) wasPlaying.current = false;
+    },
+    onTimeUpdate: () => {
+      const player = element.current;
+      if (!player || engagementRecorded.current || document.hidden) return;
+      const threshold = Math.min(30, Math.max(3, player.duration * 0.5));
+      let watched = 0;
+      for (let i = 0; i < player.played.length; i++) watched += player.played.end(i) - player.played.start(i);
+      if (watched >= threshold) {
+        engagementRecorded.current = true;
+        onEngaged?.(watched);
+      }
     },
     onEnded: () => { wasPlaying.current = false; },
     onError: () => setFailed(true),

@@ -155,6 +155,12 @@ function getText(val: unknown): string {
   return '';
 }
 
+function records(value: unknown): Record<string, unknown>[] {
+  return asArray(value).filter(
+    (record): record is Record<string, unknown> => typeof record === 'object' && record !== null,
+  );
+}
+
 function pickImageUrl(item: Record<string, unknown>, rawHtml: string): string | undefined {
   for (const media of asArray(item['media:content'] as Record<string, unknown> | Record<string, unknown>[])) {
     const url = media?.['@_url'];
@@ -162,7 +168,8 @@ function pickImageUrl(item: Record<string, unknown>, rawHtml: string): string | 
     const mime = String(media?.['@_type'] || '').toLowerCase();
     if (typeof url === 'string' && (medium === 'image' || mime.startsWith('image/'))) return url;
   }
-  const mediaThumbs = asArray(item['media:thumbnail'] as Record<string, unknown> | Record<string, unknown>[]);
+  const group = item['media:group'] as Record<string, unknown> | undefined;
+  const mediaThumbs = [...records(item['media:thumbnail']), ...records(group?.['media:thumbnail'])];
   for (const t of mediaThumbs) {
     const url = t?.['@_url'] as string | undefined;
     if (url) return url;
@@ -227,9 +234,6 @@ function collectMedia(
     }
   }
 
-  const records = (value: unknown) => asArray(value).filter(
-    (record): record is Record<string, unknown> => typeof record === 'object' && record !== null,
-  );
   for (const enclosure of records(item.enclosure)) add(enclosure['@_url'], enclosure['@_type']);
   for (const enclosure of records(item.link)) {
     if (enclosure['@_rel'] === 'enclosure') add(enclosure['@_href'], enclosure['@_type']);
@@ -423,7 +427,8 @@ export function parseFeedPayload(rawText: string, source: NewsSource): NewsArtic
     .slice(0, 25)
     .map((entry) => {
       const title = stripHtml(getText(entry.title)) || 'Ohne Titel';
-      const rawHtml = getText(entry.content) || getText(entry.summary);
+      const mediaGroup = records(entry['media:group'])[0];
+      const rawHtml = getText(entry.content) || getText(entry.summary) || getText(mediaGroup?.['media:description']);
       const summary = stripHtml(getText(entry.summary) || rawHtml).slice(0, 280);
 
       const links = asArray(entry.link as Record<string, unknown> | Record<string, unknown>[]);

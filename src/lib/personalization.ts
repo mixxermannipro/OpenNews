@@ -182,11 +182,13 @@ export function scoreArticle(
   const keywordWeight = article.keywords.reduce((sum, keyword) => sum + (profile.keywordWeights[keyword] ?? 0), 0);
   const keywordScore = Math.max(-1.5, Math.min(1.5, keywordWeight * 0.4));
   const interest = topicScore + sourceScore + keywordScore;
-  const breakingBonus = article.isBreaking ? 10 * Math.exp(-ageHours / 12) : 0;
+  const keywordMatches = new Set(article.keywords.filter(keyword => (profile.keywordWeights[keyword] ?? 0) > 0));
+  const specificInterest = Math.min(3, keywordMatches.size * 0.9);
+  const breakingBonus = article.isBreaking ? 14 * Math.exp(-ageHours / 12) : 0;
   const totalScore = freshness + breakingBonus
-    + interest * Math.exp(-ageHours / 48)
+    + (interest + specificInterest) * Math.exp(-ageHours / 72)
     + (subscribedSourceIds.has(article.sourceId) ? 0.5 : 0)
-    - (profile.readIds.includes(article.id) ? 2 : 0);
+    - (profile.readIds.includes(article.id) ? 3 : 0);
 
   let reason: string | undefined;
   if (breakingBonus >= 4) {

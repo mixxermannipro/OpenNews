@@ -158,3 +158,18 @@ test('decodes hexadecimal entities and keeps unlinked RSS entries distinct', () 
   assert.equal(articles[0].title, "Someone's report");
   assert.notEqual(articles[0].id, articles[1].id);
 });
+
+test('parses the thumbnail, description and portrait link from a YouTube channel feed', () => {
+  const [article] = parseFeedPayload(`<feed xmlns="http://www.w3.org/2005/Atom" xmlns:media="http://search.yahoo.com/mrss/">
+    <entry><id>yt:video:tLm6NC0tkt0</id><title>Tagesschau Clip</title>
+      <link rel="alternate" href="https://www.youtube.com/shorts/tLm6NC0tkt0"/>
+      <media:group>
+        <media:thumbnail url="https://i.ytimg.com/vi/tLm6NC0tkt0/hqdefault.jpg"/>
+        <media:description>Nachrichten im Hochformat</media:description>
+      </media:group>
+    </entry>
+  </feed>`, mockSource);
+  assert.equal(article.imageUrl, 'https://i.ytimg.com/vi/tLm6NC0tkt0/hqdefault.jpg');
+  assert.equal(article.summary, 'Nachrichten im Hochformat');
+  assert.equal(article.media?.find(media => media.type === 'youtube')?.portrait, true);
+});

@@ -14,6 +14,8 @@ public class MainActivity extends BridgeActivity {
     @Override
     protected void onCreate(Bundle state) {
         registerPlugin(ArticleShare.class);
+        registerPlugin(LocalTranslation.class);
+        registerPlugin(NewsPush.class);
         super.onCreate(state);
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override

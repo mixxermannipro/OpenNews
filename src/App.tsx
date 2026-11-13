@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { NewsPush } from './lib/newsPush';
 import { Capacitor, SystemBars, SystemBarsStyle } from '@capacitor/core';
 import { fetchNativeFeeds } from './lib/nativeFeed';
 import { Bell, Compass, Home, Clapperboard, User } from 'lucide-react';
@@ -17,12 +18,13 @@ import type {
   ThemeMode,
 } from './types/news';
 import { DEFAULT_AI_CONFIG, migrateAIConfig } from './lib/aiClient';
-import { DEFAULT_SOURCES, legacyCatalogUrls } from './lib/catalog';
+import { DEFAULT_SOURCES, legacyCatalogUrls, pushSources } from './lib/catalog';
 import {
   createDefaultProfile,
   normalizeProfile,
   recordArticleRead,
   recordReadingDuration,
+  rankArticlesForYou,
   toggleArticleBookmark,
   toggleArticleDislike,
   toggleArticleLike,
@@ -81,6 +83,7 @@ export default function App() {
   const latestRetention = useRef(retention);
   useLayoutEffect(() => { latestRetention.current = retention; }, [retention]);
   const [onboarded, setOnboarded] = useLocalStorage('opennews_onboarded', false);
+  const [autoTranslate, setAutoTranslate] = useLocalStorage('opennews_auto_translate', false);
   const [backgroundPlayback, setBackgroundPlayback] = useLocalStorage('opennews_background_playback', false);
   const [theme, setTheme] = useLocalStorage<ThemeMode>('opennews_theme', 'system');
 
@@ -244,10 +247,40 @@ export default function App() {
     ]);
   }, [formatPrefs]);
 
+  const mediaStarter = sources.find(source => source.id === 'tagesschau-youtube' && source.subscribed);
   const activeSources = useMemo(
-    () => sources.filter((s) => s.subscribed && (enabledFormats.has(s.format) || s.isCustom)),
-    [sources, enabledFormats]
+    () => sources.filter((s) => s.subscribed && (enabledFormats.has(s.format) || s.isCustom || s === mediaStarter)),
+    [sources, enabledFormats, mediaStarter]
   );
+
+  const [pushStatus, setPushStatus] = useState('');
+  const pushSourceIds = useMemo(() => activeSources
+    .filter(source => pushSources.some(candidate => candidate.id === source.id && candidate.url === source.url))
+    .map(source => source.id), [activeSources]);
+
+  const configurePush = useCallback(async (settings: NotificationSettings, prompt = false) => {
+    if (Capacitor.getPlatform() !== 'android') return;
+    try {
+      const { status } = await NewsPush.configure({ ...settings, sources: pushSourceIds, prompt });
+      setPushStatus(status === 'unconfigured' ? 'Dieser Build hat noch keine Firebase-Verbindung.'
+        : status === 'denied' ? 'Erlaube Benachrichtigungen in den Android-Einstellungen.'
+        : settings.enabled && !pushSourceIds.length ? 'Aktiviere mindestens eine unterstützte Nachrichtenquelle.'
+        : settings.enabled ? 'Android-Push ist für unterstützte Quellen angemeldet.' : '');
+    } catch {
+      setPushStatus('Push-Anmeldung gerade nicht möglich.');
+    }
+  }, [pushSourceIds]);
+
+  useEffect(() => {
+    const sync = () => { if (!document.hidden) void configurePush(notifications); };
+    sync();
+    document.addEventListener('visibilitychange', sync);
+    window.addEventListener('online', sync);
+    return () => {
+      document.removeEventListener('visibilitychange', sync);
+      window.removeEventListener('online', sync);
+    };
+  }, [configurePush, notifications]);
 
   const normalizedProfile = useMemo(() => normalizeProfile(profile), [profile]);
 
@@ -359,11 +392,37 @@ export default function App() {
     };
   }, [activeSources]);
 
+  useEffect(() => {
+    const update = () => { if (!document.hidden) void fetchLatest.current(); };
+    document.addEventListener('visibilitychange', update);
+    return () => document.removeEventListener('visibilitychange', update);
+  }, []);
+
   const activeArticles = useMemo(() => {
     const activeIds = new Set(activeSources.map(source => source.id));
     return pruneFeedArticles(cachedLiveArticles, retention, feedClock)
       .filter(article => activeIds.has(article.sourceId));
   }, [activeSources, cachedLiveArticles, feedClock, retention]);
+
+  const [mediaOrder, setMediaOrder] = useState<string[]>([]);
+  useEffect(() => {
+    if (activeTab !== 'media') {
+      setMediaOrder(previous => previous.length ? [] : previous);
+      return;
+    }
+    const ranked = rankArticlesForYou(activeArticles, normalizedProfile, activeSources, feedClock)
+      .map(({ article }) => article.id);
+    setMediaOrder(previous => {
+      const available = new Set(ranked);
+      const existing = new Set(previous);
+      const next = previous.filter(id => available.has(id)).concat(ranked.filter(id => !existing.has(id)));
+      return next.length === previous.length && next.every((id, index) => id === previous[index]) ? previous : next;
+    });
+  }, [activeTab, activeArticles, activeSources, normalizedProfile, feedClock]);
+  const mediaArticles = useMemo(() => {
+    const byId = new Map(activeArticles.map(article => [article.id, article]));
+    return mediaOrder.flatMap(id => byId.get(id) ?? []);
+  }, [activeArticles, mediaOrder]);
 
   const allArticles = useMemo(() => distinctArticles(activeArticles), [activeArticles]);
 
@@ -432,7 +491,14 @@ export default function App() {
     );
   };
 
-  const handleSendTestNotification = () => showAlert('Benachrichtigungen sind aktiv.', 'OpenNews · Test');
+  const handleSendTestNotification = () => {
+    if (Capacitor.getPlatform() === 'android') {
+      void configurePush(notifications, true).then(() => NewsPush.test()).catch(() =>
+        showAlert('Android hat Benachrichtigungen gesperrt.', 'OpenNews · Test'));
+    } else {
+      showAlert('Benachrichtigungen sind aktiv.', 'OpenNews · Test');
+    }
+  };
 
   const openProfile = (page: ProfilePage = 'profile') => {
     navigate({ tab: 'profile', profile: page });
@@ -543,7 +609,14 @@ export default function App() {
         )}
 
         {activeTab === 'media' && (
-          <MediaView articles={activeArticles} loading={isLoadingFeeds} background={backgroundPlayback}
+          <MediaView articles={mediaArticles} loading={isLoadingFeeds} background={backgroundPlayback}
+            liked={normalizedProfile.likedIds} saved={normalizedProfile.bookmarkedIds}
+            onLike={handleToggleLike} onSave={handleToggleBookmark}
+            onEngaged={(article, seconds) => setProfile(previous => {
+              const profile = normalizeProfile(previous);
+              return profile.readIds.includes(article.id) ? profile
+                : recordReadingDuration(recordArticleRead(profile, article), article, seconds);
+            })}
             onArticle={handleOpenArticle} onSources={() => openSettings('feeds')} />
         )}
 
@@ -562,6 +635,8 @@ export default function App() {
             sourceKeys={sourceKeys}
             aiConfig={aiConfig}
             notifications={notifications}
+            autoTranslate={autoTranslate}
+            onAutoTranslate={setAutoTranslate}
             onAdvancedSources={() => openSettings('overview')}
             onImportSources={imported => {
               const normalized = (url: string) => { try { return new URL(url).href; } catch { return url; } };
@@ -581,7 +656,11 @@ export default function App() {
             onUpdateFormatPrefs={setFormatPrefs}
             onUpdateSourceKeys={setSourceKeys}
             onUpdateAIConfig={updateAIConfig}
-            onUpdateNotifications={setNotifications}
+            pushStatus={pushStatus}
+            onUpdateNotifications={next => {
+              if (!notifications.enabled && next.enabled) void configurePush(next, true);
+              setNotifications(next);
+            }}
             onSendTestNotification={handleSendTestNotification}
             onResetAlgorithm={() => setProfile(createDefaultProfile())}
             onBackHome={goBack}
@@ -609,6 +688,7 @@ export default function App() {
           <ArticleReaderModal
             key={activeArticle.id}
             article={activeArticle}
+            translate={autoTranslate && Capacitor.getPlatform() === 'android' && sources.some(source => source.id === activeArticle.sourceId && source.language === 'en')}
             backgroundPlayback={backgroundPlayback}
             isBookmarked={normalizedProfile.bookmarkedIds.includes(activeArticle.id)}
             isLiked={normalizedProfile.likedIds.includes(activeArticle.id)}

@@ -33,7 +33,7 @@ export function resolveRetention(value: unknown): Retention {
 
 export const EDITIONS = {
   balanced: { label: 'Ausgewogen', sources: [], description: 'Die Standardauswahl deckt allgemeine Nachrichten, Wirtschaft, Technik und Wissenschaft ab.' },
-  public: { label: 'Öffentlich-rechtliche Nachrichten', sources: ['tagesschau', 'zdfheute', 'deutschlandfunk', 'dw'], description: 'Tagesschau, ZDFheute, Deutschlandfunk und Deutsche Welle.' },
+  public: { label: 'Öffentlich-rechtliche Nachrichten', sources: ['tagesschau', 'zdfheute', 'deutschlandfunk', 'dw', 'tagesschau-youtube'], description: 'Tagesschau, ZDFheute, Deutschlandfunk und Deutsche Welle.' },
   analysis: { label: 'Analyse & Hintergrund', sources: ['zeit', 'faz', 'sueddeutsche', 'handelsblatt', 'spiegel'], description: 'ZEIT, F.A.Z., Süddeutsche Zeitung, Handelsblatt und SPIEGEL.' },
   technology: { label: 'Technologie & KI', sources: ['heise', 'the-decoder', 'golem', 't3n', 'arstechnica'], description: 'heise, THE DECODER, Golem, t3n und Ars Technica.' },
   tabloid: { label: 'Boulevard & Aktuelles', sources: ['bild', 'ntv', 'welt'], description: 'BILD, ntv und WELT.' },
