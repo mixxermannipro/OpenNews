@@ -104,7 +104,8 @@ export async function extractNativeArticle(url: string): Promise<{ paragraphs: s
   const html = await getNativeText(target, 7000);
   const document = new DOMParser().parseFromString(html, 'text/html');
   const scope = document.querySelector('.meldung__content, [itemprop="articleBody"], .article-body, .entry-content')
-    || document.querySelector('article') || document.querySelector('main') || document.body;
+    || document.querySelector('article');
+  if (!scope) return { paragraphs: [] };
   scope.querySelectorAll('aside, footer, nav, [hidden], .teaser, .related, .newsletter, .meldungsfooter, .socialbuttons').forEach(node => node.remove());
   const blocks = [...scope.querySelectorAll('p, h2, h3, li')]
     .map(node => ({ text: (node.textContent || '').replace(/\s+/g, ' ').trim(), heading: /^H[23]$/.test(node.tagName) }))

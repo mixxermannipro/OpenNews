@@ -182,8 +182,8 @@ app.get('/api/article/extract', async (req, res) => {
       html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
     const ogImage = ogImageMatch?.[1];
 
-    // Prefer <article> or <main> body paragraphs
-    const articleScope = html.match(/<article[\s\S]*?<\/article>/i)?.[0] || html;
+    // A whole-page fallback can mistake navigation and promotions for article text.
+    const articleScope = html.match(/<article\b[\s\S]*?<\/article>/i)?.[0] ?? '';
     const pMatches = [...articleScope.matchAll(/<(p|h2|h3)\b[^>]*>([\s\S]*?)<\/\1>/gi)];
     const blocks = pMatches.map(match => ({ text: stripHtml(match[2]), heading: /^h[23]$/i.test(match[1]) })).filter(block => block.text);
     const paragraphs = blocks.map(block => block.text);
