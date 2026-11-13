@@ -1,5 +1,5 @@
 import { XMLParser } from 'fast-xml-parser';
-import type { NewsArticle, NewsCategory, NewsSource } from '../types/news';
+import type { MediaAttachment, NewsArticle, NewsCategory, NewsSource } from '../types/news';
 
 const xmlParser = new XMLParser({
   ignoreAttributes: false,
@@ -74,8 +74,17 @@ export function extractFirstImageFromHtml(html: string): string | undefined {
 
 export function extractYouTubeId(url: string): string | undefined {
   if (!url) return undefined;
-  const match = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
-  return match?.[1];
+  const parsed = mediaUrl(url);
+  if (!parsed) return undefined;
+  const host = parsed.hostname;
+  let id: string | null | undefined;
+  if (host === 'youtu.be') {
+    id = parsed.pathname.split('/')[1];
+  } else if (['youtube.com', 'www.youtube.com', 'm.youtube.com', 'www.youtube-nocookie.com'].includes(host)) {
+    if (parsed.pathname === '/watch') id = parsed.searchParams.get('v');
+    else id = parsed.pathname.match(/^\/(?:embed|shorts|live)\/([^/]+)\/?$/)?.[1];
+  }
+  return id && /^[\w-]{11}$/.test(id) ? id : undefined;
 }
 
 export function extractKeywords(title: string, summary: string): string[] {
@@ -155,14 +164,11 @@ function getText(val: unknown): string {
 }
 
 function pickImageUrl(item: Record<string, unknown>, rawHtml: string): string | undefined {
-  const mediaContents = asArray(item['media:content'] as Record<string, unknown> | Record<string, unknown>[]);
-  for (const m of mediaContents) {
-    const url = m?.['@_url'] as string | undefined;
-    const medium = m?.['@_medium'] as string | undefined;
-    const type = m?.['@_type'] as string | undefined;
-    if (url && (!medium || medium === 'image') && (!type || type.startsWith('image/'))) {
-      return url;
-    }
+  for (const media of asArray(item['media:content'] as Record<string, unknown> | Record<string, unknown>[])) {
+    const url = media?.['@_url'];
+    const medium = media?.['@_medium'];
+    const mime = String(media?.['@_type'] || '').toLowerCase();
+    if (typeof url === 'string' && (medium === 'image' || mime.startsWith('image/'))) return url;
   }
   const mediaThumbs = asArray(item['media:thumbnail'] as Record<string, unknown> | Record<string, unknown>[]);
   for (const t of mediaThumbs) {
@@ -181,34 +187,95 @@ function pickImageUrl(item: Record<string, unknown>, rawHtml: string): string | 
   return extractFirstImageFromHtml(rawHtml);
 }
 
-function pickVideoOrAudio(item: Record<string, unknown>, link: string): {
-  videoUrl?: string;
-  audioUrl?: string;
-  youtubeId?: string;
-} {
-  let videoUrl: string | undefined;
-  let audioUrl: string | undefined;
-
-  const enclosures = asArray(item['enclosure'] as Record<string, unknown> | Record<string, unknown>[]);
-  for (const enc of enclosures) {
-    const url = enc?.['@_url'] as string | undefined;
-    const type = String(enc?.['@_type'] || '');
-    if (!url) continue;
-    if (type.startsWith('video/') || /\.(mp4|webm|m3u8)(\?|$)/i.test(url)) videoUrl = url;
-    if (type.startsWith('audio/') || /\.(mp3|m4a|ogg|aac)(\?|$)/i.test(url)) audioUrl = url;
+function mediaUrl(value: unknown, base?: string): URL | undefined {
+  if (typeof value !== 'string' || !value.trim()) return undefined;
+  try {
+    const url = new URL(decodeHtmlEntities(value).trim(), base);
+    if ((url.protocol === 'http:' || url.protocol === 'https:') && !url.username && !url.password) return url;
+  } catch {
+    return undefined;
   }
-  const mediaContents = asArray(item['media:content'] as Record<string, unknown> | Record<string, unknown>[]);
-  for (const m of mediaContents) {
-    const url = m?.['@_url'] as string | undefined;
-    const medium = String(m?.['@_medium'] || '');
-    const type = String(m?.['@_type'] || '');
-    if (!url) continue;
-    if (medium === 'video' || type.startsWith('video/')) videoUrl = videoUrl || url;
-    if (medium === 'audio' || type.startsWith('audio/')) audioUrl = audioUrl || url;
+}
+
+function collectMedia(
+  item: Record<string, unknown>,
+  link: string,
+  feedUrl: string,
+  html: string,
+  htmlSummary: string,
+  imageUrl?: string,
+  attachments: unknown[] = [],
+) {
+  const base = mediaUrl(link, feedUrl)?.href || feedUrl;
+  const media = new Map<string, MediaAttachment>();
+
+  function add(value: unknown, rawMime?: unknown, medium?: unknown) {
+    const url = mediaUrl(value, base);
+    if (!url) return;
+    const youtubeId = extractYouTubeId(url.href);
+    if (youtubeId) {
+      const embedUrl = `https://www.youtube-nocookie.com/embed/${youtubeId}`;
+      media.set(embedUrl, { type: 'youtube', url: embedUrl });
+      return;
+    }
+    if (medium === 'embed') return;
+
+    const mimeType = typeof rawMime === 'string' ? rawMime.toLowerCase().split(';')[0].trim() : undefined;
+    const mimeCategory = mimeType?.split('/')[0];
+    let type: MediaAttachment['type'] | undefined;
+    if (mimeCategory === 'audio' || mimeCategory === 'video' || mimeCategory === 'image') type = mimeCategory;
+    else if (medium === 'audio' || medium === 'video' || medium === 'image') type = medium;
+    else if (/\.(mp3|m4a|ogg|oga|opus|aac|wav|flac)$/i.test(url.pathname)) type = 'audio';
+    else if (/\.(mp4|m4v|webm|ogv|mov|m3u8)$/i.test(url.pathname) || mimeType === 'application/vnd.apple.mpegurl') type = 'video';
+    else if (/\.(jpe?g|png|gif|webp|avif)$/i.test(url.pathname)) type = 'image';
+
+    if (type && !media.has(url.href)) media.set(url.href, { type, url: url.href, mimeType });
   }
 
-  const youtubeId = extractYouTubeId(link) || extractYouTubeId(videoUrl || '');
-  return { videoUrl, audioUrl, youtubeId };
+  const records = (value: unknown) => asArray(value).filter(
+    (record): record is Record<string, unknown> => typeof record === 'object' && record !== null,
+  );
+  for (const enclosure of records(item.enclosure)) add(enclosure['@_url'], enclosure['@_type']);
+  for (const enclosure of records(item.link)) {
+    if (enclosure['@_rel'] === 'enclosure') add(enclosure['@_href'], enclosure['@_type']);
+  }
+  for (const attachment of records(attachments)) add(attachment.url, attachment.mime_type);
+
+  for (const group of [item, ...records(item['media:group'])]) {
+    for (const entry of records(group['media:content'])) add(entry['@_url'], entry['@_type'], entry['@_medium']);
+    for (const player of records(group['media:player'])) add(player['@_url'], undefined, 'embed');
+  }
+  const atomContent = records(item.content)[0];
+  if (atomContent) add(atomContent['@_src'], atomContent['@_type']);
+  add(imageUrl, undefined, 'image');
+  add(link, undefined, 'embed');
+
+  for (const markup of new Set([html, htmlSummary])) {
+    const cleaned = markup.replace(/<!--[\s\S]*?-->|<(script|style|textarea)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, '');
+    let parent: 'audio' | 'video' | undefined;
+    for (const tag of cleaned.matchAll(/<(\/?)(audio|video|img|source|iframe)\b((?:"[^"]*"|'[^']*'|[^"'<>])*)>/gi)) {
+      const name = tag[2].toLowerCase();
+      if (name === 'audio' || name === 'video') parent = tag[1] ? undefined : name;
+      if (tag[1]) continue;
+      const attributes = new Map(
+        [...tag[3].matchAll(/([^\s=/"'<>]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))/g)]
+          .map((attribute) => [attribute[1].toLowerCase(), attribute[2] ?? attribute[3] ?? attribute[4]]),
+      );
+      if (name === 'source' && !parent) continue;
+      const medium = name === 'img' ? 'image' : name === 'iframe' ? 'embed' : parent;
+      add(attributes.get('src'), attributes.get('type'), medium);
+    }
+  }
+
+  const entries = [...media.values()];
+  const first = (type: MediaAttachment['type']) => entries.find(entry => entry.type === type)?.url;
+  return {
+    media: entries.length ? entries : undefined,
+    imageUrl: mediaUrl(imageUrl, base)?.href || first('image'),
+    videoUrl: first('video'),
+    audioUrl: first('audio'),
+    youtubeId: extractYouTubeId(first('youtube') || ''),
+  };
 }
 
 function safeIsoDate(rawDate: unknown): string {
@@ -255,15 +322,8 @@ export function parseFeedPayload(rawText: string, source: NewsSource): NewsArtic
                 ? item.banner_image
                 : extractFirstImageFromHtml(html);
 
-          const attachments = Array.isArray(item.attachments) ? (item.attachments as Array<Record<string, unknown>>) : [];
-          let videoUrl: string | undefined;
-          let audioUrl: string | undefined;
-          for (const att of attachments) {
-            const mime = String(att.mime_type || '');
-            const url = String(att.url || '');
-            if (mime.startsWith('video/') && url) videoUrl = url;
-            if (mime.startsWith('audio/') && url) audioUrl = url;
-          }
+          const attachments = Array.isArray(item.attachments) ? item.attachments : [];
+          const media = collectMedia({}, link, source.url, html, String(item.summary || ''), imageUrl, attachments);
 
           const authorObj = Array.isArray(item.authors) ? item.authors[0] : item.author;
           const authorName =
@@ -285,10 +345,7 @@ export function parseFeedPayload(rawText: string, source: NewsSource): NewsArtic
             category: inferCategory(item.tags, title, summary, source.category),
             publishedAt: safeIsoDate(item.date_published || item.date_modified),
             readingTimeMin: estimateReadingTime(`${title} ${paragraphs.join(' ')}`),
-            imageUrl,
-            videoUrl,
-            audioUrl,
-            youtubeId: extractYouTubeId(link),
+            ...media,
             keywords: extractKeywords(title, summary),
           };
         })
@@ -328,7 +385,7 @@ export function parseFeedPayload(rawText: string, source: NewsSource): NewsArtic
         const link = getText(item.link) || getText(item.guid) || source.url;
         const paragraphs = extractParagraphs(rawHtml, summary);
         const imageUrl = pickImageUrl(item, rawHtml);
-        const media = pickVideoOrAudio(item, link);
+        const media = collectMedia(item, link, source.url, rawHtml, getText(item.description), imageUrl);
         const author = stripHtml(getText(item['dc:creator'] || item.author)) || undefined;
 
         return {
@@ -348,10 +405,7 @@ export function parseFeedPayload(rawText: string, source: NewsSource): NewsArtic
           ),
           publishedAt: safeIsoDate(item.pubDate || item['dc:date']),
           readingTimeMin: estimateReadingTime(`${title} ${paragraphs.join(' ')}`),
-          imageUrl,
-          videoUrl: media.videoUrl,
-          audioUrl: media.audioUrl,
-          youtubeId: media.youtubeId,
+          ...media,
           keywords: extractKeywords(title, summary),
         };
       })
@@ -372,19 +426,11 @@ export function parseFeedPayload(rawText: string, source: NewsSource): NewsArtic
       const summary = stripHtml(getText(entry.summary) || rawHtml).slice(0, 280);
 
       const links = asArray(entry.link as Record<string, unknown> | Record<string, unknown>[]);
-      const altLink = links.find((l) => !l['@_rel'] || l['@_rel'] === 'alternate') || links[0];
+      const altLink = links.find((l) => !l['@_rel'] || l['@_rel'] === 'alternate');
       const link = String(altLink?.['@_href'] || getText(entry.id) || source.url);
 
-      const encLink = links.find((l) => l['@_rel'] === 'enclosure');
-      const encType = String(encLink?.['@_type'] || '');
-      const encHref = encLink?.['@_href'] ? String(encLink['@_href']) : undefined;
-
       const paragraphs = extractParagraphs(rawHtml, summary);
-      const imageUrl =
-        pickImageUrl(entry, rawHtml) ||
-        (encType.startsWith('image/') ? encHref : undefined);
-
-      const media = pickVideoOrAudio(entry, link);
+      const media = collectMedia(entry, link, source.url, rawHtml, getText(entry.summary), pickImageUrl(entry, rawHtml));
       const authorObj = entry.author as Record<string, unknown> | undefined;
       const author = authorObj ? stripHtml(getText(authorObj.name)) : undefined;
 
@@ -402,10 +448,7 @@ export function parseFeedPayload(rawText: string, source: NewsSource): NewsArtic
         category: inferCategory(entry.category, title, summary, source.category),
         publishedAt: safeIsoDate(entry.published || entry.updated),
         readingTimeMin: estimateReadingTime(`${title} ${paragraphs.join(' ')}`),
-        imageUrl,
-        videoUrl: media.videoUrl || (encType.startsWith('video/') ? encHref : undefined),
-        audioUrl: media.audioUrl || (encType.startsWith('audio/') ? encHref : undefined),
-        youtubeId: media.youtubeId,
+        ...media,
         keywords: extractKeywords(title, summary),
       };
     })
