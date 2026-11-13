@@ -9,6 +9,8 @@ import {
   Heart,
   Loader2,
   Newspaper,
+  Volume2,
+  Square,
   Settings,
   Share2,
   Sparkles,
@@ -28,6 +30,8 @@ import { ArticleImage } from './ArticleImage';
 
 interface ArticleReaderModalProps {
   article: NewsArticle;
+  relatedArticles: NewsArticle[];
+  onOpenRelated: (article: NewsArticle) => void;
   isBookmarked: boolean;
   isLiked: boolean;
   isDisliked: boolean;
@@ -46,6 +50,8 @@ interface ArticleReaderModalProps {
 
 export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
   article,
+  relatedArticles,
+  onOpenRelated,
   isBookmarked,
   isLiked,
   isDisliked,
@@ -89,6 +95,43 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
   );
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+
+  const [speaking, setSpeaking] = useState(false);
+  const [speechError, setSpeechError] = useState(false);
+  const [showSummary, setShowSummary] = useState(false);
+  const backButton = useRef<HTMLButtonElement>(null);
+  const summaryTitle = useRef<HTMLHeadingElement>(null);
+
+  useEffect(() => {
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    backButton.current?.focus();
+    return () => {
+      window.speechSynthesis?.cancel();
+      requestAnimationFrame(() => { if (document.activeElement === document.body) opener?.focus(); });
+    };
+  }, []);
+
+  useEffect(() => {
+    if (showSummary) summaryTitle.current?.focus();
+  }, [showSummary]);
+
+  const toggleSpeech = () => {
+    if (speaking) {
+      window.speechSynthesis.cancel();
+      setSpeaking(false);
+      return;
+    }
+    const utterance = new SpeechSynthesisUtterance([article.title, ...(paragraphs.length ? paragraphs : [article.summary])].join('\n\n'));
+    utterance.lang = document.documentElement.lang;
+    utterance.onend = () => setSpeaking(false);
+    utterance.onerror = event => {
+      setSpeaking(false);
+      if (!['canceled', 'interrupted'].includes(event.error)) setSpeechError(true);
+    };
+    setSpeechError(false);
+    setSpeaking(true);
+    window.speechSynthesis.speak(utterance);
+  };
 
   const hasBYOKKey = Boolean(aiConfig.apiKey.trim()) || aiConfig.provider === 'custom';
 
@@ -212,7 +255,7 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 20 }}
         transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-        className="relative flex h-[100dvh] sm:h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-none sm:rounded-[32px] bg-[#F1F2F6] dark:bg-[#0B0D12] shadow-2xl ring-1 ring-white/15"
+        className="relative flex h-[100dvh] sm:h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-none sm:rounded-[32px] reader-surface shadow-2xl ring-1 ring-white/15"
       >
         <div className="flex-1 overflow-y-auto">
           {/* Top-bleed Hero Media (Screenshot 3) */}
@@ -246,10 +289,11 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
             <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/55 to-transparent" />
 
             {/* Floating Glass Back & Source Pill */}
-            <div className="absolute inset-x-4 top-4 flex items-center justify-between gap-3">
+            <div className="reader-toolbar absolute inset-x-4 flex items-center justify-between gap-3">
               <button
                 type="button"
                 onClick={onClose}
+                ref={backButton}
                 className="inline-flex min-h-[42px] items-center gap-1 rounded-full bg-white/25 px-4 py-2 text-xs font-semibold text-white backdrop-blur-xl ring-1 ring-white/30 transition hover:bg-white/35 active:scale-95"
               >
                 <ChevronLeft className="h-4 w-4" />
@@ -269,7 +313,7 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
           </div>
 
           {/* Overlapping Rounded Reader Sheet */}
-          <div className="relative -mt-7 rounded-t-[30px] bg-[#F1F2F6] dark:bg-[#0B0D12] px-5 pb-12 pt-6 sm:px-8">
+          <div className="reader-surface reader-body relative -mt-7 rounded-t-[30px] px-5 pt-6 sm:px-8">
             <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-300">
               {article.category}
             </div>
@@ -353,6 +397,17 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
               </button>
             </div>
 
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button type="button" className="choice-pill inline-flex items-center gap-2" aria-expanded={showSummary}
+                aria-controls="reader-summary" onClick={() => setShowSummary(!showSummary)}>
+                <Sparkles size={16} /> Zusammenfassung
+              </button>
+              {'speechSynthesis' in window && <button type="button" className="choice-pill inline-flex items-center gap-2" onClick={toggleSpeech}>
+                {speaking ? <Square size={16} /> : <Volume2 size={16} />} {speaking ? 'Vorlesen beenden' : 'Vorlesen'}
+              </button>}
+            </div>
+            {speechError && <p role="status" className="mt-2 text-sm">Die Sprachausgabe ist auf diesem Gerät gerade nicht verfügbar.</p>}
+
             {article.audioUrl && (
               <div className="liquid-glass mt-5 rounded-2xl p-4">
                 <p className="mb-2 text-xs font-semibold text-slate-600 dark:text-slate-300">
@@ -363,12 +418,12 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
             )}
 
             {/* "Kurz zusammengefasst" Frosted Sage-Tinted Card (Screenshot 3) */}
-            <div className="liquid-glass-sage relative mt-6 overflow-hidden rounded-[24px] p-5 space-y-3.5">
+            <div id="reader-summary" hidden={!showSummary} className="liquid-glass-sage relative mt-6 overflow-hidden rounded-[24px] p-5 space-y-3.5">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                  <h2 className="text-base font-bold text-slate-900 dark:text-white">
-                    Kurz zusammengefasst
+                  <h2 ref={summaryTitle} tabIndex={-1} className="text-base font-bold text-slate-900 dark:text-white">
+                    Das Wichtigste in Kürze
                   </h2>
                 </div>
 
@@ -409,14 +464,12 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
                   </ul>
 
                   {aiConfig.includeContext && aiResult.context && (
-                    <div className="border-t border-black/5 pt-3 dark:border-white/10">
-                      <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">
-                        Einordnung &amp; Kontext
-                      </p>
+                    <details className="border-t border-black/5 pt-3 dark:border-white/10">
+                      <summary className="mb-2 cursor-pointer font-semibold">Mehr Kontext &amp; Hintergründe</summary>
                       <p className="text-sm text-slate-700 dark:text-slate-300">
                         {aiResult.context}
                       </p>
-                    </div>
+                    </details>
                   )}
 
                   {aiConfig.includePerspectives && aiResult.perspectives.length > 0 && (
@@ -437,6 +490,18 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
                     </div>
                   )}
                 </div>
+              )}
+              {relatedArticles.length > 0 && (
+                <details className="border-t border-black/10 pt-3 dark:border-white/10">
+                  <summary className="mb-2 cursor-pointer font-semibold">Verwandte Meldungen anderer Quellen</summary>
+                  <ul className="space-y-1">
+                    {relatedArticles.map(related => <li key={related.id}>
+                      <button type="button" className="preference-row settings-link" onClick={() => onOpenRelated(related)}>
+                        <span><small className="block text-slate-600 dark:text-slate-300">{related.sourceName}</small>{related.title}</span>
+                      </button>
+                    </li>)}
+                  </ul>
+                </details>
               )}
             </div>
 

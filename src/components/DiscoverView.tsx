@@ -1,3 +1,7 @@
+import politicsImage from '../assets/images/news_bundestag_berlin_1794556463691.jpg';
+import businessImage from '../assets/images/news_renewable_europe_1794556463653.jpg';
+import technologyImage from '../assets/images/news_ai_semiconductor_1794556462965.jpg';
+import societyImage from '../assets/images/news_eu_parliament_1794556462855.jpg';
 import React, { useMemo, useState } from 'react';
 import { Check, ChevronRight, Plus, Search, User } from 'lucide-react';
 import type { NewsArticle, NewsCategory, NewsSource, PersonalizationProfile } from '../types/news';
@@ -21,7 +25,17 @@ const DISCOVER_CATEGORIES: NewsCategory[] = [
   'Technologie',
   'Wissenschaft',
   'Europa',
+  'Gesellschaft',
+  'Kultur',
+  'Sport',
 ];
+
+const featuredTopics = [
+  { topic: 'Politik', image: politicsImage },
+  { topic: 'Wirtschaft', image: businessImage },
+  { topic: 'Technologie', image: technologyImage },
+  { topic: 'Gesellschaft', image: societyImage },
+] as const;
 
 export const DiscoverView: React.FC<DiscoverViewProps> = ({
   articles,
@@ -92,6 +106,16 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
           aria-label="Themen, Quellen oder Schlagwörter suchen"
           className="liquid-glass w-full rounded-2xl py-3 pl-11 pr-4 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/60 dark:text-white"
         />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Themen entdecken">
+        {featuredTopics.map(({ topic, image }) => (
+          <button key={topic} type="button" className="topic-card" aria-pressed={category === topic}
+            onClick={() => setCategory(category === topic ? 'Alle' : topic)}>
+            <img src={image} alt="" />
+            <span>{topic}</span>
+          </button>
+        ))}
       </div>
 
       {/* Topic Filter Chips */}

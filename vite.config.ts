@@ -17,8 +17,8 @@ export default defineConfig(() => {
           name: 'OpenNews — Freie Nachrichten',
           short_name: 'OpenNews',
           description: 'Minimalistische Nachrichten-App für freie RSS-, Atom- und JSON-Feeds mit lokaler Personalisierung und BYOK-KI.',
-          theme_color: '#08090C',
-          background_color: '#08090C',
+          theme_color: '#f6f5f2',
+          background_color: '#f6f5f2',
           display: 'standalone',
           start_url: '/',
           scope: '/',
@@ -45,32 +45,6 @@ export default defineConfig(() => {
         },
         workbox: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg,jpg,webp,woff,woff2}'],
-          runtimeCaching: [
-            {
-              urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-              handler: 'CacheFirst',
-              options: {
-                cacheName: 'google-fonts-cache',
-                expiration: {
-                  maxEntries: 10,
-                  maxAgeSeconds: 60 * 60 * 24 * 365,
-                },
-                cacheableResponse: { statuses: [0, 200] },
-              },
-            },
-            {
-              urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
-              handler: 'CacheFirst',
-              options: {
-                cacheName: 'gstatic-fonts-cache',
-                expiration: {
-                  maxEntries: 10,
-                  maxAgeSeconds: 60 * 60 * 24 * 365,
-                },
-                cacheableResponse: { statuses: [0, 200] },
-              },
-            },
-          ],
         },
         devOptions: {
           enabled: true,

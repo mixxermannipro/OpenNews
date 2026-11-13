@@ -109,9 +109,11 @@ export interface NotificationSettings {
   enabled: boolean;
   breakingOnly: boolean;
   topics: string[];
+  from?: string;
+  until?: string;
 }
 
-export type AppTab = 'home' | 'discover' | 'saved' | 'search' | 'settings';
+export type AppTab = 'home' | 'discover' | 'saved' | 'search' | 'settings' | 'profile';
 export type ReaderFontSize = 'normal' | 'large' | 'xlarge';
 export type ReaderFontFamily = 'sans' | 'serif';
 export type ThemeMode = 'dark' | 'light' | 'system';

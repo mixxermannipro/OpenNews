@@ -1,12 +1,12 @@
 import React from 'react';
 import { RefreshCw, Sparkles, User } from 'lucide-react';
 import type { NewsArticle, NewsCategory, PersonalizationProfile } from '../types/news';
-import { getTimeGreetingDe, type ScoredArticle } from '../lib/personalization';
+import { type ScoredArticle } from '../lib/personalization';
 import { CompactArticleCard, HeroArticleCard } from './ArticleCards';
 
 interface HomeViewProps {
   scoredArticles: ScoredArticle[];
-  allArticlesCount: number;
+  showHero: boolean;
   selectedCategory: NewsCategory;
   onSelectCategory: (cat: NewsCategory) => void;
   profile: PersonalizationProfile;
@@ -26,10 +26,14 @@ const HOME_CATEGORIES: NewsCategory[] = [
   'Technologie',
   'Wissenschaft',
   'Europa',
+  'Gesellschaft',
+  'Kultur',
+  'Sport',
 ];
 
 export const HomeView: React.FC<HomeViewProps> = ({
   scoredArticles,
+  showHero,
   selectedCategory,
   onSelectCategory,
   profile,
@@ -40,14 +44,15 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onToggleLike,
   onOpenSettings,
 }) => {
+  const ordered = selectedCategory === 'Alle' ? [...scoredArticles].sort((a, b) => b.article.publishedAt.localeCompare(a.article.publishedAt)) : scoredArticles;
   const filtered =
     selectedCategory === 'Für dich' || selectedCategory === 'Alle'
-      ? scoredArticles
+      ? ordered
       : scoredArticles.filter((s) => s.article.category === selectedCategory);
 
-  const heroEntry = filtered[0];
-  const featuredSideEntries = filtered.slice(1, 4);
-  const restEntries = filtered.slice(4);
+  const heroEntry = showHero ? filtered[0] : undefined;
+  const featuredSideEntries = heroEntry ? filtered.slice(1, 4) : [];
+  const restEntries = heroEntry ? filtered.slice(4) : filtered;
 
   return (
     <section aria-label="Startseite Nachrichten" className="space-y-5">
@@ -55,10 +60,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-900 dark:text-white">
-            {getTimeGreetingDe()}
+            Heute
           </h1>
           <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-            Deine persönlichen Nachrichten
+            {new Intl.DateTimeFormat('de-DE', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())}
           </p>
         </div>
 

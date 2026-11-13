@@ -343,6 +343,9 @@ export function parseFeedPayload(rawText: string, source: NewsSource): NewsArtic
           link,
           author,
           category: inferCategory(item.category, title, summary, source.category),
+          isBreaking: asArray(item.category).some(category =>
+            /^(eilmeldung|breaking news)$/i.test(getText(category).trim())
+          ),
           publishedAt: safeIsoDate(item.pubDate || item['dc:date']),
           readingTimeMin: estimateReadingTime(`${title} ${paragraphs.join(' ')}`),
           imageUrl,

@@ -14,8 +14,6 @@ import {
   Layers,
   Link2,
   Loader2,
-  Monitor,
-  Moon,
   Pencil,
   Plus,
   Radio,
@@ -23,9 +21,8 @@ import {
   Search,
   ShieldCheck,
   Sparkles,
-  Sun,
   Trash2,
-  User,
+  ArrowLeft,
 } from 'lucide-react';
 import type {
   AIProviderConfig,
@@ -35,9 +32,9 @@ import type {
   NewsSource,
   NotificationSettings,
   SourceApiKeys,
-  ThemeMode,
 } from '../types/news';
 import { AI_PROVIDERS, testAIConnection } from '../lib/aiClient';
+import { TopicChoices } from './Preferences';
 import { PWAInstallButton } from './PWAInstallButton';
 
 export type SettingsSectionTab = 'overview' | 'feeds' | 'ai' | 'app';
@@ -48,7 +45,6 @@ interface SettingsViewProps {
   formatPrefs: FormatPreferences;
   sourceKeys: SourceApiKeys;
   aiConfig: AIProviderConfig;
-  theme: ThemeMode;
   notifications: NotificationSettings;
   onToggleSource: (sourceId: string) => void;
   onAddCustomSource: (source: NewsSource) => void;
@@ -57,7 +53,6 @@ interface SettingsViewProps {
   onUpdateFormatPrefs: (prefs: FormatPreferences) => void;
   onUpdateSourceKeys: (keys: SourceApiKeys) => void;
   onUpdateAIConfig: (config: AIProviderConfig) => void;
-  onChangeTheme: (theme: ThemeMode) => void;
   onUpdateNotifications: (next: NotificationSettings) => void;
   onSendTestNotification: () => void;
   onResetAlgorithm: () => void;
@@ -81,7 +76,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   formatPrefs,
   sourceKeys,
   aiConfig,
-  theme,
   notifications,
   onToggleSource,
   onAddCustomSource,
@@ -90,7 +84,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onUpdateFormatPrefs,
   onUpdateSourceKeys,
   onUpdateAIConfig,
-  onChangeTheme,
   onUpdateNotifications,
   onSendTestNotification,
   onResetAlgorithm,
@@ -169,6 +162,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     onUpdateAIConfig({
       ...aiConfig,
       provider: providerId,
+      apiKey: '',
       model: meta?.models[0]?.id || '',
     });
     setAiTestStatus(null);
@@ -180,21 +174,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     const res = await testAIConnection(aiConfig);
     setAiTestStatus(res);
     setTestingAI(false);
-  };
-
-  const handleToggleNotificationPermission = async () => {
-    if (!notifications.enabled && typeof Notification !== 'undefined') {
-      try {
-        const perm = await Notification.requestPermission();
-        if (perm === 'denied') {
-          onUpdateNotifications({ ...notifications, enabled: false });
-          return;
-        }
-      } catch {
-        // Fallback to in-app notifications
-      }
-    }
-    onUpdateNotifications({ ...notifications, enabled: !notifications.enabled });
   };
 
   const handleDiscoverFeeds = async (e: React.FormEvent) => {
@@ -266,20 +245,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-900 dark:text-white">
-            Quellen &amp; Integrationen
+            {{ overview: 'Quellen', feeds: 'Quellen verwalten', ai: 'KI & Personalisierung', app: 'Benachrichtigungen' }[section]}
           </h1>
-          <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-            Verwalte deine News-Quellen
-          </p>
         </div>
 
         <button
           type="button"
           onClick={onBackHome}
-          aria-label="Zurück zu Home"
+          aria-label="Zurück zum Profil"
           className="liquid-glass flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full text-slate-700 dark:text-slate-200 transition hover:scale-105 active:scale-95"
         >
-          <User className="h-4 w-4" />
+          <ArrowLeft className="h-4 w-4" />
         </button>
       </div>
 
@@ -293,7 +269,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           { id: 'overview' as const, label: 'Übersicht' },
           { id: 'feeds' as const, label: `Feed-Manager (${sources.filter((s) => s.subscribed).length})` },
           { id: 'ai' as const, label: 'KI & API-Key' },
-          { id: 'app' as const, label: 'App & Design' },
+          { id: 'app' as const, label: 'Benachrichtigungen' },
         ].map((tab) => {
           const active = section === tab.id;
           return (
@@ -924,22 +900,35 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </p>
             </div>
 
-            <div>
-              <label htmlFor="ai-model" className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">
-                Modell auswählen
-              </label>
-              <select
+            <div className="space-y-2">
+              <label htmlFor="ai-model" className="block text-sm font-medium">Modell-ID</label>
+              <input
                 id="ai-model"
                 value={aiConfig.model}
-                onChange={(e) => onUpdateAIConfig({ ...aiConfig, model: e.target.value })}
-                className="w-full min-h-[44px] rounded-2xl border border-black/10 bg-white/80 px-3.5 text-sm font-medium text-slate-900 dark:border-white/10 dark:bg-[#151822] dark:text-white"
-              >
-                {activeProviderMeta.models.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.label}
-                  </option>
+                autoCapitalize="none"
+                spellCheck={false}
+                onChange={(e) => {
+                  onUpdateAIConfig({ ...aiConfig, model: e.target.value });
+                  setAiTestStatus(null);
+                }}
+                className="preference-input w-full"
+              />
+              <div className="flex flex-wrap gap-2" aria-label="Modellvorschläge">
+                {activeProviderMeta.models.map((model) => (
+                  <button
+                    key={model.id}
+                    type="button"
+                    aria-pressed={aiConfig.model === model.id}
+                    className="choice-pill"
+                    onClick={() => {
+                      onUpdateAIConfig({ ...aiConfig, model: model.id });
+                      setAiTestStatus(null);
+                    }}
+                  >
+                    {model.label}
+                  </button>
                 ))}
-              </select>
+              </div>
             </div>
 
             {aiConfig.provider === 'custom' && (
@@ -1028,6 +1017,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     type="button"
                     role="switch"
                     aria-checked={aiConfig[opt.key]}
+                    aria-label={opt.label}
                     onClick={() =>
                       onUpdateAIConfig({ ...aiConfig, [opt.key]: !aiConfig[opt.key] })
                     }
@@ -1052,48 +1042,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       {section === 'app' && (
         <div className="space-y-4">
           <div className="liquid-glass rounded-[26px] p-5 space-y-4">
-            <div>
-              <h2 className="text-base font-bold text-slate-900 dark:text-white">
-                Erscheinungsbild
-              </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Wähle zwischen Dark Mode, hellem Modus oder der Systemeinstellung deines Geräts
-              </p>
-            </div>
-
-            <div
-              role="radiogroup"
-              aria-label="Design-Modus auswählen"
-              className="liquid-glass-subtle grid grid-cols-3 gap-1.5 rounded-2xl p-1.5"
-            >
-              {[
-                { id: 'dark' as const, label: 'Dunkel', icon: <Moon className="h-4 w-4" /> },
-                { id: 'light' as const, label: 'Hell', icon: <Sun className="h-4 w-4" /> },
-                { id: 'system' as const, label: 'System', icon: <Monitor className="h-4 w-4" /> },
-              ].map((opt) => {
-                const selected = theme === opt.id;
-                return (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    role="radio"
-                    aria-checked={selected}
-                    onClick={() => onChangeTheme(opt.id)}
-                    className={`flex min-h-[44px] items-center justify-center gap-2 rounded-xl px-3 text-xs font-semibold transition ${
-                      selected
-                        ? 'bg-[#2C2F36] text-white shadow-sm dark:bg-white dark:text-slate-950'
-                        : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'
-                    }`}
-                  >
-                    {opt.icon}
-                    {opt.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="liquid-glass rounded-[26px] p-5 space-y-4">
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <Bell className="h-5 w-5 text-emerald-500" />
@@ -1102,7 +1050,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     Eilmeldungen &amp; Benachrichtigungen
                   </h2>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Lokale Alerts für neue Top-Meldungen deiner Quellen
+                    Hinweise beim Aktualisieren der Nachrichten in der geöffneten App
                   </p>
                 </div>
               </div>
@@ -1111,7 +1059,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 role="switch"
                 aria-checked={notifications.enabled}
                 aria-label="Benachrichtigungen umschalten"
-                onClick={handleToggleNotificationPermission}
+                onClick={() => onUpdateNotifications({ ...notifications, enabled: !notifications.enabled })}
                 className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors ${
                   notifications.enabled ? 'bg-[#34C759]' : 'bg-slate-300 dark:bg-slate-700'
                 }`}
@@ -1125,17 +1073,28 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </div>
 
             {notifications.enabled && (
-              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-black/5 pt-3 dark:border-white/10">
-                <span className="text-xs text-slate-500 dark:text-slate-400">
-                  Benachrichtigungen aktiv für abonnierte Agenturen
-                </span>
-                <button
-                  type="button"
-                  onClick={onSendTestNotification}
-                  className="liquid-glass-subtle min-h-[38px] rounded-full px-3.5 text-xs font-semibold text-blue-600 dark:text-blue-400"
-                >
-                  Test-Meldung senden
-                </button>
+              <div className="space-y-4 border-t border-black/10 pt-3 dark:border-white/10">
+                <label className="preference-row px-0">
+                  Nur als Eilmeldung markierte Artikel
+                  <input type="checkbox" checked={notifications.breakingOnly}
+                    onChange={event => onUpdateNotifications({ ...notifications, breakingOnly: event.target.checked })} />
+                </label>
+                {!notifications.breakingOnly && (
+                  <div className="space-y-2">
+                    <p className="text-sm font-semibold">Themen für Hinweise</p>
+                    <p className="text-sm text-slate-600 dark:text-slate-300">Ohne Auswahl sind alle Themen aktiv.</p>
+                    <TopicChoices topics={notifications.topics as NewsCategory[]}
+                      onChange={topics => onUpdateNotifications({ ...notifications, topics })} />
+                  </div>
+                )}
+                <fieldset className="flex flex-wrap gap-3">
+                  <legend className="mb-2 text-sm font-semibold">Zeitfenster</legend>
+                  <label className="flex items-center gap-2">Von <input type="time" className="preference-input"
+                    value={notifications.from ?? '00:00'} onChange={event => onUpdateNotifications({ ...notifications, from: event.target.value || undefined })} /></label>
+                  <label className="flex items-center gap-2">Bis <input type="time" className="preference-input"
+                    value={notifications.until ?? '23:59'} onChange={event => onUpdateNotifications({ ...notifications, until: event.target.value || undefined })} /></label>
+                </fieldset>
+                <button type="button" onClick={onSendTestNotification} className="choice-pill">Test-Meldung senden</button>
               </div>
             )}
           </div>

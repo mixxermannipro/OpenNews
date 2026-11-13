@@ -45,7 +45,7 @@ export const HeroArticleCard: React.FC<CardActionsProps & { badgeLabel?: string;
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
-      className={`group relative overflow-hidden rounded-[28px] bg-slate-900 shadow-lg ring-1 ring-black/10 dark:ring-white/10 ${className}`}
+      className={`article-card group relative overflow-hidden bg-slate-900 shadow-lg ring-1 ring-black/10 dark:ring-white/10 ${className}`}
     >
       <button
         type="button"
@@ -53,7 +53,7 @@ export const HeroArticleCard: React.FC<CardActionsProps & { badgeLabel?: string;
         className="relative flex min-h-[290px] sm:min-h-[340px] h-full w-full flex-col justify-between gap-8 p-5 sm:p-6 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
         aria-label={`Artikel öffnen: ${article.title}`}
       >
-        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="article-thumbnail pointer-events-none absolute inset-0 overflow-hidden">
           <ArticleImage
             src={article.imageUrl}
             alt={article.title}
@@ -83,11 +83,11 @@ export const HeroArticleCard: React.FC<CardActionsProps & { badgeLabel?: string;
         </div>
 
         {/* Bottom Editorial Copy */}
-        <div className="relative z-10 pr-24 sm:pr-28">
+        <div className="relative z-10 pb-12">
           {showReason && (
             <p className="mb-1 text-xs font-medium text-blue-200">{reason}</p>
           )}
-          <h2 className="line-clamp-3 text-xl sm:text-2xl font-bold leading-snug tracking-tight text-white [text-wrap:balance]">
+          <h2 className="line-clamp-3 text-2xl sm:text-3xl font-bold leading-tight tracking-tight text-white [text-wrap:balance]">
             {article.title}
           </h2>
           <p className="mt-1.5 line-clamp-2 text-[13px] sm:text-sm leading-relaxed text-white/85">
@@ -155,7 +155,7 @@ export const CompactArticleCard: React.FC<CardActionsProps> = ({
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-      className="liquid-glass group relative flex items-center gap-3 rounded-[22px] p-2.5 sm:p-3 transition hover:scale-[1.005]"
+      className="liquid-glass article-card article-card-compact group relative flex items-center gap-3 p-2.5 sm:p-3 transition hover:scale-[1.005]"
     >
       <button
         type="button"
@@ -163,7 +163,7 @@ export const CompactArticleCard: React.FC<CardActionsProps> = ({
         className="flex min-w-0 flex-1 items-center gap-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-2xl"
         aria-label={`Artikel öffnen: ${article.title}`}
       >
-        <div className="relative h-[76px] w-[104px] sm:h-[84px] sm:w-[116px] shrink-0 overflow-hidden rounded-[15px] bg-slate-200 dark:bg-slate-800">
+        <div className="article-thumbnail relative h-[76px] w-[104px] sm:h-[84px] sm:w-[116px] shrink-0 overflow-hidden rounded-[15px] bg-slate-200 dark:bg-slate-800">
           <ArticleImage
             src={article.imageUrl}
             alt={article.title}
@@ -242,7 +242,7 @@ export const BentoArticleCard: React.FC<CardActionsProps & { tall?: boolean; cla
 }) => {
   return (
     <article
-      className={`group relative overflow-hidden rounded-[24px] bg-slate-900 shadow-md ring-1 ring-black/10 dark:ring-white/10 ${className}`}
+      className={`article-card group relative overflow-hidden bg-slate-900 shadow-md ring-1 ring-black/10 dark:ring-white/10 ${className}`}
     >
       <button
         type="button"
@@ -252,7 +252,7 @@ export const BentoArticleCard: React.FC<CardActionsProps & { tall?: boolean; cla
         }`}
         aria-label={`Artikel öffnen: ${article.title}`}
       >
-        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="article-thumbnail pointer-events-none absolute inset-0 overflow-hidden">
           <ArticleImage
             src={article.imageUrl}
             alt={article.title}
