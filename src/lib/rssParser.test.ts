@@ -90,3 +90,55 @@ test('stripHtml and estimateReadingTime produce clean outputs', () => {
   assert.ok(cleaned.includes('Hallo & Welt'));
   assert.equal(estimateReadingTime('wort '.repeat(360)), 2);
 });
+
+test('collects RSS media, resolves relative URLs and removes duplicates and unsafe sources', () => {
+  const [article] = parseFeedPayload(`<rss xmlns:media="http://search.yahoo.com/mrss/"><channel><item>
+    <title>Medienbeitrag</title><link>https://example.org/news/story</link>
+    <enclosure url="../episode.mp3" type="audio/mpeg" />
+    <media:group><media:content url="https://example.org/episode.mp3" medium="audio" />
+      <media:content url="/video.mp4" medium="video" /><media:content url="/photo.jpg" medium="image" />
+    </media:group>
+    <description><![CDATA[<p>Ein Artikel mit mehreren Medien.</p>
+      <audio><source src="/voice.opus"></audio>
+      <video src="javascript:alert(1)"></video>
+      <iframe src="https://www.youtube.com/embed/aqz-KE-bpKQ"></iframe>
+      <iframe src="https://example.org/youtube.com/embed/aqz-KE-bpKQ"></iframe>
+    ]]></description>
+  </item></channel></rss>`, mockSource);
+  assert.deepEqual(article.media?.map(({ type, url }) => [type, url]), [
+    ['audio', 'https://example.org/episode.mp3'],
+    ['video', 'https://example.org/video.mp4'],
+    ['image', 'https://example.org/photo.jpg'],
+    ['audio', 'https://example.org/voice.opus'],
+    ['youtube', 'https://www.youtube-nocookie.com/embed/aqz-KE-bpKQ'],
+  ]);
+});
+
+test('collects every Atom enclosure and JSON attachment', () => {
+  const [atom] = parseFeedPayload(`<feed><entry><title>Atom</title>
+    <link href="https://example.org/article" />
+    <link rel="enclosure" href="/cover.jpg" type="image/jpeg" />
+    <link rel="enclosure" href="/audio.mp3" type="audio/mpeg" />
+    <link rel="enclosure" href="/video.webm" type="video/webm" />
+  </entry></feed>`, mockSource);
+  assert.deepEqual(atom.media?.map(media => media.type), ['image', 'audio', 'video']);
+  assert.equal(atom.imageUrl, 'https://example.org/cover.jpg');
+  const [json] = parseFeedPayload(JSON.stringify({ items: [{
+    title: 'JSON', url: 'https://example.org/article',
+    attachments: [
+      null,
+      { url: '/one.mp3', mime_type: 'audio/mpeg' },
+      { url: '/two.mp3', mime_type: 'audio/mpeg' },
+    ],
+  }] }), mockSource);
+  assert.equal(json.media?.length, 2);
+});
+
+test('does not use an untyped video as the article image', () => {
+  const [article] = parseFeedPayload(`<rss><channel><item>
+    <title>Video</title><media:content url="https://example.org/clip.mp4" />
+    <media:thumbnail url="https://example.org/poster.jpg" />
+  </item></channel></rss>`, mockSource);
+  assert.equal(article.imageUrl, 'https://example.org/poster.jpg');
+  assert.equal(article.videoUrl, 'https://example.org/clip.mp4');
+});

@@ -28,6 +28,7 @@ import { analyzeArticleWithBYOK } from '../lib/aiClient';
 import { formatRelativeTimeDe, generateLocalExtractiveSummary } from '../lib/personalization';
 import { trackNavigationScroll } from '../lib/scrollNavigation';
 import { ArticleImage } from './ArticleImage';
+import { ArticleMedia } from './ArticleMedia';
 
 const ArticleShare = registerPlugin<{ share(options: { title: string; url: string }): Promise<void> }>('ArticleShare');
 
@@ -280,31 +281,13 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
         }}>
           {/* Top-bleed Hero Media (Screenshot 3) */}
           <div className="relative h-64 sm:h-80 w-full bg-slate-900">
-            {article.youtubeId ? (
-              <iframe
-                src={`https://www.youtube-nocookie.com/embed/${article.youtubeId}`}
-                title={article.title}
-                className="h-full w-full"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
-            ) : article.videoUrl ? (
-              <video
-                src={article.videoUrl}
-                poster={heroImage}
-                controls
-                playsInline
-                className="h-full w-full object-cover bg-black"
-              />
-            ) : (
-              <ArticleImage
-                src={heroImage}
-                alt={article.title}
-                sourceShortCode={article.sourceShortCode}
-                sourceColor={article.sourceColor}
-                className="h-full w-full"
-              />
-            )}
+            <ArticleImage
+              src={heroImage}
+              alt={article.title}
+              sourceShortCode={article.sourceShortCode}
+              sourceColor={article.sourceColor}
+              className="h-full w-full"
+            />
 
             <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/55 to-transparent" />
 
@@ -349,14 +332,7 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
               <span>{Math.max(1, Math.ceil((paragraphs.join(' ').match(/\S+/g)?.length ?? 0) / 220))} Min. Lesezeit</span>
             </div>
 
-            {article.audioUrl && (
-              <div className="liquid-glass mt-5 rounded-2xl p-4">
-                <p className="mb-2 text-xs font-semibold text-slate-600 dark:text-slate-300">
-                  Audio-Beitrag / Podcast
-                </p>
-                <audio src={article.audioUrl} controls className="w-full" />
-              </div>
-            )}
+            <ArticleMedia key={article.id} article={article} heroImage={heroImage} />
 
             <div className={`reader-prose mt-6 space-y-4 ${textSizeClass} ${fontFamily === 'serif' ? 'font-editorial-serif' : ''}`}>
               {(paragraphs.length ? paragraphs : [article.summary]).map((paragraph, index) => headingIndexes.includes(index)

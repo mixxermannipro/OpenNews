@@ -28,7 +28,7 @@ export interface NewsSource {
 }
 
 export interface MediaAttachment {
-  type: 'image' | 'video' | 'audio';
+  type: 'image' | 'video' | 'audio' | 'youtube';
   url: string;
   mimeType?: string;
 }
@@ -49,6 +49,7 @@ export interface NewsArticle {
   publishedAt: string; // ISO string
   readingTimeMin: number;
   imageUrl?: string;
+  media?: MediaAttachment[];
   videoUrl?: string;
   audioUrl?: string;
   youtubeId?: string;
