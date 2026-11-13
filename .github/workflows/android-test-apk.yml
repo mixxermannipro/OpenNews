@@ -42,8 +42,10 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      # The GitHub Ubuntu runner already includes a supported Android SDK.
+      # Avoid setup-android's obsolete "tools" package installation.
+      - name: Verify Android SDK
+        run: test -d "$ANDROID_HOME"
 
       - name: Install dependencies
         run: npm install --no-audit --no-fund
