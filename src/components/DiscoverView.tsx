@@ -6,7 +6,6 @@ import React, { useMemo, useState } from 'react';
 import { Check, ChevronRight, Plus } from 'lucide-react';
 import type { NewsArticle, NewsCategory, NewsSource, PersonalizationProfile } from '../types/news';
 import { BentoArticleCard, CompactArticleCard, HeroArticleCard } from './ArticleCards';
-
 import { DiscoverSearch } from './DiscoverSearch';
 
 interface DiscoverViewProps {
