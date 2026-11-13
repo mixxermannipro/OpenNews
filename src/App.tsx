@@ -348,8 +348,9 @@ export default function App() {
           <button
             type="button"
             onClick={() => setActiveTab('home')}
-            className="text-lg font-bold tracking-tight text-slate-900 dark:text-white whitespace-nowrap shrink-0"
+            className="flex items-center gap-2.5 text-lg font-bold tracking-tight text-slate-900 dark:text-white whitespace-nowrap shrink-0"
           >
+            <img src="/logo.png" alt="" className="h-9 w-9 rounded-lg object-cover" />
             OpenNews
           </button>
 
