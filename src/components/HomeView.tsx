@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { ArrowDown, Bell, LoaderCircle, Sparkles } from 'lucide-react';
 import type { NewsArticle, NewsCategory, PersonalizationProfile } from '../types/news';
 import { type ScoredArticle } from '../lib/personalization';
@@ -54,11 +54,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
     setPull(0);
   };
 
-  const ordered = selectedCategory === 'Alle' ? [...scoredArticles].sort((a, b) => b.article.publishedAt.localeCompare(a.article.publishedAt)) : scoredArticles;
-  const filtered =
-    selectedCategory === 'Für dich' || selectedCategory === 'Alle'
-      ? ordered
-      : scoredArticles.filter((s) => s.article.category === selectedCategory);
+  const [batch, setBatch] = useState({ category: selectedCategory, limit: 30 });
+  const visibleLimit = batch.category === selectedCategory ? batch.limit : 30;
+  const results = useMemo(() => {
+    if (selectedCategory === 'Für dich') return scoredArticles;
+    if (selectedCategory === 'Alle') return [...scoredArticles].sort((a, b) => b.article.publishedAt.localeCompare(a.article.publishedAt));
+    return scoredArticles.filter(({ article }) => article.category === selectedCategory);
+  }, [scoredArticles, selectedCategory]);
+  const filtered = results.slice(0, visibleLimit);
 
   const heroEntry = showHero ? filtered[0] : undefined;
   const featuredSideEntries = heroEntry ? filtered.slice(1, 4) : [];
@@ -209,6 +212,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
               ))}
             </div>
           )}
+          {results.length > visibleLimit && <button type="button" className="choice-pill" onClick={() =>
+            setBatch({ category: selectedCategory, limit: visibleLimit + 30 })}>Weitere Meldungen</button>}
         </div>
       )}
     </section>

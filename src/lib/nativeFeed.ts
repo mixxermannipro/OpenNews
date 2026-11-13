@@ -103,11 +103,12 @@ export async function extractNativeArticle(url: string): Promise<{ paragraphs: s
   if (!target) return { paragraphs: [] };
   const html = await getNativeText(target, 7000);
   const document = new DOMParser().parseFromString(html, 'text/html');
-  const scope = document.querySelector('article') || document.querySelector('main') || document.body;
-  const paragraphs = [...scope.querySelectorAll('p')]
+  const scope = document.querySelector('.meldung__content, [itemprop="articleBody"], .article-body, .entry-content')
+    || document.querySelector('article') || document.querySelector('main') || document.body;
+  scope.querySelectorAll('aside, footer, nav, [hidden], .teaser, .related, .newsletter').forEach(node => node.remove());
+  const paragraphs = [...scope.querySelectorAll('p, h2, h3, li')]
     .map(p => (p.textContent || '').replace(/\s+/g, ' ').trim())
-    .filter(text => text.length > 45 && !/cookie|datenschutz|newsletter|anzeige|abonnieren/i.test(text))
-    .slice(0, 18);
+    .filter(text => text.length > 0);
   const ogImageRaw = document.querySelector('meta[property="og:image"]')?.getAttribute('content');
   const ogImage = ogImageRaw ? new URL(ogImageRaw, target).toString() : undefined;
   return { paragraphs, ogImage };

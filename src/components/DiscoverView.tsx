@@ -3,7 +3,7 @@ import businessImage from '../assets/images/news_renewable_europe_1794556463653.
 import technologyImage from '../assets/images/news_ai_semiconductor_1794556462965.jpg';
 import societyImage from '../assets/images/news_eu_parliament_1794556462855.jpg';
 import React, { useMemo, useState } from 'react';
-import { Check, ChevronRight, Plus, Search } from 'lucide-react';
+import { Check, ChevronRight, Plus } from 'lucide-react';
 import type { NewsArticle, NewsCategory, NewsSource, PersonalizationProfile } from '../types/news';
 import { BentoArticleCard, CompactArticleCard, HeroArticleCard } from './ArticleCards';
 
@@ -47,23 +47,9 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
   onToggleLike,
   onOpenSourcesSettings,
 }) => {
-  const [query, setQuery] = useState('');
   const [category, setCategory] = useState<NewsCategory>('Alle');
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return articles.filter((a) => {
-      const catOk = category === 'Alle' || a.category === category;
-      if (!catOk) return false;
-      if (!q) return true;
-      return (
-        a.title.toLowerCase().includes(q) ||
-        a.summary.toLowerCase().includes(q) ||
-        a.sourceName.toLowerCase().includes(q) ||
-        a.category.toLowerCase().includes(q)
-      );
-    });
-  }, [articles, category, query]);
+  const filtered = useMemo(() => category === 'Alle' ? articles : articles.filter(article => article.category === category), [articles, category]);
 
   const hero = filtered[0];
   const bentoLeft = filtered[1];
@@ -81,23 +67,10 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
             Entdecken
           </h1>
           <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-            Finde Themen, Quellen und Trends
+            Themen und Quellen entdecken
           </p>
         </div>
 
-      </div>
-
-      {/* Inline Search Input */}
-      <div className="relative">
-        <Search className="pointer-events-none absolute left-4 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-slate-400" />
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Themen, Quellen oder Schlagwörter"
-          aria-label="Themen, Quellen oder Schlagwörter suchen"
-          className="liquid-glass w-full rounded-2xl py-3 pl-11 pr-4 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/60 dark:text-white"
-        />
       </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Themen entdecken">

@@ -69,9 +69,10 @@ export function Appearance({ theme, onTheme, preferences, onPreferences }: Appea
 
 export type ProfilePage = 'profile' | 'preferences' | 'appearance' | 'feed' | 'reader' | 'motion' | 'privacy' | 'topics';
 
-export function ProfileView({ page, onPage, onSaved, onHistory, onSources, onAI, onNotifications, fontSize, fontFamily, onFontSize, onFontFamily, ...appearance }: AppearanceProps & {
+export function ProfileView({ page, onPage, onBack, onSaved, onHistory, onSources, onAI, onNotifications, fontSize, fontFamily, onFontSize, onFontFamily, ...appearance }: AppearanceProps & {
   page: ProfilePage;
   onPage: (page: ProfilePage) => void;
+  onBack: () => void;
   onSaved: () => void;
   onHistory: () => void;
   onSources: () => void;
@@ -100,9 +101,7 @@ export function ProfileView({ page, onPage, onSaved, onHistory, onSources, onAI,
   return (
     <section className="settings-page">
       {page !== 'profile' && (
-        <button className="choice-pill inline-flex items-center gap-2" onClick={() => onPage(
-          ['appearance', 'feed', 'reader', 'motion'].includes(page) ? 'preferences' : 'profile'
-        )} type="button"><ArrowLeft size={16} /> Zurück</button>
+        <button className="choice-pill inline-flex items-center gap-2" onClick={onBack} type="button"><ArrowLeft size={16} /> Zurück</button>
       )}
       <h1 ref={title} tabIndex={-1} className="screen-title">{labels[page]}</h1>
       {page === 'profile' && <>

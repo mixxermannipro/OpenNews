@@ -35,6 +35,7 @@ import type {
 } from '../types/news';
 import { AI_PROVIDERS, testAIConnection } from '../lib/aiClient';
 import { TopicChoices } from './Preferences';
+import { exportOpml, importOpml } from '../lib/opml';
 import { PWAInstallButton } from './PWAInstallButton';
 
 export type SettingsSectionTab = 'overview' | 'feeds' | 'ai' | 'app';
@@ -46,6 +47,7 @@ interface SettingsViewProps {
   sourceKeys: SourceApiKeys;
   aiConfig: AIProviderConfig;
   notifications: NotificationSettings;
+  onImportSources: (sources: NewsSource[]) => void;
   onToggleSource: (sourceId: string) => void;
   onAddCustomSource: (source: NewsSource) => void;
   onUpdateSource: (sourceId: string, updates: Partial<NewsSource>) => void;
@@ -57,6 +59,7 @@ interface SettingsViewProps {
   onSendTestNotification: () => void;
   onResetAlgorithm: () => void;
   onBackHome: () => void;
+  onAdvancedSources: () => void;
 }
 
 const CUSTOM_CATEGORIES: Array<Exclude<NewsCategory, 'Alle' | 'Für dich'>> = [
@@ -77,6 +80,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   sourceKeys,
   aiConfig,
   notifications,
+  onImportSources,
   onToggleSource,
   onAddCustomSource,
   onUpdateSource,
@@ -88,8 +92,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onSendTestNotification,
   onResetAlgorithm,
   onBackHome,
+  onAdvancedSources,
 }) => {
-  const [section, setSection] = useState<SettingsSectionTab>(initialSection);
+  const section = initialSection;
+  const [transferStatus, setTransferStatus] = useState('');
+  const [showAISetup, setShowAISetup] = useState(Boolean(aiConfig.apiKey));
   const [feedSearch, setFeedSearch] = useState('');
   const [discovering, setDiscovering] = useState(false);
   const [discoveredFeeds, setDiscoveredFeeds] = useState<
@@ -257,38 +264,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         >
           <ArrowLeft className="h-4 w-4" />
         </button>
-      </div>
-
-      {/* Sub-navigation pills */}
-      <div
-        role="tablist"
-        aria-label="Einstellungsbereiche"
-        className="no-scrollbar flex items-center gap-2 overflow-x-auto pb-1"
-      >
-        {[
-          { id: 'overview' as const, label: 'Übersicht' },
-          { id: 'feeds' as const, label: `Feed-Manager (${sources.filter((s) => s.subscribed).length})` },
-          { id: 'ai' as const, label: 'KI & API-Key' },
-          { id: 'app' as const, label: 'Benachrichtigungen' },
-        ].map((tab) => {
-          const active = section === tab.id;
-          return (
-            <button
-              key={tab.id}
-              role="tab"
-              type="button"
-              aria-selected={active}
-              onClick={() => setSection(tab.id)}
-              className={`min-h-[40px] shrink-0 rounded-full px-4 py-2 text-xs font-semibold whitespace-nowrap transition active:scale-95 ${
-                active
-                  ? 'bg-[#2C2F36] text-white shadow-sm dark:bg-white dark:text-slate-950'
-                  : 'liquid-glass-subtle text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'
-              }`}
-            >
-              {tab.label}
-            </button>
-          );
-        })}
       </div>
 
       {/* SECTION 1: ÜBERSICHT (1-to-1 match with Screenshot 1!) */}
@@ -523,6 +498,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       {/* SECTION 2: FEED-MANAGER */}
       {section === 'feeds' && (
         <div className="space-y-4">
+          <details className="settings-group p-4">
+            <summary className="cursor-pointer font-semibold">Quelle hinzufügen oder suchen</summary>
+            <div className="mt-4 space-y-3">
           {/* Feed Search & Auto-Discovery */}
           <div className="liquid-glass rounded-[26px] p-5 space-y-4">
             <div>
@@ -648,6 +626,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </form>
 
           {/* Meine ausgewählten Feeds */}
+            </div>
+          </details>
           <div className="liquid-glass rounded-[26px] p-5 space-y-3">
             <div>
               <h3 className="text-base font-bold text-slate-900 dark:text-white">
@@ -779,12 +759,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
           {/* Empfohlene Feeds */}
           {recommendedSources.length > 0 && (
-            <div className="liquid-glass rounded-[26px] p-5 space-y-3">
+            <details className="settings-group p-5 space-y-3">
               <div className="flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-blue-500" />
-                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                <summary className="cursor-pointer font-semibold">
                   Empfohlene Feeds ({recommendedSources.length})
-                </h3>
+                </summary>
               </div>
 
               <div className="divide-y divide-black/[0.06] dark:divide-white/[0.08]">
@@ -817,15 +797,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   </div>
                 ))}
               </div>
-            </div>
+            </details>
           )}
 
           {/* Weitere verfügbare Quellen */}
           {otherSources.length > 0 && (
-            <div className="liquid-glass rounded-[26px] p-5 space-y-3">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
+            <details className="settings-group p-5 space-y-3">
+              <summary className="cursor-pointer font-semibold">
                 Weitere Quellen ({otherSources.length})
-              </h3>
+              </summary>
               <div className="divide-y divide-black/[0.06] dark:divide-white/[0.08]">
                 {otherSources.map((src) => (
                   <div key={src.id} className="flex items-center justify-between gap-3 py-3">
@@ -856,8 +836,44 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   </div>
                 ))}
               </div>
-            </div>
+            </details>
           )}
+          <details className="settings-group p-4 space-y-3">
+            <summary className="cursor-pointer font-semibold">Import, Export und weitere Einstellungen</summary>
+            <div className="flex flex-wrap gap-2">
+              <label className="choice-pill cursor-pointer">OPML importieren
+                <input type="file" accept=".opml,.xml" className="sr-only" onChange={async event => {
+                  const input = event.currentTarget;
+                  const file = input.files?.[0];
+                  if (!file) return;
+                  try {
+                    const imported = importOpml(await file.text());
+                    onImportSources(imported);
+                    setTransferStatus(imported.length ? `${imported.length} Quellen übernommen.` : 'Keine gültigen Quellen gefunden.');
+                  } catch (error) {
+                    setTransferStatus(error instanceof Error ? error.message : 'Import fehlgeschlagen.');
+                  } finally { input.value = ''; }
+                }} />
+              </label>
+              <button type="button" className="choice-pill" onClick={async () => {
+                const file = new File([exportOpml(sources)], 'OpenNews.opml', { type: 'text/x-opml' });
+                if (navigator.canShare?.({ files: [file] })) {
+                  try { await navigator.share({ files: [file] }); } catch { /* Share sheet closed */ }
+                  return;
+                }
+                const link = document.createElement('a');
+                const url = URL.createObjectURL(file);
+                link.href = url;
+                link.download = file.name;
+                document.body.append(link);
+                link.click();
+                link.remove();
+                window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+              }}>OPML exportieren</button>
+              <button type="button" className="choice-pill" onClick={onAdvancedSources}>Formate &amp; Zugangsschlüssel</button>
+            </div>
+            {transferStatus && <p role="status">{transferStatus}</p>}
+          </details>
         </div>
       )}
 
@@ -878,6 +894,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </div>
           </div>
 
+          <p className="text-sm text-slate-600 dark:text-slate-300">Empfohlen: lokale Zusammenfassungen ohne API-Schlüssel.</p>
+          {!showAISetup && <button className="choice-pill" type="button" onClick={() => setShowAISetup(true)}>KI-Anbieter verbinden</button>}
+          {showAISetup && <>
           <div className="space-y-4">
             <div>
               <label htmlFor="ai-provider" className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">
@@ -1035,6 +1054,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               ))}
             </div>
           </div>
+          </>}
         </div>
       )}
 
@@ -1099,6 +1119,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             )}
           </div>
 
+          <details className="settings-group p-4 space-y-3">
+            <summary className="cursor-pointer font-semibold">Weitere App-Einstellungen</summary>
           <div className="liquid-glass rounded-[26px] p-5 flex flex-wrap items-center justify-between gap-4">
             <div>
               <h2 className="text-base font-bold text-slate-900 dark:text-white">
@@ -1128,6 +1150,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               Algorithmus zurücksetzen
             </button>
           </div>
+          </details>
         </div>
       )}
     </section>

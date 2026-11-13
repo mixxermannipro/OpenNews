@@ -12,7 +12,7 @@
     --panel: #fff;
     --control: #efeeeb;
     --line: #d9d9d6;
-    --glass-tint: rgb(255 255 255 / 78%);
+    --glass-tint: rgb(255 255 255 / 72%);
     --glass-clear: rgb(255 255 255 / 62%);
     --glass-edge: rgb(255 255 255 / 86%);
     --glass-shadow: 0 12px 35px rgb(25 32 48 / 15%);
@@ -23,13 +23,13 @@
 
   :root.dark {
     color-scheme: dark;
-    --canvas: #202124;
+    --canvas: #111214;
     --ink: #f6f5f3;
     --muted: #b4bbc5;
-    --panel: #2a2c30;
-    --control: #33353a;
+    --panel: #1b1c20;
+    --control: #25262b;
     --line: #41434a;
-    --glass-tint: rgb(43 45 50 / 84%);
+    --glass-tint: rgb(34 35 41 / 72%);
     --glass-clear: rgb(43 45 50 / 67%);
     --glass-edge: rgb(255 255 255 / 18%);
     --glass-shadow: 0 12px 36px rgb(0 0 0 / 32%);
@@ -331,5 +331,25 @@
   border-radius: 50%;
   background: var(--panel);
   border: 1px solid var(--line);
+  box-shadow: var(--glass-shadow);
+}
+
+.reader-prose { max-width: 68ch; }
+.reader-actions {
+  display: flex;
+  justify-content: center;
+  gap: .55rem;
+  padding: .6rem 1rem max(.65rem, env(safe-area-inset-bottom));
+  background: var(--canvas);
+  border-top: 1px solid var(--line);
+}
+.reader-menu { position: relative; }
+.reader-menu summary { list-style: none; cursor: pointer; }
+.reader-menu summary::-webkit-details-marker { display: none; }
+.reader-menu > div {
+  position: absolute;
+  bottom: calc(100% + .6rem);
+  right: 0;
+  width: min(15rem, 72vw);
   box-shadow: var(--glass-shadow);
 }

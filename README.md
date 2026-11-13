@@ -16,6 +16,8 @@ Beim ersten Start kannst du Interessen und Darstellung wählen oder direkt mit d
 
 Google AI Studio bietet `gemini-flash-latest` und `gemini-flash-lite-latest` an. Google hält diese Modellnamen aktuell. Im Feld „Modell-ID“ kannst du auch eine eigene ID hinterlegen.
 
+Der Artikeltext wird beim Öffnen automatisch von der Quelle geladen. Falls der Anbieter nur einen Ausschnitt liefert oder den Abruf einschränkt, kannst du beim Anbieter weiterlesen. Im Profil unter „Quellen“ lassen sich Abonnements als OPML importieren und exportieren.
+
 ## Entwicklung & Start (Web / PWA)
 ```bash
 npm install
@@ -38,7 +40,7 @@ Die Android-Version ist ein **Debug-Build ausschließlich zum eigenen Testen**, 
 npm install
 npm run build
 npx cap add android
-npx cap sync android
+npm run android:sync
 cd android
 ./gradlew assembleDebug
 ```

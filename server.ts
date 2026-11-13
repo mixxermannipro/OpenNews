@@ -187,8 +187,7 @@ app.get('/api/article/extract', async (req, res) => {
     const pMatches = [...articleScope.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi)];
     const paragraphs = pMatches
       .map((m) => stripHtml(m[1]))
-      .filter((p) => p.length > 45 && !/cookie|datenschutz|newsletter|anzeige|abonnieren/i.test(p))
-      .slice(0, 18);
+      .filter(Boolean);
 
     res.json({ paragraphs, ogImage });
   } catch {

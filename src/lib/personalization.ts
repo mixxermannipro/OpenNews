@@ -144,7 +144,15 @@ export function recordReadingDuration(
   if (!Number.isFinite(clamped) || clamped < 3) return profile;
 
   // Reading time boosts topic and source affinity (capped per session to avoid skew)
-  const weightDelta = Math.min(3.5, clamped / 20);
+  const expectedSeconds = Math.max(20, article.readingTimeMin * 60);
+  const completion = Math.min(1, clamped / expectedSeconds);
+  const weightDelta = Math.min(3.5, clamped / 45 + completion * 1.7);
+  let keywordWeights = profile.keywordWeights;
+  if (clamped >= 10) {
+    for (const keyword of article.keywords.slice(0, 4)) {
+      keywordWeights = adjustWeight(keywordWeights, keyword, Math.min(1, completion));
+    }
+  }
   const nextTopicSecs = {
     ...profile.readingSecondsByTopic,
     [article.category]: (profile.readingSecondsByTopic[article.category] ?? 0) + clamped,
@@ -156,6 +164,7 @@ export function recordReadingDuration(
 
   return {
     ...profile,
+    keywordWeights,
     readingSecondsByTopic: nextTopicSecs,
     readingSecondsBySource: nextSourceSecs,
     totalReadingSeconds: (profile.totalReadingSeconds ?? 0) + clamped,
@@ -196,7 +205,7 @@ export function scoreArticle(
   keywordScore = Math.min(8, keywordScore);
 
   const mediaBonus = article.imageUrl ? 1.2 : 0;
-  const unreadBonus = profile.readIds.includes(article.id) ? -1.5 : 0.8;
+  const unreadBonus = profile.readIds.includes(article.id) ? -4 : 0.8;
   const breakingBonus = article.isBreaking ? 2.0 : 0;
 
   const topicReadSecs = profile.readingSecondsByTopic?.[article.category] ?? 0;

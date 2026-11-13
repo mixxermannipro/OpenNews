@@ -41,14 +41,36 @@ import { OfflineIndicator } from './components/PWAInstallButton';
 import { DEFAULT_PREFERENCES, type AppPreferences } from './lib/preferences';
 import { Onboarding, ProfileView, type ProfilePage } from './components/Preferences';
 
+type AppLocation = {
+  tab: AppTab;
+  profile: ProfilePage;
+  settings: SettingsSectionTab;
+  saved: 'bookmarks' | 'history';
+  article: NewsArticle | null;
+};
+const HOME_LOCATION: AppLocation = { tab: 'home', profile: 'profile', settings: 'overview', saved: 'bookmarks', article: null };
+
 export default function App() {
-  const [activeTab, setActiveTab] = useState<AppTab>('home');
-  const [settingsSection, setSettingsSection] = useState<SettingsSectionTab>('overview');
+  const [location, setLocation] = useState<AppLocation>(HOME_LOCATION);
+  const { tab: activeTab, settings: settingsSection, profile: profilePage, saved: savedPage, article: activeArticle } = location;
+  const navigate = (next: Partial<AppLocation>) => {
+    const destination = { ...location, article: null, ...next };
+    if (JSON.stringify(destination) === JSON.stringify(location)) return;
+    window.history.pushState({ openNews: destination }, '');
+    setLocation(destination);
+  };
+  const goBack = useCallback(() => {
+    if (window.history.state?.openNews) window.history.back();
+  }, []);
+  useEffect(() => {
+    window.history.replaceState(null, '');
+    const restore = (event: PopStateEvent) => setLocation(event.state?.openNews ?? HOME_LOCATION);
+    window.addEventListener('popstate', restore);
+    return () => window.removeEventListener('popstate', restore);
+  }, []);
   const [preferences, setPreferences] = useLocalStorage<AppPreferences>('opennews_preferences', DEFAULT_PREFERENCES);
   const [homeCategory, setHomeCategory] = useState<NewsCategory>(preferences.home);
   const [onboarded, setOnboarded] = useLocalStorage('opennews_onboarded', false);
-  const [profilePage, setProfilePage] = useState<ProfilePage>('profile');
-  const [savedPage, setSavedPage] = useState<'bookmarks' | 'history'>('bookmarks');
   const [theme, setTheme] = useLocalStorage<ThemeMode>('opennews_theme', 'system');
 
   const updatePreferences = (next: AppPreferences) => {
@@ -119,7 +141,6 @@ export default function App() {
   );
   const refresh = useRef<AbortController | null>(null);
   const [isLoadingFeeds, setIsLoadingFeeds] = useState(false);
-  const [activeArticle, setActiveArticle] = useState<NewsArticle | null>(null);
   const [readArticles, setReadArticles] = useLocalStorage<NewsArticle[]>('opennews_read_articles', []);
   const [alertBanner, setAlertBanner] = useState<{ title: string; source: string } | null>(null);
 
@@ -140,7 +161,7 @@ export default function App() {
       }
       const metaTheme = document.querySelector('meta[name="theme-color"]');
       if (metaTheme) {
-        metaTheme.setAttribute('content', resolvedDark ? '#202124' : '#f6f5f2');
+        metaTheme.setAttribute('content', resolvedDark ? '#111214' : '#f6f5f2');
       }
     };
 
@@ -155,12 +176,12 @@ export default function App() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && activeArticle) {
-        setActiveArticle(null);
+        goBack();
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [activeArticle]);
+  }, [activeArticle, goBack]);
 
   const enabledFormats = useMemo(() => {
     return new Set<string>([
@@ -322,12 +343,11 @@ export default function App() {
   );
 
   const openSettings = (sec: SettingsSectionTab = 'overview') => {
-    setSettingsSection(sec);
-    setActiveTab('settings');
+    navigate({ tab: 'settings', settings: sec });
   };
 
   const handleOpenArticle = (article: NewsArticle) => {
-    setActiveArticle(article);
+    navigate({ article });
     const historyEntry = {
       ...article,
       contentHtml: undefined,
@@ -348,7 +368,7 @@ export default function App() {
 
   const handleToggleDislike = (article: NewsArticle) => {
     setProfile((prev) => toggleArticleDislike(normalizeProfile(prev), article));
-    setActiveArticle(null);
+    goBack();
   };
 
   const handleRecordReadingDuration = useCallback(
@@ -371,18 +391,16 @@ export default function App() {
   const handleSendTestNotification = () => showAlert('Benachrichtigungen sind aktiv.', 'OpenNews · Test');
 
   const openProfile = (page: ProfilePage = 'profile') => {
-    setProfilePage(page);
-    setActiveTab('profile');
+    navigate({ tab: 'profile', profile: page });
   };
   const openSaved = (page: 'bookmarks' | 'history') => {
-    setSavedPage(page);
-    setActiveTab('saved');
+    navigate({ tab: 'saved', saved: page });
   };
 
   const navItems = [
-    { id: 'home', label: 'Home', icon: Home, action: () => setActiveTab('home') },
-    { id: 'discover', label: 'Entdecken', icon: Compass, action: () => setActiveTab('discover') },
-    { id: 'search', label: 'Suche', icon: Search, action: () => setActiveTab('search') },
+    { id: 'home', label: 'Home', icon: Home, action: () => navigate({ tab: 'home' }) },
+    { id: 'discover', label: 'Entdecken', icon: Compass, action: () => navigate({ tab: 'discover' }) },
+    { id: 'search', label: 'Suche', icon: Search, action: () => navigate({ tab: 'search' }) },
     { id: 'profile', label: 'Profil', icon: User, action: () => openProfile() },
   ] as const;
   const navIsActive = (id: string) => activeTab === id || (id === 'profile' && ['settings', 'saved'].includes(activeTab));
@@ -422,7 +440,7 @@ export default function App() {
 
       <header className="app-header hidden md:block" inert={activeArticle ? true : undefined}>
         <div className="app-header-inner">
-          <button type="button" className="brand" onClick={() => setActiveTab('home')}>
+          <button type="button" className="brand" onClick={() => navigate({ tab: 'home' })}>
             <img src="/logo.png" alt="" /> OpenNews
           </button>
           <nav aria-label="Hauptnavigation" className="hidden items-center gap-2 md:flex">
@@ -494,7 +512,7 @@ export default function App() {
           />
         )}
 
-        {activeTab === 'profile' && <ProfileView {...appearance} page={profilePage} onPage={setProfilePage}
+        {activeTab === 'profile' && <ProfileView {...appearance} page={profilePage} onPage={page => openProfile(page)} onBack={goBack}
           onSaved={() => openSaved('bookmarks')} onHistory={() => openSaved('history')}
           onSources={() => openSettings('feeds')} onAI={() => openSettings('ai')} onNotifications={() => openSettings('app')}
           fontSize={fontSize} fontFamily={fontFamily} onFontSize={setFontSize} onFontFamily={setFontFamily} />}
@@ -508,6 +526,16 @@ export default function App() {
             sourceKeys={sourceKeys}
             aiConfig={aiConfig}
             notifications={notifications}
+            onAdvancedSources={() => openSettings('overview')}
+            onImportSources={imported => {
+              const normalized = (url: string) => { try { return new URL(url).href; } catch { return url; } };
+              const incoming = new Map(imported.map(source => [normalized(source.url), source]));
+              const merged = sources.map(source => {
+                if (!incoming.delete(normalized(source.url))) return source;
+                return { ...source, subscribed: true };
+              });
+              setSources([...merged, ...incoming.values()]);
+            }}
             onToggleSource={handleToggleSubscribe}
             onAddCustomSource={(src) => setSources((prev) => prev.some(source => source.url === src.url) ? prev : [src, ...prev])}
             onUpdateSource={handleUpdateSource}
@@ -520,7 +548,7 @@ export default function App() {
             onUpdateNotifications={setNotifications}
             onSendTestNotification={handleSendTestNotification}
             onResetAlgorithm={() => setProfile(createDefaultProfile())}
-            onBackHome={() => openProfile()}
+            onBackHome={goBack}
           />
         )}
       </main>
@@ -555,17 +583,12 @@ export default function App() {
             aiConfig={aiConfig}
             fontSize={fontSize}
             fontFamily={fontFamily}
-            onChangeFontSize={setFontSize}
-            onChangeFontFamily={setFontFamily}
             onToggleBookmark={handleToggleBookmark}
             onToggleLike={handleToggleLike}
             onToggleDislike={handleToggleDislike}
             onRecordReadingDuration={handleRecordReadingDuration}
-            onOpenAISettings={() => {
-              setActiveArticle(null);
-              openSettings('ai');
-            }}
-            onClose={() => setActiveArticle(null)}
+            onOpenAISettings={() => openSettings('ai')}
+            onClose={goBack}
           />
         )}
       </AnimatePresence>

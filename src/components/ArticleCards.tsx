@@ -1,6 +1,5 @@
 import React from 'react';
-import { Bookmark, Flame, Heart, Play, Sparkles } from 'lucide-react';
-import { motion } from 'motion/react';
+import { Flame, Heart, Play, Sparkles } from 'lucide-react';
 import type { NewsArticle } from '../types/news';
 import { formatRelativeTimeDe } from '../lib/personalization';
 import { ArticleImage } from './ArticleImage';
@@ -27,21 +26,16 @@ const CATEGORY_BADGE_STYLES: Record<string, string> = {
 
 export const HeroArticleCard: React.FC<CardActionsProps & { badgeLabel?: string; className?: string }> = ({
   article,
-  isBookmarked,
   isLiked,
   badgeLabel = 'Top-Thema',
   className = '',
   onOpen,
-  onToggleBookmark,
   onToggleLike,
 }) => {
   const hasMedia = Boolean(article.videoUrl || article.youtubeId || article.audioUrl);
 
   return (
-    <motion.article
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
+    <article
       className={`article-card group relative overflow-hidden bg-slate-900 shadow-lg ring-1 ring-black/10 dark:ring-white/10 ${className}`}
     >
       <button
@@ -112,30 +106,15 @@ export const HeroArticleCard: React.FC<CardActionsProps & { badgeLabel?: string;
         >
           <Heart className={`h-4 w-4 ${isLiked ? 'fill-current' : ''}`} />
         </button>
-        <button
-          type="button"
-          onClick={() => onToggleBookmark(article)}
-          aria-label={isBookmarked ? `Aus Gespeichert entfernen: ${article.title}` : `Artikel speichern: ${article.title}`}
-          aria-pressed={isBookmarked}
-          className={`flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full backdrop-blur-xl transition active:scale-95 ${
-            isBookmarked
-              ? 'bg-blue-500/95 text-white ring-1 ring-blue-300/40'
-              : 'bg-white/20 text-white hover:bg-white/30 ring-1 ring-white/25'
-          }`}
-        >
-          <Bookmark className={`h-4 w-4 ${isBookmarked ? 'fill-current' : ''}`} />
-        </button>
       </div>
-    </motion.article>
+    </article>
   );
 };
 
 export const CompactArticleCard: React.FC<CardActionsProps> = ({
   article,
-  isBookmarked,
   isLiked,
   onOpen,
-  onToggleBookmark,
   onToggleLike,
 }) => {
   const catBadge =
@@ -143,11 +122,7 @@ export const CompactArticleCard: React.FC<CardActionsProps> = ({
     'bg-blue-500/12 text-blue-700 dark:bg-blue-400/15 dark:text-blue-300';
 
   return (
-    <motion.article
-      layout="position"
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+    <article
       className="liquid-glass article-card article-card-compact group relative flex items-center gap-3 p-2.5 sm:p-3 transition hover:scale-[1.005]"
     >
       <button
@@ -193,19 +168,6 @@ export const CompactArticleCard: React.FC<CardActionsProps> = ({
       <div className="flex shrink-0 flex-col items-center gap-0.5">
         <button
           type="button"
-          onClick={() => onToggleBookmark(article)}
-          aria-label={isBookmarked ? `Aus Gespeichert entfernen: ${article.title}` : `Artikel speichern: ${article.title}`}
-          aria-pressed={isBookmarked}
-          className={`flex min-h-[40px] min-w-[40px] items-center justify-center rounded-full transition active:scale-95 ${
-            isBookmarked
-              ? 'text-blue-600 dark:text-blue-400 bg-blue-500/12'
-              : 'text-slate-400 hover:text-slate-800 dark:text-slate-500 dark:hover:text-slate-100'
-          }`}
-        >
-          <Bookmark className={`h-4 w-4 ${isBookmarked ? 'fill-current' : ''}`} />
-        </button>
-        <button
-          type="button"
           onClick={() => onToggleLike(article)}
           aria-label={isLiked ? `Gefällt mir entfernen: ${article.title}` : `Gefällt mir: ${article.title}`}
           aria-pressed={isLiked}
@@ -218,17 +180,15 @@ export const CompactArticleCard: React.FC<CardActionsProps> = ({
           <Heart className={`h-3.5 w-3.5 ${isLiked ? 'fill-current' : ''}`} />
         </button>
       </div>
-    </motion.article>
+    </article>
   );
 };
 
 export const BentoArticleCard: React.FC<CardActionsProps & { tall?: boolean; className?: string }> = ({
   article,
-  isBookmarked,
   tall = false,
   className = '',
   onOpen,
-  onToggleBookmark,
 }) => {
   return (
     <article
@@ -272,20 +232,6 @@ export const BentoArticleCard: React.FC<CardActionsProps & { tall?: boolean; cla
             <span className="shrink-0">{formatRelativeTimeDe(article.publishedAt)}</span>
           </div>
         </div>
-      </button>
-
-      <button
-        type="button"
-        onClick={() => onToggleBookmark(article)}
-        aria-label={isBookmarked ? `Aus Gespeichert entfernen: ${article.title}` : `Artikel speichern: ${article.title}`}
-        aria-pressed={isBookmarked}
-        className={`absolute bottom-3 right-3 z-20 flex min-h-[38px] min-w-[38px] sm:min-h-[42px] sm:min-w-[42px] items-center justify-center rounded-full backdrop-blur-xl transition active:scale-95 ${
-          isBookmarked
-            ? 'bg-blue-500/95 text-white ring-1 ring-blue-300/40'
-            : 'bg-white/20 text-white hover:bg-white/30 ring-1 ring-white/25'
-        }`}
-      >
-        <Bookmark className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${isBookmarked ? 'fill-current' : ''}`} />
       </button>
     </article>
   );
