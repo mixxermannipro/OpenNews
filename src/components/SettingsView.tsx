@@ -1,5 +1,5 @@
 import { Capacitor } from '@capacitor/core';
-import { discoverNativeFeeds } from '../lib/nativeFeed';
+import { discoverNativeFeeds, publicHttpUrl } from '../lib/nativeFeed';
 import React, { useState } from 'react';
 import {
   Bell,
@@ -128,20 +128,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   const handleAddFeed = (e: React.FormEvent) => {
     e.preventDefault();
-    const url = customUrl.trim();
+    const url = publicHttpUrl(customUrl.trim());
     const name = customName.trim();
     if (!name || !url) {
-      setCustomError('Bitte Name und gültige Feed-URL angeben.');
+      setCustomError('Bitte einen Namen und eine öffentliche Feed-Adresse mit https:// oder http:// eingeben.');
       return;
     }
-    try {
-      const parsed = new URL(url);
-      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-        setCustomError('Nur http:// oder https:// URLs werden unterstützt.');
-        return;
-      }
-    } catch {
-      setCustomError('Bitte eine vollständige URL inklusive https:// eingeben.');
+    if (sources.some(source => publicHttpUrl(source.url) === url)) {
+      setCustomError('Diese Feed-Adresse ist bereits vorhanden.');
       return;
     }
 
@@ -238,10 +232,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   };
 
   const saveEditedSource = (sourceId: string) => {
-    if (!editDraft.name.trim() || !editDraft.url.trim()) return;
+    const url = publicHttpUrl(editDraft.url.trim());
+    if (!editDraft.name.trim() || !url
+      || sources.some(source => source.id !== sourceId && publicHttpUrl(source.url) === url)) return;
     onUpdateSource(sourceId, {
       name: editDraft.name.trim(),
-      url: editDraft.url.trim(),
+      url,
       category: editDraft.category,
       format: editDraft.format,
       shortCode: editDraft.name.trim().slice(0, 3).toUpperCase(),

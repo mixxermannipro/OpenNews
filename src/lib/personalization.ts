@@ -46,7 +46,7 @@ export function toggleArticleLike(
   article: NewsArticle
 ): PersonalizationProfile {
   const alreadyLiked = profile.likedIds.includes(article.id);
-  const delta = alreadyLiked ? -3 : 3;
+  const delta = alreadyLiked ? -3 : profile.dislikedIds.includes(article.id) ? 5.5 : 3;
 
   let topicWeights = adjustWeight(profile.topicWeights, article.category, delta);
   let sourceWeights = adjustWeight(profile.sourceWeights, article.sourceId, delta);
@@ -74,7 +74,14 @@ export function toggleArticleDislike(
   article: NewsArticle
 ): PersonalizationProfile {
   const alreadyDisliked = profile.dislikedIds.includes(article.id);
-  const delta = alreadyDisliked ? 2.5 : -2.5;
+  const wasLiked = profile.likedIds.includes(article.id);
+  const delta = alreadyDisliked ? 2.5 : wasLiked ? -5.5 : -2.5;
+  let keywordWeights = profile.keywordWeights;
+  if (wasLiked) {
+    for (const kw of article.keywords.slice(0, 6)) {
+      keywordWeights = adjustWeight(keywordWeights, kw, -1);
+    }
+  }
 
   const topicWeights = adjustWeight(profile.topicWeights, article.category, delta);
   const sourceWeights = adjustWeight(profile.sourceWeights, article.sourceId, delta);
@@ -87,6 +94,7 @@ export function toggleArticleDislike(
     likedIds: alreadyDisliked
       ? profile.likedIds
       : profile.likedIds.filter((id) => id !== article.id),
+    keywordWeights,
     topicWeights,
     sourceWeights,
   };
@@ -133,7 +141,7 @@ export function recordReadingDuration(
   seconds: number
 ): PersonalizationProfile {
   const clamped = Math.max(0, Math.min(600, Math.round(seconds)));
-  if (clamped < 3) return profile;
+  if (!Number.isFinite(clamped) || clamped < 3) return profile;
 
   // Reading time boosts topic and source affinity (capped per session to avoid skew)
   const weightDelta = Math.min(3.5, clamped / 20);
@@ -177,8 +185,8 @@ export function scoreArticle(
   // Freshness score from 10 down to 0 over ~36h
   const freshness = 10 * Math.exp(-ageHours / 18);
 
-  const topicScore = (profile.topicWeights[article.category] ?? 0) * 1.4;
-  const sourceScore = (profile.sourceWeights[article.sourceId] ?? 0) * 1.3;
+  const topicScore = Math.max(-8, Math.min(12, (profile.topicWeights[article.category] ?? 0) * 1.4));
+  const sourceScore = Math.max(-6, Math.min(8, (profile.sourceWeights[article.sourceId] ?? 0) * 1.3));
   const subscribedBoost = subscribedSourceIds.has(article.sourceId) ? 2.5 : -2;
 
   let keywordScore = 0;
@@ -195,13 +203,11 @@ export function scoreArticle(
   const sourceReadSecs = profile.readingSecondsBySource?.[article.sourceId] ?? 0;
   const readingAffinity = Math.min(5, topicReadSecs / 30) + Math.min(4, sourceReadSecs / 35);
 
+  const interest = topicScore + sourceScore + keywordScore + readingAffinity;
   const totalScore =
     freshness +
-    topicScore +
-    sourceScore +
+    interest * Math.exp(-ageHours / 96) +
     subscribedBoost +
-    keywordScore +
-    readingAffinity +
     mediaBonus +
     unreadBonus +
     breakingBonus;
@@ -227,10 +233,30 @@ export function rankArticlesForYou(
   nowMs: number = Date.now()
 ): ScoredArticle[] {
   const subscribedIds = new Set(sources.filter((s) => s.subscribed).map((s) => s.id));
-  return articles
+  const ranked = articles
     .map((a) => scoreArticle(a, profile, subscribedIds, nowMs))
     .filter((entry) => entry.score > -50)
-    .sort((a, b) => b.score - a.score);
+    .sort((a, b) => b.score - a.score || b.article.publishedAt.localeCompare(a.article.publishedAt)
+      || a.article.id.localeCompare(b.article.id));
+
+  const selected: ScoredArticle[] = [];
+  const bySource = new Map<string, number>();
+  const byTopic = new Map<string, number>();
+  const candidates = ranked.splice(0, 40);
+  const adjustedScore = ({ article, score }: ScoredArticle) =>
+    score - 3 * (bySource.get(article.sourceId) ?? 0) - 1.5 * (byTopic.get(article.category) ?? 0);
+  while (selected.length < 12 && candidates.length) {
+    let best = 0;
+    for (let i = 1; i < candidates.length; i++) {
+      if (adjustedScore(candidates[i]) > adjustedScore(candidates[best])) best = i;
+    }
+    const [entry] = candidates.splice(best, 1);
+    selected.push(entry);
+    const { sourceId, category } = entry.article;
+    bySource.set(sourceId, (bySource.get(sourceId) ?? 0) + 1);
+    byTopic.set(category, (byTopic.get(category) ?? 0) + 1);
+  }
+  return [...selected, ...candidates, ...ranked];
 }
 
 export function generateLocalExtractiveSummary(article: NewsArticle): AISummaryResult {

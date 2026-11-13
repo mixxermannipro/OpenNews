@@ -5,14 +5,15 @@ import { parseFeedPayload } from './rssParser';
 type FeedFormat = 'rss' | 'atom' | 'json';
 type DiscoveredFeed = { name: string; url: string; format: FeedFormat };
 
-function publicHttpUrl(value: string): string | null {
+export function publicHttpUrl(value: string): string | null {
   try {
     const url = new URL(value);
-    if (!['http:', 'https:'].includes(url.protocol)) return null;
+    if (url.username || url.password || !['http:', 'https:'].includes(url.protocol)) return null;
     // Prevent accidentally fetching device-local services from arbitrary saved feeds.
     const host = url.hostname.toLowerCase();
     if (host === 'localhost' || host === '0.0.0.0' || host === '127.0.0.1' || host === '[::1]') return null;
     if (/^(10|127|192\.168|169\.254)\./.test(host)) return null;
+    url.hash = '';
     return url.toString();
   } catch {
     return null;
@@ -34,25 +35,29 @@ async function getNativeText(url: string, timeout = 6500): Promise<string> {
 }
 
 /** RSS requests happen on-device; no external proxy or server is required. */
-export async function fetchNativeFeeds(sources: NewsSource[]): Promise<NewsArticle[]> {
-  const all: NewsArticle[] = [];
-  // Limit concurrent requests, so the app starts reliably on mobile data.
-  for (let i = 0; i < Math.min(sources.length, 20); i += 4) {
-    const batch = sources.slice(i, i + 4);
-    const results = await Promise.all(batch.map(async source => {
+export async function fetchNativeFeeds(
+  sources: NewsSource[],
+  onArticles: (articles: NewsArticle[]) => void,
+  signal: AbortSignal,
+  loadText = getNativeText,
+): Promise<void> {
+  let next = 0;
+  async function worker() {
+    while (!signal.aborted && next < sources.length) {
+      const source = sources[next++];
       const url = publicHttpUrl(source.url);
-      if (!url) return [] as NewsArticle[];
+      if (!url) continue;
       try {
-        const content = await getNativeText(url);
-        return parseFeedPayload(content, source);
+        const content = await loadText(url);
+        if (signal.aborted || content.length > 4_000_000) continue;
+        const articles = parseFeedPayload(content, source);
+        if (articles.length) onArticles(articles);
       } catch {
-        // One inaccessible or broken feed must not block the remaining providers.
-        return [] as NewsArticle[];
+        // Keep cached articles if this provider fails.
       }
-    }));
-    for (const articles of results) all.push(...articles);
+    }
   }
-  return all;
+  await Promise.all(Array.from({ length: Math.min(6, sources.length) }, worker));
 }
 
 /** Discover a site's public RSS/Atom/JSON links without an Express backend. */
@@ -63,9 +68,12 @@ export async function discoverNativeFeeds(query: string): Promise<DiscoveredFeed
   if (!url) return [];
   const text = await getNativeText(url);
   const domain = new URL(url).hostname.replace(/^www\./, '');
-  if (/^\s*<(?:\?xml|rss|feed)/i.test(text) || /\\"version\\"\s*:\s*\\"https?:\/\/jsonfeed\.org/i.test(text)) {
-    return [{ name: domain, url, format: /<feed/i.test(text) ? 'atom' : /jsonfeed\.org/i.test(text) ? 'json' : 'rss' }];
-  }
+  const xml = text.trimStart().replace(/^<\?xml[^?]*\?>\s*/i, '');
+  const format: FeedFormat | undefined = /^<feed[\s>]/i.test(xml) ? 'atom'
+    : /^<(rss|rdf:RDF)[\s>]/i.test(xml) ? 'rss'
+    : /"version"\s*:\s*"https?:\/\/jsonfeed\.org\//i.test(xml) && xml.startsWith('{') ? 'json'
+    : undefined;
+  if (format) return [{ name: domain, url, format }];
   const document = new DOMParser().parseFromString(text, 'text/html');
   const found: DiscoveredFeed[] = [];
   for (const link of [...document.querySelectorAll('link[rel~="alternate"][href]')]) {
@@ -73,7 +81,12 @@ export async function discoverNativeFeeds(query: string): Promise<DiscoveredFeed
     if (!/(rss|atom|xml|feed\+json|json)/.test(type)) continue;
     const href = link.getAttribute('href');
     if (!href) continue;
-    const resolved = publicHttpUrl(new URL(href, url).toString());
+    let resolved: string | null;
+    try {
+      resolved = publicHttpUrl(new URL(href, url).toString());
+    } catch {
+      continue;
+    }
     if (!resolved || found.some(item => item.url === resolved)) continue;
     found.push({
       name: link.getAttribute('title') || domain,

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { fetchNativeFeeds } from './lib/nativeFeed';
 import { Bell, Bookmark, Compass, Home, Search, SlidersHorizontal } from 'lucide-react';
@@ -45,7 +45,17 @@ export default function App() {
 
   // Supports 'dark' (default), 'light', and 'system' (device preference)
   const [theme, setTheme] = useLocalStorage<ThemeMode>('opennews_theme', 'dark');
-  const [sources, setSources] = useLocalStorage<NewsSource[]>('opennews_sources', DEFAULT_SOURCES);
+  const [storedSources, setSources] = useLocalStorage<NewsSource[]>('opennews_sources', DEFAULT_SOURCES);
+  const sources = useMemo(() => {
+    const saved = new Map(storedSources.map(source => [source.id, source]));
+    return [
+      ...storedSources.filter(source => source.isCustom),
+      ...DEFAULT_SOURCES.map(source => ({
+        ...source,
+        subscribed: saved.get(source.id)?.subscribed ?? source.subscribed,
+      })),
+    ];
+  }, [storedSources]);
   const [profile, setProfile] = useLocalStorage<PersonalizationProfile>(
     'opennews_profile',
     createDefaultProfile()
@@ -75,6 +85,11 @@ export default function App() {
     'opennews_cached_articles',
     []
   );
+  const [savedArticles, setSavedArticles] = useLocalStorage<Record<string, NewsArticle>>(
+    'opennews_saved_articles',
+    {}
+  );
+  const refresh = useRef<AbortController | null>(null);
   const [isLoadingFeeds, setIsLoadingFeeds] = useState(false);
   const [activeArticle, setActiveArticle] = useState<NewsArticle | null>(null);
   const [alertBanner, setAlertBanner] = useState<{ title: string; source: string } | null>(null);
@@ -129,58 +144,104 @@ export default function App() {
     [sources, enabledFormats]
   );
 
-  const fetchLiveFeeds = useCallback(async () => {
-    if (activeSources.length === 0) return;
-    setIsLoadingFeeds(true);
-    try {
-      // Capacitor runs as a standalone APK: there is no local Node/Express server.
-      // Native HTTP fetches feeds directly and parses them on-device.
-      let articles: NewsArticle[] = [];
-      if (Capacitor.isNativePlatform()) {
-        articles = await fetchNativeFeeds(activeSources);
-      } else {
-        const resp = await fetch('/api/feeds/fetch', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ feeds: activeSources }),
-        });
-        if (!resp.ok) return;
-        const data = (await resp.json()) as { articles?: NewsArticle[] };
-        articles = Array.isArray(data.articles) ? data.articles : [];
+  const normalizedProfile = useMemo(() => normalizeProfile(profile), [profile]);
+
+  // Keep a copy of saved articles even when they leave the feed or it is paused.
+  const savedIds = useMemo(
+    () => new Set([...normalizedProfile.bookmarkedIds, ...normalizedProfile.likedIds]),
+    [normalizedProfile]
+  );
+  useEffect(() => {
+    setSavedArticles(previous => {
+      const entries = new Map(Object.entries(previous).filter(([id]) => savedIds.has(id)));
+      for (const article of [...cachedLiveArticles, ...SEED_ARTICLES]) {
+        if (savedIds.has(article.id) && !entries.has(article.id)) entries.set(article.id, article);
       }
-      if (articles.length > 0) {
+      if (entries.size === Object.keys(previous).length
+        && [...entries.keys()].every(id => Object.hasOwn(previous, id))) return previous;
+      return Object.fromEntries(entries);
+    });
+  }, [cachedLiveArticles, savedIds, setSavedArticles]);
+
+  const fetchLiveFeeds = useCallback(async () => {
+    if (refresh.current || !activeSources.length || !navigator.onLine) return;
+    const controller = new AbortController();
+    refresh.current = controller;
+    setIsLoadingFeeds(true);
+
+    const applyArticles = (articles: NewsArticle[]) => {
+      if (controller.signal.aborted || !articles.length) return;
+      const updatedSources = new Set(articles.map(article => article.sourceId));
+      setCachedLiveArticles(previous => {
+        if (controller.signal.aborted) return previous;
         const seen = new Set<string>();
-        const deduped = articles.filter((a) => {
-          const key = a.title.trim().toLowerCase();
-          if (seen.has(key)) return false;
-          seen.add(key);
-          return true;
-        });
-        setCachedLiveArticles(deduped.slice(0, 140));
+        return [
+          ...articles,
+          ...previous.filter(article => !updatedSources.has(article.sourceId)),
+        ]
+          .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))
+          .filter(article => {
+            if (seen.has(article.id)) return false;
+            seen.add(article.id);
+            return true;
+          })
+          .slice(0, 600)
+          .map(article => ({
+            ...article,
+            paragraphs: article.paragraphs.slice(0, 6).map(paragraph => paragraph.slice(0, 500)),
+          }));
+      });
+    };
+
+    try {
+      if (Capacitor.isNativePlatform()) {
+        await fetchNativeFeeds(activeSources, applyArticles, controller.signal);
+      } else {
+        for (let i = 0; i < activeSources.length && !controller.signal.aborted; i += 6) {
+          const resp = await fetch('/api/feeds/fetch', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ feeds: activeSources.slice(i, i + 6) }),
+            signal: controller.signal,
+          });
+          if (resp.ok) {
+            const data = await resp.json();
+            if (Array.isArray(data.articles)) applyArticles(data.articles);
+          }
+        }
       }
     } catch {
-      // Offline or sandboxed: keep seed + cached articles gracefully
+      // Keep the last successful results when the connection drops.
     } finally {
-      setIsLoadingFeeds(false);
+      if (refresh.current === controller) {
+        refresh.current = null;
+        setIsLoadingFeeds(false);
+      }
     }
   }, [activeSources, setCachedLiveArticles]);
 
   useEffect(() => {
-    fetchLiveFeeds();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    setIsLoadingFeeds(false);
+    void fetchLiveFeeds();
+    const updateWhenVisible = () => {
+      if (document.visibilityState === 'visible') void fetchLiveFeeds();
+    };
+    const timer = window.setInterval(updateWhenVisible, 5 * 60_000);
+    document.addEventListener('visibilitychange', updateWhenVisible);
+    window.addEventListener('online', updateWhenVisible);
+    return () => {
+      refresh.current?.abort();
+      refresh.current = null;
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', updateWhenVisible);
+      window.removeEventListener('online', updateWhenVisible);
+    };
+  }, [fetchLiveFeeds]);
 
   const allArticles = useMemo(() => {
-    const merged = [...cachedLiveArticles, ...SEED_ARTICLES];
-    const seen = new Set<string>();
-    return merged.filter((a) => {
-      if (seen.has(a.id)) return false;
-      seen.add(a.id);
-      return true;
-    });
-  }, [cachedLiveArticles]);
-
-  const normalizedProfile = useMemo(() => normalizeProfile(profile), [profile]);
+    const activeIds = new Set(activeSources.map(source => source.id));
+    return cachedLiveArticles.filter(article => activeIds.has(article.sourceId));
+  }, [activeSources, cachedLiveArticles]);
 
   const scoredArticles = useMemo(
     () => rankArticlesForYou(allArticles, normalizedProfile, sources),
@@ -218,12 +279,12 @@ export default function App() {
   );
 
   const handleUpdateSource = (sourceId: string, updates: Partial<NewsSource>) => {
-    setSources((prev) => prev.map((s) => (s.id === sourceId ? { ...s, ...updates } : s)));
+    setSources(() => sources.map((s) => (s.id === sourceId ? { ...s, ...updates } : s)));
   };
 
   const handleToggleSubscribe = (sourceId: string) => {
-    setSources((prev) =>
-      prev.map((s) => (s.id === sourceId ? { ...s, subscribed: !s.subscribed } : s))
+    setSources(() =>
+      sources.map((s) => (s.id === sourceId ? { ...s, subscribed: !s.subscribed } : s))
     );
   };
 
@@ -355,7 +416,7 @@ export default function App() {
 
         {activeTab === 'saved' && (
           <SavedView
-            articles={allArticles}
+            articles={Object.values(savedArticles)}
             sources={sources}
             profile={normalizedProfile}
             onOpenArticle={handleOpenArticle}
@@ -386,7 +447,7 @@ export default function App() {
             theme={theme}
             notifications={notifications}
             onToggleSource={handleToggleSubscribe}
-            onAddCustomSource={(src) => setSources((prev) => [src, ...prev])}
+            onAddCustomSource={(src) => setSources((prev) => prev.some(source => source.url === src.url) ? prev : [src, ...prev])}
             onUpdateSource={handleUpdateSource}
             onRemoveCustomSource={(id) =>
               setSources((prev) => prev.filter((s) => s.id !== id))
