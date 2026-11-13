@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, Bell, Bookmark, BookOpen, ChevronRight, Compass, History, Layers, Palette, ShieldCheck, SlidersHorizontal, Sparkles } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Bell, Bookmark, BookOpen, ChevronRight, Clapperboard, Compass, History, Layers, Palette, ShieldCheck, SlidersHorizontal, Sparkles } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { DEFAULT_PREFERENCES, EDITIONS, HOME_TABS, TOPICS, resolveHomeTabs, type AppPreferences, type Edition, type HomeTab } from '../lib/preferences';
 import type { NewsCategory, ReaderFontFamily, ReaderFontSize, ThemeMode } from '../types/news';
@@ -67,9 +67,9 @@ export function Appearance({ theme, onTheme, preferences, onPreferences }: Appea
   );
 }
 
-export type ProfilePage = 'profile' | 'preferences' | 'appearance' | 'feed' | 'reader' | 'motion' | 'privacy' | 'topics';
+export type ProfilePage = 'profile' | 'preferences' | 'appearance' | 'feed' | 'reader' | 'motion' | 'playback' | 'privacy' | 'topics';
 
-export function ProfileView({ page, onPage, onBack, onSaved, onHistory, onSources, onAI, onNotifications, fontSize, fontFamily, onFontSize, onFontFamily, ...appearance }: AppearanceProps & {
+export function ProfileView({ page, onPage, onBack, onSaved, onHistory, onSources, onAI, onNotifications, backgroundPlayback, onBackgroundPlayback, fontSize, fontFamily, onFontSize, onFontFamily, ...appearance }: AppearanceProps & {
   page: ProfilePage;
   onPage: (page: ProfilePage) => void;
   onBack: () => void;
@@ -78,6 +78,8 @@ export function ProfileView({ page, onPage, onBack, onSaved, onHistory, onSource
   onSources: () => void;
   onAI: () => void;
   onNotifications: () => void;
+  backgroundPlayback: boolean;
+  onBackgroundPlayback: (enabled: boolean) => void;
   fontSize: ReaderFontSize;
   fontFamily: ReaderFontFamily;
   onFontSize: (value: ReaderFontSize) => void;
@@ -87,7 +89,7 @@ export function ProfileView({ page, onPage, onBack, onSaved, onHistory, onSource
   const labels: Record<ProfilePage, string> = {
     profile: 'Profil', preferences: 'Individuelle Einstellungen', appearance: 'Darstellung & Design',
     feed: 'Feed & Startseite', reader: 'Lesen & Artikel', motion: 'Navigation & Bewegung',
-    privacy: 'Datenschutz', topics: 'Interessen',
+    playback: 'Wiedergabe', privacy: 'Datenschutz', topics: 'Interessen',
   };
   const title = useRef<HTMLHeadingElement>(null);
   useEffect(() => { title.current?.focus({ preventScroll: true }); }, [page]);
@@ -128,10 +130,24 @@ export function ProfileView({ page, onPage, onBack, onSaved, onHistory, onSource
           {link(labels.appearance, <Palette />, () => onPage('appearance'))}
           {link(labels.feed, <Layers />, () => onPage('feed'))}
           {link(labels.reader, <BookOpen />, () => onPage('reader'))}
+          {link(labels.playback, <Clapperboard />, () => onPage('playback'))}
           {link('KI & Personalisierung', <Sparkles />, onAI)}
           {link(labels.motion, <SlidersHorizontal />, () => onPage('motion'))}
         </div>
       </>}
+      {page === 'playback' && (
+        <div className="settings-group">
+          <label className="preference-row justify-between">
+            <span>Hintergrundwiedergabe</span>
+            <input type="checkbox" role="switch" checked={backgroundPlayback}
+              aria-describedby="background-playback-help"
+              onChange={event => onBackgroundPlayback(event.target.checked)} />
+          </label>
+          <p id="background-playback-help" className="px-4 pb-3 text-sm text-slate-600 dark:text-slate-300">
+            Der Ton direkt abspielbarer Beiträge läuft weiter, wenn du die App verlässt oder dein Gerät sperrst.
+          </p>
+        </div>
+      )}
       {page === 'appearance' && <Appearance {...appearance} />}
       {page === 'feed' && <>
         <div className="settings-group">

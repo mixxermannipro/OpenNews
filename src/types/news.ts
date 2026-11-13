@@ -109,7 +109,7 @@ export interface NotificationSettings {
   until?: string;
 }
 
-export type AppTab = 'home' | 'discover' | 'saved' | 'search' | 'settings' | 'profile';
+export type AppTab = 'home' | 'discover' | 'saved' | 'media' | 'settings' | 'profile';
 export type ReaderFontSize = 'normal' | 'large' | 'xlarge';
 export type ReaderFontFamily = 'sans' | 'serif';
 export type ThemeMode = 'dark' | 'light' | 'system';

@@ -1,43 +1,10 @@
-import { useState } from 'react';
-import type { MediaAttachment, NewsArticle } from '../types/news';
+import type { NewsArticle } from '../types/news';
+import { getArticleMedia } from '../lib/articleMedia';
 import { ArticleImage } from './ArticleImage';
+import { MediaPlayer } from './MediaPlayer';
 
-function MediaPlayer({ attachment }: { attachment: MediaAttachment }) {
-  const [failed, setFailed] = useState(false);
-  const isAudio = attachment.type === 'audio';
-  const label = isAudio ? 'Audio-Beitrag' : 'Video';
-
-  return (
-    <div className="liquid-glass overflow-hidden rounded-2xl p-4">
-      <p className="mb-2 text-xs font-semibold text-slate-600 dark:text-slate-300">{label}</p>
-      {failed ? (
-        <p role="status" className="text-sm text-slate-600 dark:text-slate-300">
-          {isAudio ? 'Der Audio-Beitrag' : 'Das Video'} kann gerade nicht abgespielt werden.
-        </p>
-      ) : attachment.type === 'youtube' ? (
-        <iframe
-          src={attachment.url}
-          title="YouTube-Video"
-          className="aspect-video w-full rounded-xl bg-black"
-          loading="lazy"
-          referrerPolicy="strict-origin-when-cross-origin"
-          allow="encrypted-media; picture-in-picture"
-          allowFullScreen
-          onError={() => setFailed(true)}
-        />
-      ) : isAudio ? (
-        <audio aria-label={label} src={attachment.url} controls preload="none"
-          className="w-full" onError={() => setFailed(true)} />
-      ) : (
-        <video aria-label={label} src={attachment.url} controls playsInline preload="none"
-          className="aspect-video w-full rounded-xl bg-black object-contain" onError={() => setFailed(true)} />
-      )}
-    </div>
-  );
-}
-
-export function ArticleMedia({ article, heroImage }: { article: NewsArticle; heroImage?: string }) {
-  const media = article.media ?? legacyMedia(article);
+export function ArticleMedia({ article, heroImage, background }: { article: NewsArticle; heroImage?: string; background: boolean }) {
+  const media = article.media ?? getArticleMedia(article);
   const attachments = media.filter(attachment => attachment.type !== 'image' || attachment.url !== heroImage);
   if (!attachments.length) return null;
 
@@ -52,18 +19,14 @@ export function ArticleMedia({ article, heroImage }: { article: NewsArticle; her
           sourceColor={article.sourceColor}
           className="aspect-video w-full overflow-hidden rounded-2xl"
         />
-      ) : <MediaPlayer key={attachment.url} attachment={attachment} />)}
+      ) : (
+        <div key={attachment.url} className="settings-group overflow-hidden">
+          <div className={attachment.type === 'audio' ? 'p-4' : 'aspect-video'}>
+            {attachment.type === 'audio' && <p className="mb-2 text-xs font-semibold">Audio-Beitrag</p>}
+            <MediaPlayer media={{ ...attachment, type: attachment.type }} title={article.title} background={background} />
+          </div>
+        </div>
+      ))}
     </div>
   );
-}
-
-function legacyMedia(article: NewsArticle): MediaAttachment[] {
-  const media: MediaAttachment[] = [];
-  for (const [type, url] of [['video', article.videoUrl], ['audio', article.audioUrl]] as const) {
-    if (url && /^https?:\/\//i.test(url)) media.push({ type, url });
-  }
-  if (article.youtubeId && /^[\w-]{11}$/.test(article.youtubeId)) {
-    media.push({ type: 'youtube', url: `https://www.youtube-nocookie.com/embed/${article.youtubeId}` });
-  }
-  return media;
 }
