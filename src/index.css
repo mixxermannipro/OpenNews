@@ -353,3 +353,14 @@
   width: min(15rem, 72vw);
   box-shadow: var(--glass-shadow);
 }
+
+.reader-share-feedback {
+  position: absolute;
+  bottom: calc(4.25rem + env(safe-area-inset-bottom));
+  padding: .4rem .75rem;
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--ink);
+  box-shadow: var(--glass-shadow);
+  font-size: .875rem;
+}

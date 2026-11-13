@@ -428,7 +428,7 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
           <button type="button" className="glass-icon" aria-label={isBookmarked ? 'Lesezeichen entfernen' : 'Artikel speichern'}
             aria-pressed={isBookmarked} onClick={() => onToggleBookmark(article)}><Bookmark size={19} fill={isBookmarked ? 'currentColor' : 'none'} /></button>
           <button type="button" className="glass-icon" aria-label="Teilen" onClick={handleShare}><Share2 size={19} /></button>
-          {shareFeedback && <span className="sr-only" role="status">{shareFeedback}</span>}
+          {shareFeedback && <span className="reader-share-feedback" role="status">{shareFeedback}</span>}
           <details className="reader-menu">
             <summary className="glass-icon" aria-label="Weitere Artikelaktionen"><Ellipsis size={20} /></summary>
             <div className="settings-group">

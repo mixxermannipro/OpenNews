@@ -105,7 +105,7 @@ export async function extractNativeArticle(url: string): Promise<{ paragraphs: s
   const document = new DOMParser().parseFromString(html, 'text/html');
   const scope = document.querySelector('.meldung__content, [itemprop="articleBody"], .article-body, .entry-content')
     || document.querySelector('article') || document.querySelector('main') || document.body;
-  scope.querySelectorAll('aside, footer, nav, [hidden], .teaser, .related, .newsletter').forEach(node => node.remove());
+  scope.querySelectorAll('aside, footer, nav, [hidden], .teaser, .related, .newsletter, .meldungsfooter, .socialbuttons').forEach(node => node.remove());
   const paragraphs = [...scope.querySelectorAll('p, h2, h3, li')]
     .map(p => (p.textContent || '').replace(/\s+/g, ' ').trim())
     .filter(text => text.length > 0);
