@@ -9,7 +9,6 @@ interface CardActionsProps {
   article: NewsArticle;
   isBookmarked: boolean;
   isLiked: boolean;
-  reason?: string;
   onOpen: (article: NewsArticle) => void;
   onToggleBookmark: (article: NewsArticle) => void;
   onToggleLike: (article: NewsArticle) => void;
@@ -30,7 +29,6 @@ export const HeroArticleCard: React.FC<CardActionsProps & { badgeLabel?: string;
   article,
   isBookmarked,
   isLiked,
-  reason,
   badgeLabel = 'Top-Thema',
   className = '',
   onOpen,
@@ -38,7 +36,6 @@ export const HeroArticleCard: React.FC<CardActionsProps & { badgeLabel?: string;
   onToggleLike,
 }) => {
   const hasMedia = Boolean(article.videoUrl || article.youtubeId || article.audioUrl);
-  const showReason = Boolean(reason && reason !== badgeLabel);
 
   return (
     <motion.article
@@ -84,9 +81,6 @@ export const HeroArticleCard: React.FC<CardActionsProps & { badgeLabel?: string;
 
         {/* Bottom Editorial Copy */}
         <div className="relative z-10 pb-12">
-          {showReason && (
-            <p className="mb-1 text-xs font-medium text-blue-200">{reason}</p>
-          )}
           <h2 className="line-clamp-3 text-2xl sm:text-3xl font-bold leading-tight tracking-tight text-white [text-wrap:balance]">
             {article.title}
           </h2>
@@ -140,7 +134,6 @@ export const CompactArticleCard: React.FC<CardActionsProps> = ({
   article,
   isBookmarked,
   isLiked,
-  reason,
   onOpen,
   onToggleBookmark,
   onToggleLike,
@@ -183,9 +176,6 @@ export const CompactArticleCard: React.FC<CardActionsProps> = ({
             <span className={`inline-flex rounded-full px-2 py-0.5 ${catBadge}`}>
               {article.category}
             </span>
-            {reason && (
-              <span className="truncate font-normal text-slate-500 dark:text-slate-400">{reason}</span>
-            )}
           </div>
           <h3 className="mt-0.5 line-clamp-2 text-[15px] font-bold leading-snug text-slate-900 dark:text-slate-50 [text-wrap:balance]">
             {article.title}

@@ -1,5 +1,5 @@
-import React from 'react';
-import { RefreshCw, Sparkles, User } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { ArrowDown, LoaderCircle, Sparkles } from 'lucide-react';
 import type { NewsArticle, NewsCategory, PersonalizationProfile } from '../types/news';
 import { type ScoredArticle } from '../lib/personalization';
 import { CompactArticleCard, HeroArticleCard } from './ArticleCards';
@@ -11,11 +11,10 @@ interface HomeViewProps {
   onSelectCategory: (cat: NewsCategory) => void;
   profile: PersonalizationProfile;
   isLoading: boolean;
-  onRefresh: () => void;
+  onRefresh: () => Promise<void>;
   onOpenArticle: (article: NewsArticle) => void;
   onToggleBookmark: (article: NewsArticle) => void;
   onToggleLike: (article: NewsArticle) => void;
-  onOpenSettings: () => void;
 }
 
 const HOME_CATEGORIES: NewsCategory[] = [
@@ -42,8 +41,17 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onOpenArticle,
   onToggleBookmark,
   onToggleLike,
-  onOpenSettings,
 }) => {
+  const gesture = useRef<{ x: number; y: number; distance: number } | null>(null);
+  const [pull, setPull] = useState(0);
+  const [gestureRefresh, setGestureRefresh] = useState(false);
+  const pullThreshold = 72;
+
+  const resetPull = () => {
+    gesture.current = null;
+    setPull(0);
+  };
+
   const ordered = selectedCategory === 'Alle' ? [...scoredArticles].sort((a, b) => b.article.publishedAt.localeCompare(a.article.publishedAt)) : scoredArticles;
   const filtered =
     selectedCategory === 'Für dich' || selectedCategory === 'Alle'
@@ -55,37 +63,48 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const restEntries = heroEntry ? filtered.slice(4) : filtered;
 
   return (
-    <section aria-label="Startseite Nachrichten" className="space-y-5">
-      {/* Header matching Apple News / PDF Page 4 */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-900 dark:text-white">
-            Heute
-          </h1>
-          <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-            {new Intl.DateTimeFormat('de-DE', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())}
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={onRefresh}
-            disabled={isLoading}
-            aria-label="Nachrichten aktualisieren"
-            className="liquid-glass flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full text-slate-700 dark:text-slate-200 transition hover:scale-105 active:scale-95 disabled:opacity-60"
-          >
-            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-          </button>
-          <button
-            type="button"
-            onClick={onOpenSettings}
-            aria-label="Quellen und Einstellungen öffnen"
-            className="liquid-glass flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full text-slate-700 dark:text-slate-200 transition hover:scale-105 active:scale-95 md:hidden"
-          >
-            <User className="h-4 w-4" />
-          </button>
-        </div>
+    <section aria-label="Startseite Nachrichten" className="space-y-5"
+      onTouchStart={event => {
+        if (window.scrollY > 1 || isLoading || event.touches.length !== 1) return;
+        const { clientX, clientY } = event.touches[0];
+        gesture.current = { x: clientX, y: clientY, distance: 0 };
+      }}
+      onTouchMove={event => {
+        const start = gesture.current;
+        if (!start) return;
+        if (window.scrollY > 1 || event.touches.length !== 1) {
+          resetPull();
+          return;
+        }
+        const { clientX, clientY } = event.touches[0];
+        const dy = clientY - start.y;
+        if (dy < -8 || Math.abs(clientX - start.x) > Math.max(12, dy)) {
+          resetPull();
+          return;
+        }
+        start.distance = Math.max(0, dy);
+        setPull(Math.min(48, start.distance * 0.55));
+      }}
+      onTouchEnd={() => {
+        const shouldRefresh = (gesture.current?.distance ?? 0) >= pullThreshold;
+        resetPull();
+        if (shouldRefresh && !isLoading) {
+          setGestureRefresh(true);
+          void Promise.resolve(onRefresh()).finally(() => setGestureRefresh(false));
+        }
+      }}
+      onTouchCancel={resetPull}>
+      <div className="relative">
+        {(pull > 0 || gestureRefresh) && (
+          <div className="pull-indicator" role="status" style={{ transform: `translate(-50%, ${gestureRefresh ? 26 : pull}px)` }}>
+            {gestureRefresh ? <LoaderCircle size={17} className="animate-spin" aria-label="Nachrichten werden aktualisiert" />
+              : <ArrowDown size={17} aria-label="Zum Aktualisieren nach unten ziehen" />}
+          </div>
+        )}
+        <h1 className="text-slate-900 dark:text-white">Heute</h1>
+        <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
+          {new Intl.DateTimeFormat('de-DE', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())}
+        </p>
       </div>
 
       {/* Category Filter Tabs */}
@@ -140,7 +159,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
               <div className={featuredSideEntries.length > 0 ? 'lg:col-span-7 flex' : 'lg:col-span-12'}>
                 <HeroArticleCard
                   article={heroEntry.article}
-                  reason={selectedCategory === 'Für dich' ? heroEntry.reason : undefined}
                   badgeLabel="Top-Thema"
                   className="w-full"
                   isBookmarked={profile.bookmarkedIds.includes(heroEntry.article.id)}
@@ -154,11 +172,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
             {featuredSideEntries.length > 0 && (
               <div className="lg:col-span-5 flex flex-col justify-between gap-3">
-                {featuredSideEntries.map(({ article, reason }) => (
+                {featuredSideEntries.map(({ article }) => (
                   <CompactArticleCard
                     key={article.id}
                     article={article}
-                    reason={selectedCategory === 'Für dich' ? reason : undefined}
                     isBookmarked={profile.bookmarkedIds.includes(article.id)}
                     isLiked={profile.likedIds.includes(article.id)}
                     onOpen={onOpenArticle}
@@ -172,11 +189,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
           {restEntries.length > 0 && (
             <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
-              {restEntries.map(({ article, reason }) => (
+              {restEntries.map(({ article }) => (
                 <CompactArticleCard
                   key={article.id}
                   article={article}
-                  reason={selectedCategory === 'Für dich' ? reason : undefined}
                   isBookmarked={profile.bookmarkedIds.includes(article.id)}
                   isLiked={profile.likedIds.includes(article.id)}
                   onOpen={onOpenArticle}

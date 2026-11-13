@@ -3,7 +3,7 @@ import businessImage from '../assets/images/news_renewable_europe_1794556463653.
 import technologyImage from '../assets/images/news_ai_semiconductor_1794556462965.jpg';
 import societyImage from '../assets/images/news_eu_parliament_1794556462855.jpg';
 import React, { useMemo, useState } from 'react';
-import { Check, ChevronRight, Plus, Search, User } from 'lucide-react';
+import { Check, ChevronRight, Plus, Search } from 'lucide-react';
 import type { NewsArticle, NewsCategory, NewsSource, PersonalizationProfile } from '../types/news';
 import { BentoArticleCard, CompactArticleCard, HeroArticleCard } from './ArticleCards';
 
@@ -85,14 +85,6 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={onOpenSourcesSettings}
-          aria-label="Quellen und Integrationen verwalten"
-          className="liquid-glass flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full text-slate-700 dark:text-slate-200 transition hover:scale-105 active:scale-95 md:hidden"
-        >
-          <User className="h-4 w-4" />
-        </button>
       </div>
 
       {/* Inline Search Input */}

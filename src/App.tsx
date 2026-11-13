@@ -295,12 +295,14 @@ export default function App() {
     };
     const timer = window.setInterval(updateWhenVisible, 5 * 60_000);
     document.addEventListener('visibilitychange', updateWhenVisible);
+    window.addEventListener('pageshow', updateWhenVisible);
     window.addEventListener('online', updateWhenVisible);
     return () => {
       refresh.current?.abort();
       refresh.current = null;
       window.clearInterval(timer);
       document.removeEventListener('visibilitychange', updateWhenVisible);
+      window.removeEventListener('pageshow', updateWhenVisible);
       window.removeEventListener('online', updateWhenVisible);
     };
   }, [fetchLiveFeeds]);
@@ -432,7 +434,6 @@ export default function App() {
             ))}
           </nav>
           <div className="flex items-center gap-2">
-            {activeTab !== 'search' && <button type="button" className="glass-icon md:hidden" aria-label="Suche öffnen" onClick={() => setActiveTab('search')}><Search size={19} /></button>}
             <button type="button" className="glass-icon" aria-label="Benachrichtigungen öffnen" onClick={() => openSettings('app')}><Bell size={19} /></button>
           </div>
         </div>
@@ -451,7 +452,6 @@ export default function App() {
             onOpenArticle={handleOpenArticle}
             onToggleBookmark={handleToggleBookmark}
             onToggleLike={handleToggleLike}
-            onOpenSettings={() => openProfile()}
           />
         )}
 

@@ -40,6 +40,7 @@
   html {
     -webkit-tap-highlight-color: transparent;
     accent-color: var(--accent);
+    overscroll-behavior-y: contain;
   }
 
   button, select { cursor: pointer; }
@@ -319,3 +320,20 @@
 
 .onboarding > div:last-child > div { justify-content: center; }
 .onboarding > div:last-child .choice-pill { background: transparent; border-color: transparent; }
+
+
+.pull-indicator {
+  position: absolute;
+  z-index: 10;
+  left: 50%;
+  top: -22px;
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  pointer-events: none;
+  border-radius: 50%;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  box-shadow: var(--glass-shadow);
+}
