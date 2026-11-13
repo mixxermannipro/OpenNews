@@ -1,15 +1,13 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { ArrowDown, LoaderCircle, Sparkles } from 'lucide-react';
 import type { NewsArticle, PersonalizationProfile } from '../types/news';
-import { type ScoredArticle } from '../lib/personalization';
-import type { HomeTab } from '../lib/preferences';
+import { HOME_TABS, type HomeTab } from '../lib/preferences';
 import { CompactArticleCard, HeroArticleCard } from './ArticleCards';
 
 interface HomeViewProps {
-  scoredArticles: ScoredArticle[];
+  articles: NewsArticle[];
   showHero: boolean;
   selectedCategory: HomeTab;
-  tabs: HomeTab[];
   onSelectCategory: (cat: HomeTab) => void;
   profile: PersonalizationProfile;
   isLoading: boolean;
@@ -20,10 +18,9 @@ interface HomeViewProps {
 }
 
 export const HomeView: React.FC<HomeViewProps> = ({
-  scoredArticles,
+  articles,
   showHero,
   selectedCategory,
-  tabs,
   onSelectCategory,
   profile,
   isLoading,
@@ -44,24 +41,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
   const [batch, setBatch] = useState({ category: selectedCategory, limit: 30 });
   const visibleLimit = batch.category === selectedCategory ? batch.limit : 30;
-  const results = useMemo(() => {
-    if (selectedCategory === 'Für dich') return scoredArticles;
-    if (selectedCategory === 'Eilmeldungen') return scoredArticles.filter(({ article }) => article.isBreaking)
-      .sort((a, b) => b.article.publishedAt.localeCompare(a.article.publishedAt));
-    if (selectedCategory === 'Alle') return [...scoredArticles].sort((a, b) => b.article.publishedAt.localeCompare(a.article.publishedAt));
-    if (selectedCategory === 'Schlagzeilen') {
-      const latest = [...scoredArticles].sort((a, b) =>
-        Number(Boolean(b.article.isBreaking)) - Number(Boolean(a.article.isBreaking))
-        || b.article.publishedAt.localeCompare(a.article.publishedAt));
-      return latest.filter((entry, index) => latest.findIndex(item => item.article.sourceId === entry.article.sourceId) === index);
-    }
-    return scoredArticles.filter(({ article }) => article.category === selectedCategory);
-  }, [scoredArticles, selectedCategory]);
-  const filtered = results.slice(0, visibleLimit);
-
-  const heroEntry = showHero ? filtered[0] : undefined;
-  const featuredSideEntries = heroEntry ? filtered.slice(1, 4) : [];
-  const restEntries = heroEntry ? filtered.slice(4) : filtered;
+  const filtered = articles.slice(0, visibleLimit);
+  const hero = showHero && selectedCategory === 'Heute' ? filtered[0] : undefined;
+  const featuredSideEntries = hero ? filtered.slice(1, 4) : [];
+  const restEntries = hero ? filtered.slice(4) : filtered;
 
   return (
     <section aria-label="Startseite Nachrichten" className="space-y-5"
@@ -108,22 +91,20 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </p>
       </div>
 
-      {/* Category Filter Tabs */}
       <div
-        role="tablist"
-        aria-label="Nachrichten-Rubriken"
-        className="no-scrollbar flex items-center gap-2 overflow-x-auto pb-1"
+        role="group"
+        aria-label="Ansicht der Startseite"
+        className="grid grid-cols-3 gap-2"
       >
-        {tabs.map((cat) => {
+        {HOME_TABS.map((cat) => {
           const active = selectedCategory === cat;
           return (
             <button
               key={cat}
-              role="tab"
               type="button"
-              aria-selected={active}
+              aria-pressed={active}
               onClick={() => onSelectCategory(cat)}
-              className={`inline-flex min-h-[40px] shrink-0 items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold whitespace-nowrap transition active:scale-95 ${
+              className={`inline-flex min-h-[40px] shrink-0 items-center justify-center gap-1.5 rounded-full px-2 py-2 text-xs font-semibold whitespace-nowrap transition active:scale-95 ${
                 active
                   ? 'bg-[#2C2F36] text-white shadow-sm dark:bg-white dark:text-slate-950'
                   : 'liquid-glass-subtle text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'
@@ -136,40 +117,37 @@ export const HomeView: React.FC<HomeViewProps> = ({
         })}
       </div>
 
-      {/* Feed Content */}
       {filtered.length === 0 ? (
         <div className="liquid-glass rounded-3xl p-8 text-center">
           <p className="text-base font-semibold text-slate-900 dark:text-white">
-            {isLoading ? 'Nachrichten werden geladen …' : `Keine Artikel in „${selectedCategory}“ gefunden`}
+            {isLoading ? 'Nachrichten werden geladen …' : selectedCategory === 'Heute'
+              ? 'Heute sind noch keine Meldungen verfügbar'
+              : selectedCategory === 'Für dich' ? 'Keine aktuellen Empfehlungen verfügbar' : 'Keine Meldungen verfügbar'}
           </p>
-          {!isLoading && <p className="mt-1.5 text-sm text-slate-500 dark:text-slate-400">
-            Aktiviere weitere RSS-Quellen in den Einstellungen oder wähle eine andere Rubrik.
-          </p>}
-          {selectedCategory !== tabs[0] && <button type="button" className="choice-pill mt-4" onClick={() => onSelectCategory(tabs[0])}>
-            Zu „{tabs[0]}“
-          </button>}
+          {!isLoading && selectedCategory !== 'Neueste' && <button type="button" className="choice-pill mt-4"
+            onClick={() => onSelectCategory('Neueste')}>Zu „Neueste“</button>}
+          {!isLoading && selectedCategory === 'Neueste' && <button type="button" className="choice-pill mt-4"
+            onClick={() => void onRefresh()}>Feeds aktualisieren</button>}
         </div>
       ) : (
         <div className="space-y-5">
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-12 lg:items-stretch">
-            {heroEntry && (
-              <div className={featuredSideEntries.length > 0 ? 'lg:col-span-7 flex' : 'lg:col-span-12'}>
-                <HeroArticleCard
-                  article={heroEntry.article}
-                  badgeLabel="Top-Thema"
-                  className="w-full"
-                  isBookmarked={profile.bookmarkedIds.includes(heroEntry.article.id)}
-                  isLiked={profile.likedIds.includes(heroEntry.article.id)}
-                  onOpen={onOpenArticle}
-                  onToggleBookmark={onToggleBookmark}
-                  onToggleLike={onToggleLike}
-                />
-              </div>
-            )}
+          {hero && <div className="grid grid-cols-1 gap-4 lg:grid-cols-12 lg:items-stretch">
+            <div className={featuredSideEntries.length > 0 ? 'lg:col-span-7 flex' : 'lg:col-span-12'}>
+              <HeroArticleCard
+                article={hero}
+                badgeLabel="Top-Thema"
+                className="w-full"
+                isBookmarked={profile.bookmarkedIds.includes(hero.id)}
+                isLiked={profile.likedIds.includes(hero.id)}
+                onOpen={onOpenArticle}
+                onToggleBookmark={onToggleBookmark}
+                onToggleLike={onToggleLike}
+              />
+            </div>
 
             {featuredSideEntries.length > 0 && (
               <div className="lg:col-span-5 flex flex-col justify-between gap-3">
-                {featuredSideEntries.map(({ article }) => (
+                {featuredSideEntries.map((article) => (
                   <CompactArticleCard
                     key={article.id}
                     article={article}
@@ -182,11 +160,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 ))}
               </div>
             )}
-          </div>
+          </div>}
 
           {restEntries.length > 0 && (
             <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
-              {restEntries.map(({ article }) => (
+              {restEntries.map((article) => (
                 <CompactArticleCard
                   key={article.id}
                   article={article}
@@ -199,7 +177,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               ))}
             </div>
           )}
-          {results.length > visibleLimit && <button type="button" className="choice-pill" onClick={() =>
+          {articles.length > visibleLimit && <button type="button" className="choice-pill" onClick={() =>
             setBatch({ category: selectedCategory, limit: visibleLimit + 30 })}>Weitere Meldungen</button>}
         </div>
       )}

@@ -5,8 +5,31 @@ export const TOPICS = [
   'Politik', 'Wirtschaft', 'Technologie', 'Wissenschaft', 'Europa', 'Gesellschaft', 'Kultur', 'Sport',
 ] as const satisfies readonly NewsCategory[];
 
-export const HOME_TABS = ['Für dich', 'Alle', 'Schlagzeilen', 'Eilmeldungen', ...TOPICS] as const;
+export const HOME_TABS = ['Heute', 'Für dich', 'Neueste'] as const;
+export const HOME_TAB_LABELS = { Heute: 'Heute', 'Für dich': 'Für dich', Neueste: 'Neueste' } as const;
 export type HomeTab = typeof HOME_TABS[number];
+
+export function resolveHomeTab(value: unknown): HomeTab {
+  if (value === 'Für dich') return 'Für dich';
+  if (value === 'Neueste' || value === 'Alle') return 'Neueste';
+  return 'Heute';
+}
+
+export const RETENTION_OPTIONS = {
+  '2': '2 Tage',
+  '4': '4 Tage (Standard)',
+  '7': '7 Tage',
+  '14': '2 Wochen',
+  '30': '1 Monat (30 Tage)',
+  '90': '3 Monate (90 Tage)',
+} as const;
+export type Retention = keyof typeof RETENTION_OPTIONS;
+
+export function resolveRetention(value: unknown): Retention {
+  return typeof value === 'string' && Object.hasOwn(RETENTION_OPTIONS, value)
+    ? value as Retention
+    : DEFAULT_PREFERENCES.retention;
+}
 
 export const EDITIONS = {
   balanced: { label: 'Ausgewogen', sources: [], description: 'Die Standardauswahl deckt allgemeine Nachrichten, Wirtschaft, Technik und Wissenschaft ab.' },
@@ -35,7 +58,7 @@ export interface AppPreferences {
   textScale: 'small' | 'normal' | 'large';
   motion: 'system' | 'reduced';
   home: HomeTab;
-  homeTabs: HomeTab[];
+  retention: Retention;
   edition: Edition;
   sourcePresetApplied?: boolean;
   hero: boolean;
@@ -50,16 +73,10 @@ export const DEFAULT_PREFERENCES: AppPreferences = {
   cards: 'balanced',
   textScale: 'normal',
   motion: 'system',
-  home: 'Für dich',
-  homeTabs: [...HOME_TABS],
+  home: 'Heute',
+  retention: '4',
   edition: 'balanced',
   hero: true,
   images: true,
   topics: [],
 };
-
-export function resolveHomeTabs(preferences: AppPreferences): HomeTab[] {
-  const selected = preferences.homeTabs ?? DEFAULT_PREFERENCES.homeTabs;
-  const tabs = HOME_TABS.filter(tab => selected.includes(tab));
-  return tabs.length ? tabs : ['Für dich'];
-}

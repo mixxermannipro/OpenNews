@@ -10,6 +10,14 @@ Datenschutzfreundliche, Apple-inspirierte Nachrichten-App für freie RSS-, Atom-
 - **Eigene KI-Integration (BYOK)**: Unterstützt Google AI Studio (Gemini), OpenAI, Anthropic (Claude), Mistral AI sowie OpenRouter / eigene OpenAI-kompatible Endpunkte (z. B. lokales Ollama).
 - **Medien & Reader**: Bilder, Videos/Podcasts, anpassbare Schriftgröße (`A | A`), Serif/Sans-Switch, Volltext-Extraktion und ein animiertes Fenster für die Zusammenfassung, auch ohne API-Key.
 
+## Startseite und Aufbewahrung
+
+- **Heute** priorisiert die wichtigsten verfügbaren Meldungen seit Mitternacht anhand von Eilmeldungen und Aktualität. Die Auswahl mischt Themen und Quellen.
+- **Für dich** empfiehlt Beiträge aus den letzten 48 Stunden anhand deiner Interessen, Quellen und Reaktionen.
+- **Neueste** zeigt die verfügbaren Beiträge nach Veröffentlichungszeit. Unter **Entdecken** findest du alle Themenrubriken und die Suche.
+
+Unter **Profil → Individuelle Einstellungen → Feed & Startseite** kannst du die Aufbewahrung auf 2, 4, 7, 14, 30 oder 90 Tage einstellen. Standard sind 4 Tage. Das Alter richtet sich nach der Veröffentlichungszeit, sofern die Quelle ein gültiges Datum liefert. Der Feed-Speicher behält bis zu 600 Beiträge. Quellenabos, Lesezeichen, gelikte Artikel und der Leseverlauf bleiben erhalten.
+
 ## Darstellung und Einrichtung
 
 Beim ersten Start kannst du Interessen und Darstellung wählen oder direkt mit den empfohlenen Einstellungen beginnen. Im Profil findest du die Einstellungen für Farben, Transparenz, Karten, Schrift, Startseite und Bewegung. Unter „Feed und Startseite“ wählen journalistische Voreinstellungen passende Quellen aus. Die Darstellung bleibt einheitlich. Deine Änderungen werden auf dem Gerät gespeichert.

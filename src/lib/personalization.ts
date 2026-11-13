@@ -213,6 +213,10 @@ export function rankArticlesForYou(
     .sort((a, b) => b.score - a.score || b.article.publishedAt.localeCompare(a.article.publishedAt)
       || a.article.id.localeCompare(b.article.id));
 
+  return diversifyArticles(ranked);
+}
+
+export function diversifyArticles(ranked: ScoredArticle[]): ScoredArticle[] {
   const selected: ScoredArticle[] = [];
   // Mix each page of recommendations. Consider other topics even if one source
   // supplies most of the initial candidates.

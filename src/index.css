@@ -252,6 +252,8 @@
   gap: 1.15rem;
 }
 
+.settings-page { grid-template-columns: minmax(0, 1fr); }
+
 .settings-group { border-radius: var(--card-radius); }
 .preference-row {
   min-height: 58px;
@@ -266,7 +268,17 @@
 }
 
 .preference-row + .preference-row { border-top: 1px solid var(--line); }
-.preference-row > select { max-width: 57%; font-size: .875rem; }
+.preference-select > span { min-width: 0; overflow-wrap: anywhere; }
+.preference-select > select { min-width: 0; max-width: 57%; font-size: .875rem; text-overflow: ellipsis; }
+
+@media (max-width: 30rem) {
+  .preference-select {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: .375rem;
+  }
+  .preference-select > select { width: 100%; max-width: 100%; }
+}
 .preference-row input[type="checkbox"] { width: 22px; height: 22px; flex-shrink: 0; }
 .settings-link { width: 100%; border-radius: inherit; }
 .settings-link span { flex: 1; }
