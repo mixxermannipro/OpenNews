@@ -420,6 +420,10 @@ export default function App() {
   };
 
   const handleToggleSubscribe = (sourceId: string) => {
+    const source = sources.find(item => item.id === sourceId);
+    if (source?.format === 'podcast' && !source.subscribed) {
+      setFormatPrefs(previous => previous.podcasts ? previous : { ...previous, podcasts: true });
+    }
     setSources(() =>
       sources.map((s) => (s.id === sourceId ? { ...s, subscribed: !s.subscribed } : s))
     );
