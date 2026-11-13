@@ -1,11 +1,11 @@
 import type { NewsArticle } from '../types/news';
-import { getArticleMedia } from '../lib/articleMedia';
+import { getArticleMedia, getReaderAttachments } from '../lib/articleMedia';
 import { ArticleImage } from './ArticleImage';
 import { MediaPlayer } from './MediaPlayer';
 
 export function ArticleMedia({ article, heroImage, background }: { article: NewsArticle; heroImage?: string; background: boolean }) {
   const media = article.media ?? getArticleMedia(article);
-  const attachments = media.filter(attachment => attachment.type !== 'image' || attachment.url !== heroImage);
+  const attachments = getReaderAttachments(media, heroImage);
   if (!attachments.length) return null;
 
   return (
