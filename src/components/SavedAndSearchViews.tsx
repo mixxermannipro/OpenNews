@@ -1,9 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import { Bookmark, Heart, RotateCcw, Search, SlidersHorizontal, Sparkles } from 'lucide-react';
 import type { NewsArticle, NewsSource, PersonalizationProfile } from '../types/news';
+import { useLocalStorage } from '../hooks/useLocalStorage';
 import { CompactArticleCard } from './ArticleCards';
 
 interface SavedViewProps {
+  initialPage: 'bookmarks' | 'history';
+  history: NewsArticle[];
   articles: NewsArticle[];
   sources: NewsSource[];
   profile: PersonalizationProfile;
@@ -14,6 +17,8 @@ interface SavedViewProps {
 }
 
 export const SavedView: React.FC<SavedViewProps> = ({
+  initialPage,
+  history,
   articles,
   sources,
   profile,
@@ -22,7 +27,7 @@ export const SavedView: React.FC<SavedViewProps> = ({
   onToggleLike,
   onResetAlgorithm,
 }) => {
-  const [subTab, setSubTab] = useState<'bookmarks' | 'likes' | 'algorithm'>('bookmarks');
+  const [subTab, setSubTab] = useState<'bookmarks' | 'likes' | 'history' | 'algorithm'>(initialPage);
 
   const bookmarkedArticles = useMemo(
     () => articles.filter((a) => profile.bookmarkedIds.includes(a.id)),
@@ -55,13 +60,13 @@ export const SavedView: React.FC<SavedViewProps> = ({
     [profile.sourceWeights, sources]
   );
 
-  const activeList = subTab === 'bookmarks' ? bookmarkedArticles : likedArticles;
+  const activeList = subTab === 'history' ? history : subTab === 'bookmarks' ? bookmarkedArticles : likedArticles;
 
   return (
     <section aria-label="Gespeichert und Interessen" className="space-y-5">
       <div>
         <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-900 dark:text-white">
-          Gespeichert
+          {subTab === 'history' ? 'Leseverlauf' : 'Gespeichert'}
         </h1>
         <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
           Deine Leseliste, Likes und dein lokaler Algorithmus
@@ -69,7 +74,7 @@ export const SavedView: React.FC<SavedViewProps> = ({
       </div>
 
       {/* Segmented Control */}
-      <div className="liquid-glass-subtle inline-flex rounded-2xl p-1 gap-1">
+      <div className="liquid-glass-subtle flex flex-wrap rounded-2xl p-1 gap-1">
         <button
           type="button"
           onClick={() => setSubTab('bookmarks')}
@@ -94,6 +99,7 @@ export const SavedView: React.FC<SavedViewProps> = ({
           <Heart className="h-3.5 w-3.5" />
           Gefällt mir ({likedArticles.length})
         </button>
+        <button type="button" className="choice-pill" aria-pressed={subTab === 'history'} onClick={() => setSubTab('history')}>Gelesen</button>
         <button
           type="button"
           onClick={() => setSubTab('algorithm')}
@@ -187,10 +193,10 @@ export const SavedView: React.FC<SavedViewProps> = ({
       ) : activeList.length === 0 ? (
         <div className="liquid-glass rounded-3xl p-8 text-center">
           <p className="text-base font-semibold text-slate-900 dark:text-white">
-            {subTab === 'bookmarks' ? 'Noch keine gespeicherten Artikel' : 'Noch keine Likes vergeben'}
+            {subTab === 'history' ? 'Noch keine Artikel gelesen' : subTab === 'bookmarks' ? 'Noch keine gespeicherten Artikel' : 'Noch keine Likes vergeben'}
           </p>
           <p className="mt-1.5 text-sm text-slate-500 dark:text-slate-400">
-            {subTab === 'bookmarks'
+            {subTab === 'history' ? 'Hier erscheinen Artikel, die du geöffnet hast.' : subTab === 'bookmarks'
               ? 'Tippe bei einem Artikel auf das Lesezeichen-Symbol, um ihn offline verfügbar zu halten.'
               : 'Tippe auf das Herz-Symbol, um OpenNews beizubringen, welche Themen und Quellen dir gefallen.'}
           </p>
@@ -232,6 +238,11 @@ export const SearchView: React.FC<SearchViewProps> = ({
   onToggleLike,
 }) => {
   const [query, setQuery] = useState('');
+  const [recent, setRecent] = useLocalStorage<string[]>('opennews_recent_searches', []);
+  const remember = (value: string) => {
+    const term = value.trim();
+    if (term) setRecent(previous => [term, ...previous.filter(item => item.toLowerCase() !== term.toLowerCase())].slice(0, 6));
+  };
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -257,7 +268,11 @@ export const SearchView: React.FC<SearchViewProps> = ({
         </p>
       </div>
 
-      <div className="relative">
+      <form className="relative" role="search" onSubmit={event => {
+        event.preventDefault();
+        remember(query);
+        event.currentTarget.querySelector('input')?.blur();
+      }}>
         <Search className="pointer-events-none absolute left-4 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-slate-400" />
         <input
           type="search"
@@ -267,14 +282,25 @@ export const SearchView: React.FC<SearchViewProps> = ({
           aria-label="Nachrichten durchsuchen"
           className="liquid-glass w-full rounded-2xl py-3.5 pl-11 pr-4 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/60 dark:text-white"
         />
-      </div>
+      </form>
+      {!query.trim() && recent.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-lg font-semibold">Letzte Suchen</h2>
+            <button type="button" className="choice-pill" onClick={() => setRecent([])}>Alle löschen</button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {recent.map(term => <button key={term} type="button" className="choice-pill" onClick={() => { setQuery(term); remember(term); }}>{term}</button>)}
+          </div>
+        </div>
+      )}
 
       <div className="no-scrollbar flex items-center gap-2 overflow-x-auto pb-1">
         {SUGGESTED_TERMS.map((term) => (
           <button
             key={term}
             type="button"
-            onClick={() => setQuery(term === query ? '' : term)}
+            onClick={() => { setQuery(term === query ? '' : term); if (term !== query) remember(term); }}
             className={`min-h-[38px] shrink-0 rounded-full px-3.5 py-1.5 text-xs font-medium transition ${
               query === term
                 ? 'bg-[#2C2F36] text-white shadow-sm dark:bg-white dark:text-slate-950'
@@ -309,7 +335,7 @@ export const SearchView: React.FC<SearchViewProps> = ({
               article={article}
               isBookmarked={profile.bookmarkedIds.includes(article.id)}
               isLiked={profile.likedIds.includes(article.id)}
-              onOpen={onOpenArticle}
+              onOpen={article => { remember(query); onOpenArticle(article); }}
               onToggleBookmark={onToggleBookmark}
               onToggleLike={onToggleLike}
             />

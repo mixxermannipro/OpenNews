@@ -98,17 +98,20 @@ export async function discoverNativeFeeds(query: string): Promise<DiscoveredFeed
 }
 
 /** Best-effort HTML article extraction for the native standalone reader. */
-export async function extractNativeArticle(url: string): Promise<{ paragraphs: string[]; ogImage?: string }> {
+export async function extractNativeArticle(url: string): Promise<{ paragraphs: string[]; headingIndexes?: number[]; ogImage?: string }> {
   const target = publicHttpUrl(url);
   if (!target) return { paragraphs: [] };
   const html = await getNativeText(target, 7000);
   const document = new DOMParser().parseFromString(html, 'text/html');
-  const scope = document.querySelector('article') || document.querySelector('main') || document.body;
-  const paragraphs = [...scope.querySelectorAll('p')]
-    .map(p => (p.textContent || '').replace(/\s+/g, ' ').trim())
-    .filter(text => text.length > 45 && !/cookie|datenschutz|newsletter|anzeige|abonnieren/i.test(text))
-    .slice(0, 18);
+  const scope = document.querySelector('.meldung__content, [itemprop="articleBody"], .article-body, .entry-content')
+    || document.querySelector('article') || document.querySelector('main') || document.body;
+  scope.querySelectorAll('aside, footer, nav, [hidden], .teaser, .related, .newsletter, .meldungsfooter, .socialbuttons').forEach(node => node.remove());
+  const blocks = [...scope.querySelectorAll('p, h2, h3, li')]
+    .map(node => ({ text: (node.textContent || '').replace(/\s+/g, ' ').trim(), heading: /^H[23]$/.test(node.tagName) }))
+    .filter(block => block.text);
+  const paragraphs = blocks.map(block => block.text);
+  const headingIndexes = blocks.flatMap((block, index) => block.heading ? [index] : []);
   const ogImageRaw = document.querySelector('meta[property="og:image"]')?.getAttribute('content');
   const ogImage = ogImageRaw ? new URL(ogImageRaw, target).toString() : undefined;
-  return { paragraphs, ogImage };
+  return { paragraphs, headingIndexes, ogImage };
 }

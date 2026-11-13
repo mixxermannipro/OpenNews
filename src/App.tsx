@@ -1,14 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, SystemBars, SystemBarsStyle } from '@capacitor/core';
 import { fetchNativeFeeds } from './lib/nativeFeed';
-import { Bell, Bookmark, Compass, Home, Search, SlidersHorizontal } from 'lucide-react';
-import { AnimatePresence } from 'motion/react';
+import { Bell, Compass, Home, Search, User } from 'lucide-react';
+import { AnimatePresence, MotionConfig, motion } from 'motion/react';
 import type {
   AIProviderConfig,
   AppTab,
   FormatPreferences,
   NewsArticle,
-  NewsCategory,
   NewsSource,
   NotificationSettings,
   PersonalizationProfile,
@@ -17,7 +16,7 @@ import type {
   SourceApiKeys,
   ThemeMode,
 } from './types/news';
-import { DEFAULT_AI_CONFIG } from './lib/aiClient';
+import { DEFAULT_AI_CONFIG, migrateAIConfig } from './lib/aiClient';
 import { DEFAULT_SOURCES, legacyCatalogUrls } from './lib/catalog';
 import {
   createDefaultProfile,
@@ -38,13 +37,52 @@ import { ArticleReaderModal } from './components/ArticleReaderModal';
 import { SettingsView, type SettingsSectionTab } from './components/SettingsView';
 import { OfflineIndicator } from './components/PWAInstallButton';
 
-export default function App() {
-  const [activeTab, setActiveTab] = useState<AppTab>('home');
-  const [settingsSection, setSettingsSection] = useState<SettingsSectionTab>('overview');
-  const [homeCategory, setHomeCategory] = useState<NewsCategory>('Für dich');
+import { DEFAULT_PREFERENCES, EDITIONS, resolveHomeTabs, type AppPreferences, type HomeTab } from './lib/preferences';
+import { Onboarding, ProfileView, type ProfilePage } from './components/Preferences';
 
-  // Supports 'dark' (default), 'light', and 'system' (device preference)
-  const [theme, setTheme] = useLocalStorage<ThemeMode>('opennews_theme', 'dark');
+type AppLocation = {
+  tab: AppTab;
+  profile: ProfilePage;
+  settings: SettingsSectionTab;
+  saved: 'bookmarks' | 'history';
+  article: NewsArticle | null;
+};
+const HOME_LOCATION: AppLocation = { tab: 'home', profile: 'profile', settings: 'overview', saved: 'bookmarks', article: null };
+
+export default function App() {
+  const [location, setLocation] = useState<AppLocation>(HOME_LOCATION);
+  const { tab: activeTab, settings: settingsSection, profile: profilePage, saved: savedPage, article: activeArticle } = location;
+  const navigate = (next: Partial<AppLocation>) => {
+    const destination = { ...location, article: null, ...next };
+    if (JSON.stringify(destination) === JSON.stringify(location)) return;
+    window.history.pushState({ openNews: destination }, '');
+    setLocation(destination);
+  };
+  const goBack = useCallback(() => {
+    if (window.history.state?.openNews) window.history.back();
+  }, []);
+  useEffect(() => {
+    window.history.replaceState(null, '');
+    const restore = (event: PopStateEvent) => setLocation(event.state?.openNews ?? HOME_LOCATION);
+    window.addEventListener('popstate', restore);
+    return () => window.removeEventListener('popstate', restore);
+  }, []);
+  const [preferences, setPreferences] = useLocalStorage<AppPreferences>('opennews_preferences', DEFAULT_PREFERENCES);
+  const [homeCategory, setHomeCategory] = useState<HomeTab>(preferences.home);
+  const homeTabs = useMemo(() => resolveHomeTabs(preferences), [preferences]);
+  const edition = EDITIONS[preferences.edition] ?? EDITIONS.balanced;
+  const selectedHomeTab = homeTabs.includes(homeCategory) ? homeCategory : homeTabs[0];
+  const [onboarded, setOnboarded] = useLocalStorage('opennews_onboarded', false);
+  const [theme, setTheme] = useLocalStorage<ThemeMode>('opennews_theme', 'system');
+
+  const updatePreferences = (next: AppPreferences) => {
+    if (next.home !== preferences.home) setHomeCategory(next.home);
+    setPreferences(next);
+  };
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, [activeTab, profilePage, settingsSection, savedPage, onboarded]);
   const [storedSources, setSources] = useLocalStorage<NewsSource[]>('opennews_sources', DEFAULT_SOURCES);
   const sources = useMemo(() => {
     const saved = new Map(storedSources.map(source => [source.id, source]));
@@ -67,10 +105,17 @@ export default function App() {
     'opennews_profile',
     createDefaultProfile()
   );
-  const [aiConfig, setAiConfig] = useLocalStorage<AIProviderConfig>(
+  const [storedAIConfig, setAiConfig] = useLocalStorage<AIProviderConfig>(
     'opennews_ai_config',
     DEFAULT_AI_CONFIG
   );
+  const [aiConfigMigrated, setAIConfigMigrated] = useLocalStorage('opennews_ai_aliases_migrated', false);
+  const aiConfig = useMemo(() => aiConfigMigrated ? storedAIConfig : migrateAIConfig(storedAIConfig), [storedAIConfig, aiConfigMigrated]);
+  const updateAIConfig = (next: AIProviderConfig) => {
+    setAiConfig(next);
+    setAIConfigMigrated(true);
+  };
+
   const [formatPrefs, setFormatPrefs] = useLocalStorage<FormatPreferences>('opennews_formats', {
     rssAtom: true,
     jsonFeed: true,
@@ -80,7 +125,7 @@ export default function App() {
   const [sourceKeys, setSourceKeys] = useLocalStorage<SourceApiKeys>('opennews_source_keys', {});
   const [notifications, setNotifications] = useLocalStorage<NotificationSettings>(
     'opennews_notifications',
-    { enabled: false, breakingOnly: true, topics: ['Politik', 'Technologie'] }
+    { enabled: false, breakingOnly: false, topics: [] }
   );
   const [fontSize, setFontSize] = useLocalStorage<ReaderFontSize>('opennews_font_size', 'normal');
   const [fontFamily, setFontFamily] = useLocalStorage<ReaderFontFamily>(
@@ -98,7 +143,7 @@ export default function App() {
   );
   const refresh = useRef<AbortController | null>(null);
   const [isLoadingFeeds, setIsLoadingFeeds] = useState(false);
-  const [activeArticle, setActiveArticle] = useState<NewsArticle | null>(null);
+  const [readArticles, setReadArticles] = useLocalStorage<NewsArticle[]>('opennews_read_articles', []);
   const [alertBanner, setAlertBanner] = useState<{ title: string; source: string } | null>(null);
 
   // Sync theme class with <html>, including live prefers-color-scheme listener for 'system'
@@ -113,9 +158,12 @@ export default function App() {
       } else {
         root.classList.remove('dark');
       }
+      if (Capacitor.isNativePlatform()) {
+        void SystemBars.setStyle({ style: resolvedDark ? SystemBarsStyle.Dark : SystemBarsStyle.Light }).catch(() => {});
+      }
       const metaTheme = document.querySelector('meta[name="theme-color"]');
       if (metaTheme) {
-        metaTheme.setAttribute('content', resolvedDark ? '#08090C' : '#E7ECF2');
+        metaTheme.setAttribute('content', resolvedDark ? '#111214' : '#f6f5f2');
       }
     };
 
@@ -130,12 +178,12 @@ export default function App() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && activeArticle) {
-        setActiveArticle(null);
+        goBack();
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [activeArticle]);
+  }, [activeArticle, goBack]);
 
   const enabledFormats = useMemo(() => {
     return new Set<string>([
@@ -147,8 +195,8 @@ export default function App() {
   }, [formatPrefs]);
 
   const activeSources = useMemo(
-    () => sources.filter((s) => s.subscribed && (enabledFormats.has(s.format) || s.isCustom)),
-    [sources, enabledFormats]
+    () => sources.filter((s) => (s.subscribed || (edition.sources as readonly string[]).includes(s.id)) && (enabledFormats.has(s.format) || s.isCustom)),
+    [sources, enabledFormats, edition]
   );
 
   const normalizedProfile = useMemo(() => normalizeProfile(profile), [profile]);
@@ -170,6 +218,39 @@ export default function App() {
     });
   }, [cachedLiveArticles, savedIds, setSavedArticles]);
 
+  const announcedArticles = useRef(new Set<string>());
+  const feedHasLoaded = useRef(cachedLiveArticles.length > 0);
+  const alertTimer = useRef<number | undefined>(undefined);
+  const showAlert = useCallback((title: string, source: string) => {
+    window.clearTimeout(alertTimer.current);
+    setAlertBanner({ title, source });
+    alertTimer.current = window.setTimeout(() => setAlertBanner(null), 5000);
+  }, []);
+  useEffect(() => () => window.clearTimeout(alertTimer.current), []);
+  const initialArticleIds = useRef(new Set(cachedLiveArticles.map(article => article.id)));
+
+  const checkForAlert = useCallback((articles: NewsArticle[]) => {
+    const firstLoad = !feedHasLoaded.current;
+    const now = new Date();
+    const time = now.toTimeString().slice(0, 5);
+    const from = notifications.from ?? '00:00';
+    const until = notifications.until ?? '23:59';
+    const withinWindow = from <= until ? time >= from && time <= until : time >= from || time <= until;
+    let candidate: NewsArticle | undefined;
+    for (const article of articles) {
+      if (announcedArticles.current.has(article.id) || initialArticleIds.current.has(article.id)) continue;
+      announcedArticles.current.add(article.id);
+      const age = now.getTime() - Date.parse(article.publishedAt);
+      if (!candidate && age >= 0 && age <= 2 * 60 * 60_000
+        && (notifications.breakingOnly ? article.isBreaking : !notifications.topics.length || notifications.topics.includes(article.category))) {
+        candidate = article;
+      }
+    }
+    if (!firstLoad && notifications.enabled && withinWindow && document.visibilityState === 'visible' && candidate) {
+      showAlert(candidate.title, candidate.sourceName);
+    }
+  }, [notifications, showAlert]);
+
   const fetchLiveFeeds = useCallback(async () => {
     if (refresh.current || !activeSources.length || !navigator.onLine) return;
     const controller = new AbortController();
@@ -178,6 +259,7 @@ export default function App() {
 
     const applyArticles = (articles: NewsArticle[]) => {
       if (controller.signal.aborted || !articles.length) return;
+      checkForAlert(articles);
       const updatedSources = new Set(articles.map(article => article.sourceId));
       setCachedLiveArticles(previous => {
         if (controller.signal.aborted) return previous;
@@ -222,27 +304,17 @@ export default function App() {
     } finally {
       if (refresh.current === controller) {
         refresh.current = null;
+        feedHasLoaded.current = true;
         setIsLoadingFeeds(false);
       }
     }
-  }, [activeSources, setCachedLiveArticles]);
+  }, [activeSources, checkForAlert, setCachedLiveArticles]);
 
+  const initialFeedRefresh = useRef(false);
   useEffect(() => {
-    setIsLoadingFeeds(false);
+    if (initialFeedRefresh.current) return;
+    initialFeedRefresh.current = true;
     void fetchLiveFeeds();
-    const updateWhenVisible = () => {
-      if (document.visibilityState === 'visible') void fetchLiveFeeds();
-    };
-    const timer = window.setInterval(updateWhenVisible, 5 * 60_000);
-    document.addEventListener('visibilitychange', updateWhenVisible);
-    window.addEventListener('online', updateWhenVisible);
-    return () => {
-      refresh.current?.abort();
-      refresh.current = null;
-      window.clearInterval(timer);
-      document.removeEventListener('visibilitychange', updateWhenVisible);
-      window.removeEventListener('online', updateWhenVisible);
-    };
   }, [fetchLiveFeeds]);
 
   const allArticles = useMemo(() => {
@@ -251,17 +323,31 @@ export default function App() {
   }, [activeSources, cachedLiveArticles]);
 
   const scoredArticles = useMemo(
-    () => rankArticlesForYou(allArticles, normalizedProfile, sources),
-    [allArticles, normalizedProfile, sources]
+    () => {
+      const topicWeights = { ...normalizedProfile.topicWeights };
+      for (const topic of preferences.topics) topicWeights[topic] = (topicWeights[topic] ?? 0) + 4;
+      return rankArticlesForYou(allArticles, { ...normalizedProfile, topicWeights }, sources);
+    },
+    [allArticles, normalizedProfile, sources, preferences.topics]
   );
 
+  const editionArticles = useMemo(() => edition.sources.length
+    ? scoredArticles.filter(({ article }) => (edition.sources as readonly string[]).includes(article.sourceId))
+    : scoredArticles, [edition, scoredArticles]);
+
   const openSettings = (sec: SettingsSectionTab = 'overview') => {
-    setSettingsSection(sec);
-    setActiveTab('settings');
+    navigate({ tab: 'settings', settings: sec });
   };
 
   const handleOpenArticle = (article: NewsArticle) => {
-    setActiveArticle(article);
+    navigate({ article });
+    const historyEntry = {
+      ...article,
+      contentHtml: undefined,
+      summary: article.summary.slice(0, 800),
+      paragraphs: article.paragraphs.slice(0, 4).map(paragraph => paragraph.slice(0, 450)),
+    };
+    setReadArticles(previous => [historyEntry, ...previous.filter(item => item.id !== article.id)].slice(0, 60));
     setProfile((prev) => recordArticleRead(normalizeProfile(prev), article));
   };
 
@@ -275,7 +361,7 @@ export default function App() {
 
   const handleToggleDislike = (article: NewsArticle) => {
     setProfile((prev) => toggleArticleDislike(normalizeProfile(prev), article));
-    setActiveArticle(null);
+    goBack();
   };
 
   const handleRecordReadingDuration = useCallback(
@@ -295,31 +381,34 @@ export default function App() {
     );
   };
 
-  const handleSendTestNotification = () => {
-    const top = scoredArticles[0]?.article || SEED_ARTICLES[0];
-    setAlertBanner({ title: top.title, source: top.sourceName });
-    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-      try {
-        new Notification(`OpenNews · ${top.sourceName}`, {
-          body: top.title,
-          icon: '/pwa-192x192.png',
-        });
-      } catch {
-        // Ignore on environments restricting window Notification
-      }
-    }
-    setTimeout(() => setAlertBanner(null), 5000);
+  const handleSendTestNotification = () => showAlert('Benachrichtigungen sind aktiv.', 'OpenNews · Test');
+
+  const openProfile = (page: ProfilePage = 'profile') => {
+    navigate({ tab: 'profile', profile: page });
+  };
+  const openSaved = (page: 'bookmarks' | 'history') => {
+    navigate({ tab: 'saved', saved: page });
   };
 
-  const navItems: Array<{ id: Exclude<AppTab, 'settings'>; label: string; icon: React.ReactNode }> = [
-    { id: 'home', label: 'Home', icon: <Home className="h-5 w-5" /> },
-    { id: 'discover', label: 'Entdecken', icon: <Compass className="h-5 w-5" /> },
-    { id: 'saved', label: 'Gespeichert', icon: <Bookmark className="h-5 w-5" /> },
-    { id: 'search', label: 'Suche', icon: <Search className="h-5 w-5" /> },
-  ];
+  const navItems = [
+    { id: 'home', label: 'Home', icon: Home, action: () => navigate({ tab: 'home' }) },
+    { id: 'discover', label: 'Entdecken', icon: Compass, action: () => navigate({ tab: 'discover' }) },
+    { id: 'search', label: 'Suche', icon: Search, action: () => navigate({ tab: 'search' }) },
+    { id: 'profile', label: 'Profil', icon: User, action: () => openProfile() },
+  ] as const;
+  const navIsActive = (id: string) => activeTab === id || (id === 'profile' && ['settings', 'saved'].includes(activeTab));
+  const appearance = { theme, onTheme: setTheme, preferences, onPreferences: updatePreferences };
+  const reducedMotion = preferences.motion === 'reduced' || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   return (
-    <div className="opennews-canvas min-h-screen text-[#111318] dark:text-[#F4F6FA] transition-colors duration-200">
+    <MotionConfig reducedMotion={preferences.motion === 'reduced' ? 'always' : 'user'}>
+    <div className="opennews-canvas" data-glass={preferences.glass} data-accent={preferences.accent}
+      data-corners={preferences.corners} data-cards={preferences.cards} data-scale={preferences.textScale}
+      data-motion={preferences.motion} data-feed-images={preferences.images}>
+      {!onboarded ? <Onboarding {...appearance} onFinish={() => setOnboarded(true)} onConfigure={() => {
+        setOnboarded(true);
+        openProfile('preferences');
+      }} /> : <>
       <OfflineIndicator />
 
       {/* In-App Breaking Notification Banner */}
@@ -342,70 +431,41 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Desktop Top Bar (3-zone contract) */}
-      <header className="hidden md:block sticky top-0 z-30 border-b border-black/[0.06] bg-white/55 backdrop-blur-2xl dark:border-white/[0.07] dark:bg-[#08090D]/75">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-8 px-6 py-3.5">
-          <button
-            type="button"
-            onClick={() => setActiveTab('home')}
-            className="flex items-center gap-2.5 text-lg font-bold tracking-tight text-slate-900 dark:text-white whitespace-nowrap shrink-0"
-          >
-            <img src="/logo.png" alt="" className="h-9 w-9 rounded-lg object-cover" />
-            OpenNews
+      <header className="app-header hidden md:block" inert={activeArticle ? true : undefined}>
+        <div className="app-header-inner">
+          <button type="button" className="brand" onClick={() => navigate({ tab: 'home' })}>
+            <img src="/logo.png" alt="" /> OpenNews
           </button>
-
-          <nav aria-label="Hauptnavigation" className="flex items-center gap-6">
-            {navItems.map((item) => {
-              const active = activeTab === item.id;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setActiveTab(item.id)}
-                  className={`min-h-[40px] px-1 text-sm font-medium whitespace-nowrap shrink-0 transition-colors ${
-                    active
-                      ? 'text-slate-900 dark:text-white underline decoration-blue-500 decoration-2 underline-offset-8'
-                      : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
-                  }`}
-                >
-                  {item.label}
-                </button>
-              );
-            })}
+          <nav aria-label="Hauptnavigation" className="hidden items-center gap-2 md:flex">
+            {navItems.map(item => (
+              <button key={item.id} type="button" className="choice-pill" onClick={item.action}
+                aria-current={navIsActive(item.id) ? 'page' : undefined} aria-pressed={navIsActive(item.id)}>
+                {item.label}
+              </button>
+            ))}
           </nav>
-
-          <div className="flex items-center shrink-0">
-            <button
-              type="button"
-              onClick={() => openSettings('overview')}
-              className={`liquid-glass inline-flex min-h-[42px] items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold whitespace-nowrap shrink-0 transition hover:scale-[1.02] ${
-                activeTab === 'settings'
-                  ? 'ring-2 ring-blue-500 text-blue-600 dark:text-blue-400'
-                  : 'text-slate-800 dark:text-slate-100'
-              }`}
-            >
-              <SlidersHorizontal className="h-3.5 w-3.5" />
-              Quellen &amp; KI
-            </button>
+          <div className="flex items-center gap-2">
+            <button type="button" className="glass-icon" aria-label="Benachrichtigungen öffnen" onClick={() => openSettings('app')}><Bell size={19} /></button>
           </div>
         </div>
       </header>
 
-      {/* Main Content Container */}
-      <main className="relative mx-auto max-w-6xl px-4 pb-28 pt-5 sm:px-6 md:pb-14 md:pt-8">
+      <main className="app-content" inert={activeArticle ? true : undefined}>
         {activeTab === 'home' && (
           <HomeView
-            scoredArticles={scoredArticles}
-            allArticlesCount={allArticles.length}
-            selectedCategory={homeCategory}
+            tabs={homeTabs}
+            edition={preferences.edition ?? 'balanced'}
+            scoredArticles={editionArticles}
+            showHero={preferences.hero}
+            selectedCategory={selectedHomeTab}
             onSelectCategory={setHomeCategory}
             profile={normalizedProfile}
             isLoading={isLoadingFeeds}
             onRefresh={fetchLiveFeeds}
+            onOpenNotifications={() => openSettings('app')}
             onOpenArticle={handleOpenArticle}
             onToggleBookmark={handleToggleBookmark}
             onToggleLike={handleToggleLike}
-            onOpenSettings={() => openSettings('overview')}
           />
         )}
 
@@ -424,6 +484,9 @@ export default function App() {
 
         {activeTab === 'saved' && (
           <SavedView
+            key={savedPage}
+            initialPage={savedPage}
+            history={[...readArticles, ...allArticles.filter(article => normalizedProfile.readIds.includes(article.id) && !readArticles.some(read => read.id === article.id))]}
             articles={Object.values(savedArticles)}
             sources={sources}
             profile={normalizedProfile}
@@ -444,6 +507,11 @@ export default function App() {
           />
         )}
 
+        {activeTab === 'profile' && <ProfileView {...appearance} page={profilePage} onPage={page => openProfile(page)} onBack={goBack}
+          onSaved={() => openSaved('bookmarks')} onHistory={() => openSaved('history')}
+          onSources={() => openSettings('feeds')} onAI={() => openSettings('ai')} onNotifications={() => openSettings('app')}
+          fontSize={fontSize} fontFamily={fontFamily} onFontSize={setFontSize} onFontFamily={setFontFamily} />}
+
         {activeTab === 'settings' && (
           <SettingsView
             key={settingsSection}
@@ -452,8 +520,17 @@ export default function App() {
             formatPrefs={formatPrefs}
             sourceKeys={sourceKeys}
             aiConfig={aiConfig}
-            theme={theme}
             notifications={notifications}
+            onAdvancedSources={() => openSettings('overview')}
+            onImportSources={imported => {
+              const normalized = (url: string) => { try { return new URL(url).href; } catch { return url; } };
+              const incoming = new Map(imported.map(source => [normalized(source.url), source]));
+              const merged = sources.map(source => {
+                if (!incoming.delete(normalized(source.url))) return source;
+                return { ...source, subscribed: true };
+              });
+              setSources([...merged, ...incoming.values()]);
+            }}
             onToggleSource={handleToggleSubscribe}
             onAddCustomSource={(src) => setSources((prev) => prev.some(source => source.url === src.url) ? prev : [src, ...prev])}
             onUpdateSource={handleUpdateSource}
@@ -462,41 +539,25 @@ export default function App() {
             }
             onUpdateFormatPrefs={setFormatPrefs}
             onUpdateSourceKeys={setSourceKeys}
-            onUpdateAIConfig={setAiConfig}
-            onChangeTheme={setTheme}
+            onUpdateAIConfig={updateAIConfig}
             onUpdateNotifications={setNotifications}
             onSendTestNotification={handleSendTestNotification}
             onResetAlgorithm={() => setProfile(createDefaultProfile())}
-            onBackHome={() => setActiveTab('home')}
+            onBackHome={goBack}
           />
         )}
       </main>
 
-      {/* Mobile Floating Liquid Glass Bottom Tab Bar matching Screenshots 1, 2, 4 */}
-      <nav aria-label="Mobile Navigation" className="md:hidden fixed inset-x-3 bottom-3 z-40">
-        <div className="liquid-glass-dock mx-auto grid max-w-md grid-cols-4 items-center rounded-[30px] p-1.5">
-          {navItems.map((item) => {
-            const active = activeTab === item.id;
-            const visualActive = active || (activeTab === 'settings' && item.id === 'home');
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => setActiveTab(item.id)}
-                aria-current={active ? 'page' : undefined}
-                className={`flex min-h-[46px] flex-col items-center justify-center gap-0.5 rounded-[24px] px-2 py-1 transition active:scale-95 ${
-                  visualActive
-                    ? 'bg-black/[0.07] text-slate-950 dark:bg-white/[0.13] dark:text-white'
-                    : 'text-slate-600 dark:text-slate-400'
-                }`}
-              >
-                {item.icon}
-                <span className="text-[10px] font-semibold tracking-tight whitespace-nowrap">
-                  {item.label}
-                </span>
-              </button>
-            );
-          })}
+      <nav aria-label="Mobile Navigation" className="mobile-navigation" inert={activeArticle ? true : undefined}>
+        <div className="liquid-glass-dock">
+          {navItems.map(({ id, label, icon: Icon, action }) => (
+            <button key={id} type="button" onClick={action}
+              aria-current={navIsActive(id) ? 'page' : undefined} aria-label={label} className="dock-tab">
+              {navIsActive(id) && <motion.span layoutId={reducedMotion ? undefined : 'dock-selection'} className="dock-selection"
+                transition={{ type: 'spring', stiffness: 440, damping: 34 }} />}
+              <Icon size={25} strokeWidth={2} aria-hidden="true" />
+            </button>
+          ))}
         </div>
       </nav>
 
@@ -504,6 +565,7 @@ export default function App() {
       <AnimatePresence>
         {activeArticle && (
           <ArticleReaderModal
+            key={activeArticle.id}
             article={activeArticle}
             isBookmarked={normalizedProfile.bookmarkedIds.includes(activeArticle.id)}
             isLiked={normalizedProfile.likedIds.includes(activeArticle.id)}
@@ -511,20 +573,17 @@ export default function App() {
             aiConfig={aiConfig}
             fontSize={fontSize}
             fontFamily={fontFamily}
-            onChangeFontSize={setFontSize}
-            onChangeFontFamily={setFontFamily}
             onToggleBookmark={handleToggleBookmark}
             onToggleLike={handleToggleLike}
             onToggleDislike={handleToggleDislike}
             onRecordReadingDuration={handleRecordReadingDuration}
-            onOpenAISettings={() => {
-              setActiveArticle(null);
-              openSettings('ai');
-            }}
-            onClose={() => setActiveArticle(null)}
+            onOpenAISettings={() => openSettings('ai')}
+            onClose={goBack}
           />
         )}
       </AnimatePresence>
+      </>}
     </div>
+    </MotionConfig>
   );
 }

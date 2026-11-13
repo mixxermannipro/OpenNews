@@ -1,6 +1,5 @@
 import React from 'react';
-import { Bookmark, Flame, Heart, Play, Sparkles } from 'lucide-react';
-import { motion } from 'motion/react';
+import { Flame, Heart, Play, Sparkles } from 'lucide-react';
 import type { NewsArticle } from '../types/news';
 import { formatRelativeTimeDe } from '../lib/personalization';
 import { ArticleImage } from './ArticleImage';
@@ -9,7 +8,6 @@ interface CardActionsProps {
   article: NewsArticle;
   isBookmarked: boolean;
   isLiked: boolean;
-  reason?: string;
   onOpen: (article: NewsArticle) => void;
   onToggleBookmark: (article: NewsArticle) => void;
   onToggleLike: (article: NewsArticle) => void;
@@ -28,24 +26,17 @@ const CATEGORY_BADGE_STYLES: Record<string, string> = {
 
 export const HeroArticleCard: React.FC<CardActionsProps & { badgeLabel?: string; className?: string }> = ({
   article,
-  isBookmarked,
   isLiked,
-  reason,
   badgeLabel = 'Top-Thema',
   className = '',
   onOpen,
-  onToggleBookmark,
   onToggleLike,
 }) => {
   const hasMedia = Boolean(article.videoUrl || article.youtubeId || article.audioUrl);
-  const showReason = Boolean(reason && reason !== badgeLabel);
 
   return (
-    <motion.article
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
-      className={`group relative overflow-hidden rounded-[28px] bg-slate-900 shadow-lg ring-1 ring-black/10 dark:ring-white/10 ${className}`}
+    <article
+      className={`article-card group relative overflow-hidden bg-slate-900 shadow-lg ring-1 ring-black/10 dark:ring-white/10 ${className}`}
     >
       <button
         type="button"
@@ -53,7 +44,7 @@ export const HeroArticleCard: React.FC<CardActionsProps & { badgeLabel?: string;
         className="relative flex min-h-[290px] sm:min-h-[340px] h-full w-full flex-col justify-between gap-8 p-5 sm:p-6 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
         aria-label={`Artikel öffnen: ${article.title}`}
       >
-        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="article-thumbnail pointer-events-none absolute inset-0 overflow-hidden">
           <ArticleImage
             src={article.imageUrl}
             alt={article.title}
@@ -83,11 +74,8 @@ export const HeroArticleCard: React.FC<CardActionsProps & { badgeLabel?: string;
         </div>
 
         {/* Bottom Editorial Copy */}
-        <div className="relative z-10 pr-24 sm:pr-28">
-          {showReason && (
-            <p className="mb-1 text-xs font-medium text-blue-200">{reason}</p>
-          )}
-          <h2 className="line-clamp-3 text-xl sm:text-2xl font-bold leading-snug tracking-tight text-white [text-wrap:balance]">
+        <div className="relative z-10 pb-12">
+          <h2 className="line-clamp-3 text-2xl sm:text-3xl font-bold leading-tight tracking-tight text-white [text-wrap:balance]">
             {article.title}
           </h2>
           <p className="mt-1.5 line-clamp-2 text-[13px] sm:text-sm leading-relaxed text-white/85">
@@ -118,31 +106,15 @@ export const HeroArticleCard: React.FC<CardActionsProps & { badgeLabel?: string;
         >
           <Heart className={`h-4 w-4 ${isLiked ? 'fill-current' : ''}`} />
         </button>
-        <button
-          type="button"
-          onClick={() => onToggleBookmark(article)}
-          aria-label={isBookmarked ? `Aus Gespeichert entfernen: ${article.title}` : `Artikel speichern: ${article.title}`}
-          aria-pressed={isBookmarked}
-          className={`flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full backdrop-blur-xl transition active:scale-95 ${
-            isBookmarked
-              ? 'bg-blue-500/95 text-white ring-1 ring-blue-300/40'
-              : 'bg-white/20 text-white hover:bg-white/30 ring-1 ring-white/25'
-          }`}
-        >
-          <Bookmark className={`h-4 w-4 ${isBookmarked ? 'fill-current' : ''}`} />
-        </button>
       </div>
-    </motion.article>
+    </article>
   );
 };
 
 export const CompactArticleCard: React.FC<CardActionsProps> = ({
   article,
-  isBookmarked,
   isLiked,
-  reason,
   onOpen,
-  onToggleBookmark,
   onToggleLike,
 }) => {
   const catBadge =
@@ -150,12 +122,8 @@ export const CompactArticleCard: React.FC<CardActionsProps> = ({
     'bg-blue-500/12 text-blue-700 dark:bg-blue-400/15 dark:text-blue-300';
 
   return (
-    <motion.article
-      layout="position"
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-      className="liquid-glass group relative flex items-center gap-3 rounded-[22px] p-2.5 sm:p-3 transition hover:scale-[1.005]"
+    <article
+      className="liquid-glass article-card article-card-compact group relative flex items-center gap-3 p-2.5 sm:p-3 transition hover:scale-[1.005]"
     >
       <button
         type="button"
@@ -163,7 +131,7 @@ export const CompactArticleCard: React.FC<CardActionsProps> = ({
         className="flex min-w-0 flex-1 items-center gap-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-2xl"
         aria-label={`Artikel öffnen: ${article.title}`}
       >
-        <div className="relative h-[76px] w-[104px] sm:h-[84px] sm:w-[116px] shrink-0 overflow-hidden rounded-[15px] bg-slate-200 dark:bg-slate-800">
+        <div className="article-thumbnail relative h-[76px] w-[104px] sm:h-[84px] sm:w-[116px] shrink-0 overflow-hidden rounded-[15px] bg-slate-200 dark:bg-slate-800">
           <ArticleImage
             src={article.imageUrl}
             alt={article.title}
@@ -183,9 +151,6 @@ export const CompactArticleCard: React.FC<CardActionsProps> = ({
             <span className={`inline-flex rounded-full px-2 py-0.5 ${catBadge}`}>
               {article.category}
             </span>
-            {reason && (
-              <span className="truncate font-normal text-slate-500 dark:text-slate-400">{reason}</span>
-            )}
           </div>
           <h3 className="mt-0.5 line-clamp-2 text-[15px] font-bold leading-snug text-slate-900 dark:text-slate-50 [text-wrap:balance]">
             {article.title}
@@ -203,19 +168,6 @@ export const CompactArticleCard: React.FC<CardActionsProps> = ({
       <div className="flex shrink-0 flex-col items-center gap-0.5">
         <button
           type="button"
-          onClick={() => onToggleBookmark(article)}
-          aria-label={isBookmarked ? `Aus Gespeichert entfernen: ${article.title}` : `Artikel speichern: ${article.title}`}
-          aria-pressed={isBookmarked}
-          className={`flex min-h-[40px] min-w-[40px] items-center justify-center rounded-full transition active:scale-95 ${
-            isBookmarked
-              ? 'text-blue-600 dark:text-blue-400 bg-blue-500/12'
-              : 'text-slate-400 hover:text-slate-800 dark:text-slate-500 dark:hover:text-slate-100'
-          }`}
-        >
-          <Bookmark className={`h-4 w-4 ${isBookmarked ? 'fill-current' : ''}`} />
-        </button>
-        <button
-          type="button"
           onClick={() => onToggleLike(article)}
           aria-label={isLiked ? `Gefällt mir entfernen: ${article.title}` : `Gefällt mir: ${article.title}`}
           aria-pressed={isLiked}
@@ -228,21 +180,19 @@ export const CompactArticleCard: React.FC<CardActionsProps> = ({
           <Heart className={`h-3.5 w-3.5 ${isLiked ? 'fill-current' : ''}`} />
         </button>
       </div>
-    </motion.article>
+    </article>
   );
 };
 
 export const BentoArticleCard: React.FC<CardActionsProps & { tall?: boolean; className?: string }> = ({
   article,
-  isBookmarked,
   tall = false,
   className = '',
   onOpen,
-  onToggleBookmark,
 }) => {
   return (
     <article
-      className={`group relative overflow-hidden rounded-[24px] bg-slate-900 shadow-md ring-1 ring-black/10 dark:ring-white/10 ${className}`}
+      className={`article-card group relative overflow-hidden bg-slate-900 shadow-md ring-1 ring-black/10 dark:ring-white/10 ${className}`}
     >
       <button
         type="button"
@@ -252,7 +202,7 @@ export const BentoArticleCard: React.FC<CardActionsProps & { tall?: boolean; cla
         }`}
         aria-label={`Artikel öffnen: ${article.title}`}
       >
-        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="article-thumbnail pointer-events-none absolute inset-0 overflow-hidden">
           <ArticleImage
             src={article.imageUrl}
             alt={article.title}
@@ -282,20 +232,6 @@ export const BentoArticleCard: React.FC<CardActionsProps & { tall?: boolean; cla
             <span className="shrink-0">{formatRelativeTimeDe(article.publishedAt)}</span>
           </div>
         </div>
-      </button>
-
-      <button
-        type="button"
-        onClick={() => onToggleBookmark(article)}
-        aria-label={isBookmarked ? `Aus Gespeichert entfernen: ${article.title}` : `Artikel speichern: ${article.title}`}
-        aria-pressed={isBookmarked}
-        className={`absolute bottom-3 right-3 z-20 flex min-h-[38px] min-w-[38px] sm:min-h-[42px] sm:min-w-[42px] items-center justify-center rounded-full backdrop-blur-xl transition active:scale-95 ${
-          isBookmarked
-            ? 'bg-blue-500/95 text-white ring-1 ring-blue-300/40'
-            : 'bg-white/20 text-white hover:bg-white/30 ring-1 ring-white/25'
-        }`}
-      >
-        <Bookmark className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${isBookmarked ? 'fill-current' : ''}`} />
       </button>
     </article>
   );

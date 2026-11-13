@@ -184,13 +184,11 @@ app.get('/api/article/extract', async (req, res) => {
 
     // Prefer <article> or <main> body paragraphs
     const articleScope = html.match(/<article[\s\S]*?<\/article>/i)?.[0] || html;
-    const pMatches = [...articleScope.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi)];
-    const paragraphs = pMatches
-      .map((m) => stripHtml(m[1]))
-      .filter((p) => p.length > 45 && !/cookie|datenschutz|newsletter|anzeige|abonnieren/i.test(p))
-      .slice(0, 18);
-
-    res.json({ paragraphs, ogImage });
+    const pMatches = [...articleScope.matchAll(/<(p|h2|h3)\b[^>]*>([\s\S]*?)<\/\1>/gi)];
+    const blocks = pMatches.map(match => ({ text: stripHtml(match[2]), heading: /^h[23]$/i.test(match[1]) })).filter(block => block.text);
+    const paragraphs = blocks.map(block => block.text);
+    const headingIndexes = blocks.flatMap((block, index) => block.heading ? [index] : []);
+    res.json({ paragraphs, headingIndexes, ogImage });
   } catch {
     res.status(504).json({ error: 'Zeitüberschreitung beim Laden des Artikels' });
   } finally {
@@ -216,10 +214,10 @@ app.post('/api/ai/proxy', async (req, res) => {
 
   try {
     if (provider === 'google') {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
       const resp = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: { temperature: 0.3 },

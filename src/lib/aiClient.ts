@@ -16,9 +16,8 @@ export const AI_PROVIDERS: AIProviderMeta[] = [
     keyPlaceholder: 'AIzaSy...',
     docsHint: 'Kostenloser oder Pay-as-you-go Key aus Google AI Studio.',
     models: [
-      { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (Schnell & präzise)' },
-      { id: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro (Tiefe Analyse)' },
-      { id: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite (Ultraschnell)' },
+      { id: 'gemini-flash-latest', label: 'Gemini Flash Latest' },
+      { id: 'gemini-flash-lite-latest', label: 'Gemini Flash Lite Latest' },
     ],
   },
   {
@@ -69,25 +68,21 @@ export const AI_PROVIDERS: AIProviderMeta[] = [
 export const DEFAULT_AI_CONFIG: AIProviderConfig = {
   provider: 'google',
   apiKey: '',
-  model: 'gemini-2.5-flash',
+  model: 'gemini-flash-latest',
   customEndpoint: 'https://openrouter.ai/api/v1/chat/completions',
   autoSummarize: true,
-  includeContext: true,
-  includePerspectives: true,
 };
+
+export function migrateAIConfig(config: AIProviderConfig): AIProviderConfig {
+  if (config.provider !== 'google') return config;
+  if (config.model === 'gemini-2.5-flash') return { ...config, model: 'gemini-flash-latest' };
+  if (config.model === 'gemini-2.5-flash-lite') return { ...config, model: 'gemini-flash-lite-latest' };
+  return config;
+}
 
 function buildPrompt(article: NewsArticle): string {
   const body = article.paragraphs.join('\n\n') || article.summary;
-  return `Du bist ein neutraler, präziser Nachrichtenredakteur für die App OpenNews.
-Analysiere den folgenden Nachrichtenartikel auf Deutsch und antworte AUSSCHLIESSLICH mit validem JSON ohne Markdown-Codeblock.
-
-Schema:
-{
-  "bullets": ["3 prägnante Kernaussagen als ganze Sätze"],
-  "context": "2-3 Sätze Hintergrund und politische/wirtschaftliche/technische Einordnung",
-  "perspectives": ["2 verschiedene Perspektiven oder mögliche Folgen"],
-  "criticalQuestions": ["2 hilfreiche Fragen für kritisches Mitdenken / Faktencheck"]
-}
+  return `Fasse den Artikel neutral auf Deutsch zusammen. Verwende ausschließlich Aussagen aus dem Artikel. Antworte nur als JSON mit bis zu vier kurzen Kernaussagen: {"bullets":["Kernaussage"]}.
 
 Quelle: ${article.sourceName}
 Rubrik: ${article.category}
@@ -108,19 +103,12 @@ function parseAIJsonResponse(rawText: string, providerLabel: string): AISummaryR
   const slice = jsonStart >= 0 && jsonEnd > jsonStart ? cleaned.slice(jsonStart, jsonEnd + 1) : cleaned;
 
   const parsed = JSON.parse(slice) as Partial<AISummaryResult>;
+  const bullets = Array.isArray(parsed?.bullets)
+    ? parsed.bullets.filter(item => typeof item === 'string' && item.trim()).map(item => item.trim()).slice(0, 4)
+    : [];
+  if (!bullets.length) throw new Error('Keine Zusammenfassung vom Anbieter erhalten.');
   return {
-    bullets: Array.isArray(parsed.bullets) && parsed.bullets.length > 0
-      ? parsed.bullets.map(String).slice(0, 4)
-      : ['Keine Kernaussagen extrahiert.'],
-    context: typeof parsed.context === 'string' && parsed.context.trim()
-      ? parsed.context.trim()
-      : 'Keine zusätzliche Einordnung geliefert.',
-    perspectives: Array.isArray(parsed.perspectives)
-      ? parsed.perspectives.map(String).slice(0, 3)
-      : [],
-    criticalQuestions: Array.isArray(parsed.criticalQuestions)
-      ? parsed.criticalQuestions.map(String).slice(0, 3)
-      : [],
+    bullets,
     mode: 'ai',
     providerLabel,
     generatedAt: new Date().toISOString(),
@@ -133,59 +121,66 @@ export async function analyzeArticleWithBYOK(
 ): Promise<AISummaryResult> {
   const providerMeta = AI_PROVIDERS.find((p) => p.id === config.provider);
   const providerLabel = `${providerMeta?.name || config.provider} · ${config.model}`;
-  const prompt = buildPrompt(article);
+  const text = await requestAI(config, buildPrompt(article), true);
+  return parseAIJsonResponse(text, providerLabel);
+}
+
+async function requestAI(config: AIProviderConfig, prompt: string, expectJson: boolean): Promise<string> {
+  const modelId = config.model.trim();
+  const model = config.provider === 'google' ? modelId.replace(/^models\//, '') : modelId;
+  if (!model) throw new Error('Bitte gib eine Modell-ID ein.');
 
   // The Node server exists only in web/dev mode; installed APKs use native HTTP.
   // Avoid attempting https://localhost/api/... in the standalone Android WebView.
   if (!Capacitor.isNativePlatform()) {
     try {
-    const proxyResp = await fetch('/api/ai/proxy', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        provider: config.provider,
-        apiKey: config.apiKey.trim(),
-        model: config.model.trim(),
-        customEndpoint: config.customEndpoint?.trim(),
-        prompt,
-      }),
-    });
+      const proxyResp = await fetch('/api/ai/proxy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          provider: config.provider,
+          apiKey: config.apiKey.trim(),
+          model,
+          customEndpoint: config.customEndpoint?.trim(),
+          prompt,
+        }),
+      });
 
-    if (proxyResp.ok) {
-      const data = (await proxyResp.json()) as { text?: string; error?: string };
-      if (data.text) {
-        return parseAIJsonResponse(data.text, providerLabel);
+      if (proxyResp.ok) {
+        const data = (await proxyResp.json()) as { text?: string; error?: string };
+        if (data.text) {
+          return data.text;
+        }
+        if (data.error) {
+          throw new Error(data.error);
+        }
+      } else if (proxyResp.status !== 404) {
+        const errData = (await proxyResp.json().catch(() => ({}))) as { error?: string };
+        throw new Error(errData.error || `KI-Anfrage fehlgeschlagen (${proxyResp.status})`);
       }
-      if (data.error) {
-        throw new Error(data.error);
+    } catch (err) {
+      // If offline or running pure Capacitor native without local Node server, try direct browser call for Google/OpenRouter
+      if (err instanceof Error && !err.message.includes('Failed to fetch')) {
+        throw err;
       }
-    } else if (proxyResp.status !== 404) {
-      const errData = (await proxyResp.json().catch(() => ({}))) as { error?: string };
-      throw new Error(errData.error || `KI-Anfrage fehlgeschlagen (${proxyResp.status})`);
-    }
-  } catch (err) {
-    // If offline or running pure Capacitor native without local Node server, try direct browser call for Google/OpenRouter
-    if (err instanceof Error && !err.message.includes('Failed to fetch')) {
-      throw err;
-    }
     }
   }
 
   // Direct fallback (works in Capacitor Android/iOS or standalone static PWA)
   if (config.provider === 'google') {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(config.model)}:generateContent?key=${encodeURIComponent(config.apiKey.trim())}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
     const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': config.apiKey.trim() },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.3, responseMimeType: 'application/json' },
+        generationConfig: { temperature: 0.3, responseMimeType: expectJson ? 'application/json' : 'text/plain' },
       }),
     });
     if (!res.ok) throw new Error(`Google AI Fehler (${res.status})`);
     const json = (await res.json()) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
     const text = json.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    return parseAIJsonResponse(text, providerLabel);
+    return text;
   }
 
   if (config.provider === 'anthropic') {
@@ -197,7 +192,7 @@ export async function analyzeArticleWithBYOK(
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: config.model,
+        model,
         max_tokens: 1000,
         messages: [{ role: 'user', content: prompt }],
       }),
@@ -205,7 +200,7 @@ export async function analyzeArticleWithBYOK(
     if (!response.ok) throw new Error(`Anthropic API Fehler (${response.status})`);
     const json = (await response.json()) as { content?: Array<{ type?: string; text?: string }> };
     const text = json.content?.find(part => part.type === 'text')?.text || '';
-    return parseAIJsonResponse(text, providerLabel);
+    return text;
   }
 
   const endpoint =
@@ -222,7 +217,7 @@ export async function analyzeArticleWithBYOK(
       ...(config.apiKey.trim() ? { Authorization: `Bearer ${config.apiKey.trim()}` } : {}),
     },
     body: JSON.stringify({
-      model: config.model,
+      model,
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.3,
     }),
@@ -230,27 +225,18 @@ export async function analyzeArticleWithBYOK(
   if (!res.ok) throw new Error(`KI-Provider Fehler (${res.status})`);
   const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
   const text = json.choices?.[0]?.message?.content || '';
-  return parseAIJsonResponse(text, providerLabel);
+  return text;
 }
 
 export async function testAIConnection(config: AIProviderConfig): Promise<{ ok: boolean; message: string }> {
   if (!config.apiKey.trim() && config.provider !== 'custom') {
     return { ok: false, message: 'Bitte gib zuerst einen API-Key ein.' };
   }
-  const resp = await fetch('/api/ai/proxy', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      provider: config.provider,
-      apiKey: config.apiKey.trim(),
-      model: config.model.trim(),
-      customEndpoint: config.customEndpoint?.trim(),
-      prompt: 'Antworte nur mit dem Wort: OK',
-    }),
-  });
-  const data = (await resp.json().catch(() => ({}))) as { text?: string; error?: string };
-  if (!resp.ok || data.error) {
-    return { ok: false, message: data.error || `Fehler (${resp.status})` };
+  try {
+    const reply = await requestAI(config, 'Antworte nur mit dem Wort OK.', false);
+    if (!reply.trim()) return { ok: false, message: 'Der Anbieter hat leer geantwortet.' };
+    return { ok: true, message: `Verbunden mit ${config.model.trim()}` };
+  } catch {
+    return { ok: false, message: 'Verbindung fehlgeschlagen. Prüfe API-Schlüssel, Modell-ID und Internetverbindung.' };
   }
-  return { ok: true, message: `Verbunden mit ${config.model}` };
 }

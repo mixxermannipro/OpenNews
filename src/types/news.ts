@@ -77,15 +77,10 @@ export interface AIProviderConfig {
   model: string;
   customEndpoint?: string;
   autoSummarize: boolean;
-  includeContext: boolean;
-  includePerspectives: boolean;
 }
 
 export interface AISummaryResult {
   bullets: string[];
-  context: string;
-  perspectives: string[];
-  criticalQuestions: string[];
   mode: 'ai' | 'local';
   providerLabel: string;
   generatedAt: string;
@@ -109,9 +104,11 @@ export interface NotificationSettings {
   enabled: boolean;
   breakingOnly: boolean;
   topics: string[];
+  from?: string;
+  until?: string;
 }
 
-export type AppTab = 'home' | 'discover' | 'saved' | 'search' | 'settings';
+export type AppTab = 'home' | 'discover' | 'saved' | 'search' | 'settings' | 'profile';
 export type ReaderFontSize = 'normal' | 'large' | 'xlarge';
 export type ReaderFontFamily = 'sans' | 'serif';
 export type ThemeMode = 'dark' | 'light' | 'system';

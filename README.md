@@ -1,6 +1,6 @@
 # OpenNews
 
-Datenschutzfreundliche, Apple-inspirierte Nachrichten-App für freie RSS-, Atom- und JSON-Feeds — mit lokaler Like-Personalisierung, Dark Mode als Standard und optionaler Bring-Your-Own-Key (BYOK) KI-Analyse.
+Datenschutzfreundliche, Apple-inspirierte Nachrichten-App für freie RSS-, Atom- und JSON-Feeds — mit lokaler Like-Personalisierung, automatischem Hell- und Dunkelmodus und optionaler Bring-Your-Own-Key (BYOK) KI-Analyse.
 
 ## Funktionen
 - **Freie Nachrichtenagenturen**: Tagesschau, ZDFheute, Deutschlandfunk, FAZ, Der Spiegel, ZEIT ONLINE, Süddeutsche Zeitung, Handelsblatt, WELT, BILD, Heise Online, Golem.de, t3n, The Guardian, BBC World News, Hacker News, Ars Technica, NASA u. v. m.
@@ -9,6 +9,14 @@ Datenschutzfreundliche, Apple-inspirierte Nachrichten-App für freie RSS-, Atom-
 - **Like-Algorithmus ("Für dich")**: Lernt lokal anhand von Likes, Lesezeichen und Lesezeit, welche Themen, Anbieter und Schlagwörter dich interessieren.
 - **Eigene KI-Integration (BYOK)**: Unterstützt Google AI Studio (Gemini), OpenAI, Anthropic (Claude), Mistral AI sowie OpenRouter / eigene OpenAI-kompatible Endpunkte (z. B. lokales Ollama).
 - **Medien & Reader**: Bilder, Videos/Podcasts, anpassbare Schriftgröße (`A | A`), Serif/Sans-Switch, Volltext-Extraktion und lokale Textzusammenfassung ohne API-Key.
+
+## Darstellung und Einrichtung
+
+Beim ersten Start kannst du Interessen und Darstellung wählen oder direkt mit den empfohlenen Einstellungen beginnen. Im Profil findest du die Einstellungen für Farben, Transparenz, Karten, Schrift, Startseite und Bewegung. Deine Änderungen werden auf dem Gerät gespeichert.
+
+Google AI Studio bietet `gemini-flash-latest` und `gemini-flash-lite-latest` an. Google hält diese Modellnamen aktuell. Im Feld „Modell-ID“ kannst du auch eine eigene ID hinterlegen.
+
+Der Artikeltext wird beim Öffnen automatisch von der Quelle geladen. Falls der Anbieter nur einen Ausschnitt liefert oder den Abruf einschränkt, kannst du beim Anbieter weiterlesen. Im Profil unter „Quellen“ lassen sich Abonnements als OPML importieren und exportieren.
 
 ## Entwicklung & Start (Web / PWA)
 ```bash
@@ -32,7 +40,7 @@ Die Android-Version ist ein **Debug-Build ausschließlich zum eigenen Testen**, 
 npm install
 npm run build
 npx cap add android
-npx cap sync android
+npm run android:sync
 cd android
 ./gradlew assembleDebug
 ```

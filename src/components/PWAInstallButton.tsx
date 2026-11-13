@@ -84,7 +84,7 @@ export const OfflineIndicator: React.FC = () => {
   return (
     <div
       role="status"
-      className="fixed top-3 left-1/2 z-50 -translate-x-1/2 flex items-center gap-2 rounded-full bg-amber-500 px-4 py-1.5 text-xs font-semibold text-slate-950 shadow-lg"
+      className="fixed top-3 left-1/2 z-50 -translate-x-1/2 flex items-center gap-2 rounded-full bg-amber-100 px-4 py-1.5 text-xs font-semibold text-amber-950 shadow-lg"
     >
       <WifiOff className="h-3.5 w-3.5" />
       Offline-Modus — Zwischengespeicherte Nachrichten aktiv

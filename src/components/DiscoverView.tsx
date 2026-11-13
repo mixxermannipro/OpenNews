@@ -1,5 +1,9 @@
+import politicsImage from '../assets/images/news_bundestag_berlin_1794556463691.jpg';
+import businessImage from '../assets/images/news_renewable_europe_1794556463653.jpg';
+import technologyImage from '../assets/images/news_ai_semiconductor_1794556462965.jpg';
+import societyImage from '../assets/images/news_eu_parliament_1794556462855.jpg';
 import React, { useMemo, useState } from 'react';
-import { Check, ChevronRight, Plus, Search, User } from 'lucide-react';
+import { Check, ChevronRight, Plus } from 'lucide-react';
 import type { NewsArticle, NewsCategory, NewsSource, PersonalizationProfile } from '../types/news';
 import { BentoArticleCard, CompactArticleCard, HeroArticleCard } from './ArticleCards';
 
@@ -21,7 +25,17 @@ const DISCOVER_CATEGORIES: NewsCategory[] = [
   'Technologie',
   'Wissenschaft',
   'Europa',
+  'Gesellschaft',
+  'Kultur',
+  'Sport',
 ];
+
+const featuredTopics = [
+  { topic: 'Politik', image: politicsImage },
+  { topic: 'Wirtschaft', image: businessImage },
+  { topic: 'Technologie', image: technologyImage },
+  { topic: 'Gesellschaft', image: societyImage },
+] as const;
 
 export const DiscoverView: React.FC<DiscoverViewProps> = ({
   articles,
@@ -33,23 +47,9 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
   onToggleLike,
   onOpenSourcesSettings,
 }) => {
-  const [query, setQuery] = useState('');
   const [category, setCategory] = useState<NewsCategory>('Alle');
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return articles.filter((a) => {
-      const catOk = category === 'Alle' || a.category === category;
-      if (!catOk) return false;
-      if (!q) return true;
-      return (
-        a.title.toLowerCase().includes(q) ||
-        a.summary.toLowerCase().includes(q) ||
-        a.sourceName.toLowerCase().includes(q) ||
-        a.category.toLowerCase().includes(q)
-      );
-    });
-  }, [articles, category, query]);
+  const filtered = useMemo(() => category === 'Alle' ? articles : articles.filter(article => article.category === category), [articles, category]);
 
   const hero = filtered[0];
   const bentoLeft = filtered[1];
@@ -67,31 +67,20 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
             Entdecken
           </h1>
           <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-            Finde Themen, Quellen und Trends
+            Themen und Quellen entdecken
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={onOpenSourcesSettings}
-          aria-label="Quellen und Integrationen verwalten"
-          className="liquid-glass flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full text-slate-700 dark:text-slate-200 transition hover:scale-105 active:scale-95 md:hidden"
-        >
-          <User className="h-4 w-4" />
-        </button>
       </div>
 
-      {/* Inline Search Input */}
-      <div className="relative">
-        <Search className="pointer-events-none absolute left-4 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-slate-400" />
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Themen, Quellen oder Schlagwörter"
-          aria-label="Themen, Quellen oder Schlagwörter suchen"
-          className="liquid-glass w-full rounded-2xl py-3 pl-11 pr-4 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/60 dark:text-white"
-        />
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Themen entdecken">
+        {featuredTopics.map(({ topic, image }) => (
+          <button key={topic} type="button" className="topic-card" aria-pressed={category === topic}
+            onClick={() => setCategory(category === topic ? 'Alle' : topic)}>
+            <img src={image} alt="" />
+            <span>{topic}</span>
+          </button>
+        ))}
       </div>
 
       {/* Topic Filter Chips */}
