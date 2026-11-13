@@ -50,7 +50,7 @@ OpenNews bündelt Nachrichten aus frei zugänglichen Feeds in einer ruhigen Ober
 | **Startseite** | **Heute** (ab Mitternacht), **Für dich** (48 h, personalisiert), **Neueste** (streng chronologisch); Pull-to-Refresh, ähnliche Titel weiter unten |
 | **Personalisierung** | Like, Dislike, Lesezeichen, Lesezeit und Verlauf formen lokale Gewichte; Vielfalt mischt Quellen und Themen |
 | **Reader** | Volltext-Extraktion mit Feed-Fallback, Zusammenfassung, drei Schriftgrößen, Serif/Sans, Vorlesen, Teilen |
-| **Video & Audio** | Große Vorschauen für Videos und Audio, Hochformat-Clips zum Wischen, Likes, Merkliste und Teilen. YouTube über den offiziellen Player. |
+| **Video & Audio** | Große Vorschauen für Videos und Audio, Hochformat-Clips zum Wischen mit automatischer Wiedergabe, Likes, Merkliste und Teilen. YouTube über den offiziellen Player. |
 | **Entdecken** | Themenraster, Quellen- und Volltextsuche, letzte sechs Suchbegriffe lokal gespeichert |
 | **Darstellung** | System/Hell/Dunkel, Akzentfarbe, Transparenz, Ecken, Kartendichte, Textgröße, reduzierte Bewegung |
 | **PWA** | Installierbar, Service Worker mit Auto-Update, Offline-Hinweis, maskierbares Icon |

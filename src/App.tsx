@@ -393,8 +393,14 @@ export default function App() {
 
   useEffect(() => {
     const update = () => { if (!document.hidden) void fetchLatest.current(); };
+    const timer = window.setInterval(update, 5 * 60_000);
     document.addEventListener('visibilitychange', update);
-    return () => document.removeEventListener('visibilitychange', update);
+    window.addEventListener('online', update);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', update);
+      window.removeEventListener('online', update);
+    };
   }, []);
 
   const activeArticles = useMemo(() => {

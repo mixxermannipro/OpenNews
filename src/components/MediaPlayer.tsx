@@ -1,12 +1,14 @@
+import { Play, Volume2, VolumeX } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { PlayableMedia } from '../lib/articleMedia';
 
-export function MediaPlayer({ media, title, poster, background, autoPlay = false, onEngaged }: {
+export function MediaPlayer({ media, title, poster, background, autoPlay = false, clip = false, onEngaged }: {
   media: PlayableMedia;
   title: string;
   poster?: string;
   background: boolean;
   autoPlay?: boolean;
+  clip?: boolean;
   onEngaged?: (seconds: number) => void;
 }) {
   const element = useRef<HTMLMediaElement | null>(null);
@@ -15,6 +17,8 @@ export function MediaPlayer({ media, title, poster, background, autoPlay = false
   const resumeFromAudio = useRef(false);
   const engagementRecorded = useRef(false);
   const initialEmbed = useRef(true);
+  const [paused, setPaused] = useState(true);
+  const [muted, setMuted] = useState(clip);
   const [failed, setFailed] = useState(false);
   const [hidden, setHidden] = useState(document.hidden);
 
@@ -59,11 +63,13 @@ export function MediaPlayer({ media, title, poster, background, autoPlay = false
     'aria-label': title,
     onPlay: () => {
       wasPlaying.current = true;
+      setPaused(false);
       document.querySelectorAll<HTMLMediaElement>('audio, video').forEach(player => {
         if (player !== element.current) player.pause();
       });
     },
     onPause: () => {
+      setPaused(true);
       if (!document.hidden) wasPlaying.current = false;
     },
     onTimeUpdate: () => {
@@ -84,15 +90,30 @@ export function MediaPlayer({ media, title, poster, background, autoPlay = false
   return (
     <div className={media.type === 'audio' ? 'w-full' : 'relative h-full w-full bg-black'}>
       {media.type === 'youtube' ? (
-        !hidden && <iframe title={title} src={media.url + (autoPlay && initialEmbed.current ? '?autoplay=1' : '')}
+        !hidden && <iframe title={title} src={media.url + (autoPlay && initialEmbed.current ? (clip ? '?autoplay=1&mute=1&playsinline=1' : '?autoplay=1') : '')}
           className="h-full w-full" loading={autoPlay ? undefined : 'lazy'}
           referrerPolicy="strict-origin-when-cross-origin" allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen />
       ) : media.type === 'audio' ? (
         <audio {...shared} ref={node => { element.current = node; }} className="block w-full" />
       ) : (
         <>
-          <video {...shared} ref={node => { element.current = node; }} poster={poster} playsInline
+          <video {...shared} ref={node => { element.current = node; }} poster={poster} playsInline controls={!clip} muted={muted}
             className="block h-full w-full object-contain" />
+          {clip && !failed && (
+            <>
+              <button type="button" aria-label={paused ? 'Clip abspielen' : 'Clip pausieren'}
+                className="absolute inset-0 grid place-items-center touch-pan-y text-white" onClick={() => {
+                  const player = element.current;
+                  if (player?.paused) void player.play().catch(() => {});
+                  else player?.pause();
+                }}>
+                {paused && <span className="grid size-16 place-items-center rounded-full bg-black/70"><Play size={28} fill="currentColor" /></span>}
+              </button>
+              <button type="button" aria-label={muted ? 'Ton einschalten' : 'Ton ausschalten'}
+                className="absolute right-3 top-[calc(0.75rem+env(safe-area-inset-top))] grid size-12 place-items-center rounded-full bg-black/70"
+                onClick={() => setMuted(current => !current)}>{muted ? <VolumeX /> : <Volume2 />}</button>
+            </>
+          )}
           {background && <audio ref={soundtrack} src={media.url} preload="none" hidden />}
         </>
       )}

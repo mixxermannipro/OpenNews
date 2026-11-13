@@ -77,11 +77,12 @@ export function MediaView({ articles, loading, background, onArticle, onSources,
     const pane = clipsPane.current;
     if (filter !== 'clips' || !pane) return;
     const observer = new IntersectionObserver(changes => {
-      for (const change of changes) {
-        if (!change.isIntersecting) {
-          const url = (change.target as HTMLElement).dataset.mediaUrl;
-          setSelected(current => current === url ? undefined : current);
-        }
+      const visible = changes.find(change => change.intersectionRatio >= 0.55);
+      if (visible) {
+        setSelected((visible.target as HTMLElement).dataset.mediaUrl);
+      } else {
+        const leaving = new Set(changes.map(change => (change.target as HTMLElement).dataset.mediaUrl));
+        setSelected(current => leaving.has(current) ? undefined : current);
       }
     }, { root: pane, threshold: 0.55 });
     for (const card of pane.children) observer.observe(card);
@@ -103,7 +104,7 @@ export function MediaView({ articles, loading, background, onArticle, onSources,
         className={clip ? 'relative h-full snap-start snap-always overflow-hidden bg-black text-white' : 'settings-group overflow-hidden'}>
         <div className={embeddedClip ? 'absolute inset-x-0 top-[12%] bottom-[34%] bg-black' : clip ? 'absolute inset-0 bg-black' : audio ? 'relative aspect-square max-h-72 bg-slate-900' : media.portrait ? 'relative mx-auto aspect-[9/16] max-h-[65svh] bg-black' : 'relative aspect-video bg-black'}>
           {playing && !audio ? (
-            <MediaPlayer media={media} title={article.title} poster={artwork} background={!clip && background} autoPlay onEngaged={seconds => onEngaged(article, seconds)} />
+            <MediaPlayer media={media} title={article.title} poster={artwork} background={!clip && background} clip={clip} autoPlay onEngaged={seconds => onEngaged(article, seconds)} />
           ) : (
             <button type="button" aria-label={`${article.title} abspielen`} onClick={() => {
                 if (media.portrait && !clip) {
