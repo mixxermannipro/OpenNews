@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="de" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>OpenNews — Nachrichten, Feeds &amp; Einordnung</title>
+    <meta name="description" content="Datenschutzfreundliche, personalisierte Nachrichten-App für freie RSS-, Atom- und JSON-Feeds mit lokaler Empfehlungslogik und eigener KI-Integration." />
+    <meta property="og:title" content="OpenNews — Nachrichten, Feeds &amp; Einordnung" />
+    <meta property="og:description" content="Alle relevanten Nachrichtenagenturen über freie RSS-Feeds, lokal personalisiert und mit deinem eigenen KI-Modell zusammengefasst." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="theme-color" content="#08090C" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="OpenNews" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet" />
+    <script>
+      (function () {
+        try {
+          var savedTheme = localStorage.getItem('opennews_theme');
+          var theme = savedTheme === 'light' ? 'light' : 'dark';
+          var root = document.documentElement;
+          if (theme === 'dark') {
+            root.classList.add('dark');
+          } else {
+            root.classList.remove('dark');
+          }
+          var metaTheme = document.querySelector('meta[name="theme-color"]');
+          if (metaTheme) {
+            metaTheme.setAttribute('content', theme === 'dark' ? '#08090C' : '#F2F3F7');
+          }
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body class="bg-[#F2F3F7] text-[#111318] dark:bg-[#08090C] dark:text-[#F4F6FA] antialiased selection:bg-blue-500/30">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
