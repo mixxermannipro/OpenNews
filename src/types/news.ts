@@ -77,15 +77,10 @@ export interface AIProviderConfig {
   model: string;
   customEndpoint?: string;
   autoSummarize: boolean;
-  includeContext: boolean;
-  includePerspectives: boolean;
 }
 
 export interface AISummaryResult {
   bullets: string[];
-  context: string;
-  perspectives: string[];
-  criticalQuestions: string[];
   mode: 'ai' | 'local';
   providerLabel: string;
   generatedAt: string;

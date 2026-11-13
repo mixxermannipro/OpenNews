@@ -71,8 +71,6 @@ export const DEFAULT_AI_CONFIG: AIProviderConfig = {
   model: 'gemini-flash-latest',
   customEndpoint: 'https://openrouter.ai/api/v1/chat/completions',
   autoSummarize: true,
-  includeContext: true,
-  includePerspectives: true,
 };
 
 export function migrateAIConfig(config: AIProviderConfig): AIProviderConfig {
@@ -84,16 +82,7 @@ export function migrateAIConfig(config: AIProviderConfig): AIProviderConfig {
 
 function buildPrompt(article: NewsArticle): string {
   const body = article.paragraphs.join('\n\n') || article.summary;
-  return `Du bist ein neutraler, präziser Nachrichtenredakteur für die App OpenNews.
-Analysiere den folgenden Nachrichtenartikel auf Deutsch und antworte AUSSCHLIESSLICH mit validem JSON ohne Markdown-Codeblock.
-
-Schema:
-{
-  "bullets": ["3 prägnante Kernaussagen als ganze Sätze"],
-  "context": "2-3 Sätze Hintergrund und politische/wirtschaftliche/technische Einordnung",
-  "perspectives": ["2 verschiedene Perspektiven oder mögliche Folgen"],
-  "criticalQuestions": ["2 hilfreiche Fragen für kritisches Mitdenken / Faktencheck"]
-}
+  return `Fasse den Artikel neutral auf Deutsch zusammen. Verwende ausschließlich Aussagen aus dem Artikel. Antworte nur als JSON mit bis zu vier kurzen Kernaussagen: {"bullets":["Kernaussage"]}.
 
 Quelle: ${article.sourceName}
 Rubrik: ${article.category}
@@ -114,19 +103,12 @@ function parseAIJsonResponse(rawText: string, providerLabel: string): AISummaryR
   const slice = jsonStart >= 0 && jsonEnd > jsonStart ? cleaned.slice(jsonStart, jsonEnd + 1) : cleaned;
 
   const parsed = JSON.parse(slice) as Partial<AISummaryResult>;
+  const bullets = Array.isArray(parsed?.bullets)
+    ? parsed.bullets.filter(item => typeof item === 'string' && item.trim()).map(item => item.trim()).slice(0, 4)
+    : [];
+  if (!bullets.length) throw new Error('Keine Zusammenfassung vom Anbieter erhalten.');
   return {
-    bullets: Array.isArray(parsed.bullets) && parsed.bullets.length > 0
-      ? parsed.bullets.map(String).slice(0, 4)
-      : ['Keine Kernaussagen extrahiert.'],
-    context: typeof parsed.context === 'string' && parsed.context.trim()
-      ? parsed.context.trim()
-      : 'Keine zusätzliche Einordnung geliefert.',
-    perspectives: Array.isArray(parsed.perspectives)
-      ? parsed.perspectives.map(String).slice(0, 3)
-      : [],
-    criticalQuestions: Array.isArray(parsed.criticalQuestions)
-      ? parsed.criticalQuestions.map(String).slice(0, 3)
-      : [],
+    bullets,
     mode: 'ai',
     providerLabel,
     generatedAt: new Date().toISOString(),

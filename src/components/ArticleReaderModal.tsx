@@ -1,4 +1,4 @@
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, registerPlugin } from '@capacitor/core';
 import { extractNativeArticle } from '../lib/nativeFeed';
 import React, { useEffect, useRef, useState } from 'react';
 import {
@@ -27,10 +27,10 @@ import { analyzeArticleWithBYOK } from '../lib/aiClient';
 import { formatRelativeTimeDe, generateLocalExtractiveSummary } from '../lib/personalization';
 import { ArticleImage } from './ArticleImage';
 
+const ArticleShare = registerPlugin<{ share(options: { title: string; url: string }): Promise<void> }>('ArticleShare');
+
 interface ArticleReaderModalProps {
   article: NewsArticle;
-  relatedArticles: NewsArticle[];
-  onOpenRelated: (article: NewsArticle) => void;
   isBookmarked: boolean;
   isLiked: boolean;
   isDisliked: boolean;
@@ -47,8 +47,6 @@ interface ArticleReaderModalProps {
 
 export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
   article,
-  relatedArticles,
-  onOpenRelated,
   isBookmarked,
   isLiked,
   isDisliked,
@@ -80,6 +78,7 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
   }, [article, onRecordReadingDuration]);
 
   const [paragraphs, setParagraphs] = useState<string[]>(article.paragraphs);
+  const [headingIndexes, setHeadingIndexes] = useState<number[]>([]);
   const [heroImage, setHeroImage] = useState<string | undefined>(article.imageUrl);
   const [loadingFullText, setLoadingFullText] = useState(false);
   const [fullTextUnavailable, setFullTextUnavailable] = useState(false);
@@ -94,6 +93,17 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
   const [speaking, setSpeaking] = useState(false);
   const [speechError, setSpeechError] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
+  const menu = useRef<HTMLDetailsElement>(null);
+  useEffect(() => {
+    const dismiss = (event: PointerEvent) => {
+      if (menu.current?.open && event.target instanceof Node && !menu.current.contains(event.target)) {
+        menu.current.open = false;
+      }
+    };
+    document.addEventListener('pointerdown', dismiss, true);
+    return () => document.removeEventListener('pointerdown', dismiss, true);
+  }, []);
+
   const backButton = useRef<HTMLButtonElement>(null);
   const summaryTitle = useRef<HTMLHeadingElement>(null);
 
@@ -185,11 +195,12 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
         const data = Capacitor.isNativePlatform()
           ? await extractNativeArticle(article.link)
           : await fetch(`/api/article/extract?url=${encodeURIComponent(article.link)}`, { signal: controller.signal })
-            .then(response => response.ok ? response.json() as Promise<{ paragraphs: string[]; ogImage?: string }> : null);
+            .then(response => response.ok ? response.json() as Promise<{ paragraphs: string[]; headingIndexes?: number[]; ogImage?: string }> : null);
         if (cancelled) return;
         const contentLength = (paragraphs: string[]) => paragraphs.join(' ').length;
         if (data?.paragraphs?.length && contentLength(data.paragraphs) > contentLength(article.paragraphs)) {
           setParagraphs(data.paragraphs);
+          setHeadingIndexes(data.headingIndexes ?? []);
           setAiResult(previous => previous?.mode === 'ai' ? previous : generateLocalExtractiveSummary({ ...article, paragraphs: data.paragraphs }));
         } else {
           setFullTextUnavailable(true);
@@ -207,6 +218,10 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
 
   const handleShare = async () => {
     try {
+      if (Capacitor.getPlatform() === 'android') {
+        await ArticleShare.share({ title: article.title, url: article.link });
+        return;
+      }
       if (navigator.share) {
         await navigator.share({
           title: article.title,
@@ -218,8 +233,9 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
       await navigator.clipboard.writeText(`${article.title}\n${article.link}`);
       setShareFeedback('Link kopiert');
       setTimeout(() => setShareFeedback(null), 2000);
-    } catch {
-      setShareFeedback('Link konnte nicht kopiert werden');
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      setShareFeedback('Teilen gerade nicht möglich');
       setTimeout(() => setShareFeedback(null), 2000);
     }
   };
@@ -314,7 +330,7 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
               <span aria-hidden="true">·</span>
               <span>{formatRelativeTimeDe(article.publishedAt)}</span>
               <span aria-hidden="true">·</span>
-              <span>Lesezeit: {article.readingTimeMin} Min.</span>
+              <span>{Math.max(1, Math.ceil((paragraphs.join(' ').match(/\S+/g)?.length ?? 0) / 220))} Min. Lesezeit</span>
             </div>
 
             {article.audioUrl && (
@@ -327,7 +343,8 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
             )}
 
             <div className={`reader-prose mt-6 space-y-4 ${textSizeClass} ${fontFamily === 'serif' ? 'font-editorial-serif' : ''}`}>
-              {(paragraphs.length ? paragraphs : [article.summary]).map((paragraph, index) => <p key={index}>{paragraph}</p>)}
+              {(paragraphs.length ? paragraphs : [article.summary]).map((paragraph, index) => headingIndexes.includes(index)
+                ? <h2 key={index}>{paragraph}</h2> : <p key={index}>{paragraph}</p>)}
             </div>
             {loadingFullText && <p role="status" className="mt-3 text-sm text-slate-500 dark:text-slate-400">Artikeltext wird geladen …</p>}
             {fullTextUnavailable && <a href={article.link} target="_blank" rel="noopener noreferrer" className="mt-3 inline-block text-sm underline">Bei der Quelle weiterlesen</a>}
@@ -378,45 +395,7 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
                     ))}
                   </ul>
 
-                  {aiConfig.includeContext && aiResult.context && (
-                    <details className="border-t border-black/5 pt-3 dark:border-white/10">
-                      <summary className="mb-2 cursor-pointer font-semibold">Mehr Kontext &amp; Hintergründe</summary>
-                      <p className="text-sm text-slate-700 dark:text-slate-300">
-                        {aiResult.context}
-                      </p>
-                    </details>
-                  )}
-
-                  {aiConfig.includePerspectives && aiResult.perspectives.length > 0 && (
-                    <div className="border-t border-black/5 pt-3 dark:border-white/10">
-                      <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">
-                        Perspektiven &amp; Kritische Fragen
-                      </p>
-                      <ul className="space-y-1 text-xs text-slate-600 dark:text-slate-300">
-                        {aiResult.perspectives.map((p, idx) => (
-                          <li key={idx}>• {p}</li>
-                        ))}
-                        {aiResult.criticalQuestions.map((q, idx) => (
-                          <li key={`q-${idx}`} className="text-emerald-700 dark:text-emerald-400">
-                            ? {q}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
                 </div>
-              )}
-              {relatedArticles.length > 0 && (
-                <details className="border-t border-black/10 pt-3 dark:border-white/10">
-                  <summary className="mb-2 cursor-pointer font-semibold">Verwandte Meldungen anderer Quellen</summary>
-                  <ul className="space-y-1">
-                    {relatedArticles.map(related => <li key={related.id}>
-                      <button type="button" className="preference-row settings-link" onClick={() => onOpenRelated(related)}>
-                        <span><small className="block text-slate-600 dark:text-slate-300">{related.sourceName}</small>{related.title}</span>
-                      </button>
-                    </li>)}
-                  </ul>
-                </details>
               )}
             </div>
 
@@ -429,11 +408,11 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
             aria-pressed={isBookmarked} onClick={() => onToggleBookmark(article)}><Bookmark size={19} fill={isBookmarked ? 'currentColor' : 'none'} /></button>
           <button type="button" className="glass-icon" aria-label="Teilen" onClick={handleShare}><Share2 size={19} /></button>
           {shareFeedback && <span className="reader-share-feedback" role="status">{shareFeedback}</span>}
-          <details className="reader-menu">
+          <details ref={menu} className="reader-menu">
             <summary className="glass-icon" aria-label="Weitere Artikelaktionen"><Ellipsis size={20} /></summary>
             <div className="settings-group">
               <button type="button" className="preference-row settings-link" aria-pressed={isLiked}
-                onClick={() => onToggleLike(article)}><Heart fill={isLiked ? 'currentColor' : 'none'} /><span>Gefällt mir</span></button>
+                onClick={() => { if (menu.current) menu.current.open = false; onToggleLike(article); }}><Heart fill={isLiked ? 'currentColor' : 'none'} /><span>Gefällt mir</span></button>
               <button type="button" className="preference-row settings-link" aria-pressed={isDisliked}
                 onClick={() => onToggleDislike(article)}><ThumbsDown /><span>Weniger davon</span></button>
               {'speechSynthesis' in window && <button type="button" className="preference-row settings-link" onClick={toggleSpeech}>

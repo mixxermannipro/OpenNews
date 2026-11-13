@@ -1019,14 +1019,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   key: 'autoSummarize' as const,
                   label: 'Automatische KI-Zusammenfassung im Reader',
                 },
-                {
-                  key: 'includeContext' as const,
-                  label: 'Hintergrund & Einordnung anzeigen',
-                },
-                {
-                  key: 'includePerspectives' as const,
-                  label: 'Perspektiven & Kritische Fragen anzeigen',
-                },
               ].map((opt) => (
                 <div key={opt.key} className="flex items-center justify-between py-3">
                   <span className="text-sm font-medium text-slate-800 dark:text-slate-200">

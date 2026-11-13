@@ -364,3 +364,42 @@
   box-shadow: var(--glass-shadow);
   font-size: .875rem;
 }
+
+[data-edition="tabloid"] .article-card h2,
+[data-edition="tabloid"] .article-card h3 {
+  font-weight: 850;
+  letter-spacing: -.045em;
+}
+
+[data-edition="tabloid"] .article-card-compact > button {
+  align-items: start;
+  flex-direction: column;
+}
+
+[data-edition="tabloid"] .article-card-compact .article-thumbnail {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 8;
+}
+
+[data-edition="tabloid"] .article-card-compact > div:last-child {
+  align-self: end;
+}
+
+[data-edition="analysis"] .article-card h2,
+[data-edition="analysis"] .article-card h3 { font-family: var(--font-serif); }
+
+:is([data-edition="technology"], [data-edition="public"]) .article-card-compact .article-thumbnail {
+  width: 64px;
+  height: 64px;
+}
+
+.reader-prose {
+  max-width: 66ch;
+  margin-inline: auto;
+  overflow-wrap: anywhere;
+  line-height: 1.75;
+}
+.reader-prose p:first-child { font-weight: 530; }
+.reader-prose p { text-wrap: pretty; }
+.reader-prose h2 { margin-top: 1.6em; font-weight: 720; line-height: 1.3; text-wrap: balance; }

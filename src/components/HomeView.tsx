@@ -1,14 +1,17 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { ArrowDown, Bell, LoaderCircle, Sparkles } from 'lucide-react';
-import type { NewsArticle, NewsCategory, PersonalizationProfile } from '../types/news';
+import type { NewsArticle, PersonalizationProfile } from '../types/news';
 import { type ScoredArticle } from '../lib/personalization';
+import type { Edition, HomeTab } from '../lib/preferences';
 import { CompactArticleCard, HeroArticleCard } from './ArticleCards';
 
 interface HomeViewProps {
   scoredArticles: ScoredArticle[];
   showHero: boolean;
-  selectedCategory: NewsCategory;
-  onSelectCategory: (cat: NewsCategory) => void;
+  selectedCategory: HomeTab;
+  tabs: HomeTab[];
+  edition: Edition;
+  onSelectCategory: (cat: HomeTab) => void;
   profile: PersonalizationProfile;
   isLoading: boolean;
   onRefresh: () => Promise<void>;
@@ -18,23 +21,12 @@ interface HomeViewProps {
   onToggleLike: (article: NewsArticle) => void;
 }
 
-const HOME_CATEGORIES: NewsCategory[] = [
-  'Für dich',
-  'Alle',
-  'Politik',
-  'Wirtschaft',
-  'Technologie',
-  'Wissenschaft',
-  'Europa',
-  'Gesellschaft',
-  'Kultur',
-  'Sport',
-];
-
 export const HomeView: React.FC<HomeViewProps> = ({
   scoredArticles,
   showHero,
   selectedCategory,
+  tabs,
+  edition,
   onSelectCategory,
   profile,
   isLoading,
@@ -58,7 +50,15 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const visibleLimit = batch.category === selectedCategory ? batch.limit : 30;
   const results = useMemo(() => {
     if (selectedCategory === 'Für dich') return scoredArticles;
+    if (selectedCategory === 'Eilmeldungen') return scoredArticles.filter(({ article }) => article.isBreaking)
+      .sort((a, b) => b.article.publishedAt.localeCompare(a.article.publishedAt));
     if (selectedCategory === 'Alle') return [...scoredArticles].sort((a, b) => b.article.publishedAt.localeCompare(a.article.publishedAt));
+    if (selectedCategory === 'Schlagzeilen') {
+      const latest = [...scoredArticles].sort((a, b) =>
+        Number(Boolean(b.article.isBreaking)) - Number(Boolean(a.article.isBreaking))
+        || b.article.publishedAt.localeCompare(a.article.publishedAt));
+      return latest.filter((entry, index) => latest.findIndex(item => item.article.sourceId === entry.article.sourceId) === index);
+    }
     return scoredArticles.filter(({ article }) => article.category === selectedCategory);
   }, [scoredArticles, selectedCategory]);
   const filtered = results.slice(0, visibleLimit);
@@ -68,7 +68,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const restEntries = heroEntry ? filtered.slice(4) : filtered;
 
   return (
-    <section aria-label="Startseite Nachrichten" className="space-y-5"
+    <section aria-label="Startseite Nachrichten" className="space-y-5" data-edition={edition}
       onTouchStart={event => {
         if (window.scrollY > 1 || isLoading || event.touches.length !== 1) return;
         const { clientX, clientY } = event.touches[0];
@@ -123,7 +123,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         aria-label="Nachrichten-Rubriken"
         className="no-scrollbar flex items-center gap-2 overflow-x-auto pb-1"
       >
-        {HOME_CATEGORIES.map((cat) => {
+        {tabs.map((cat) => {
           const active = selectedCategory === cat;
           return (
             <button
@@ -154,13 +154,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
           {!isLoading && <p className="mt-1.5 text-sm text-slate-500 dark:text-slate-400">
             Aktiviere weitere RSS-Quellen in den Einstellungen oder wähle eine andere Rubrik.
           </p>}
-          <button
-            type="button"
-            onClick={() => onSelectCategory('Für dich')}
-            className="mt-4 inline-flex min-h-[44px] items-center justify-center rounded-full bg-blue-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-blue-500"
-          >
-            Zurück zu „Für dich“
-          </button>
+          {selectedCategory !== tabs[0] && <button type="button" className="choice-pill mt-4" onClick={() => onSelectCategory(tabs[0])}>
+            Zu „{tabs[0]}“
+          </button>}
         </div>
       ) : (
         <div className="space-y-5">

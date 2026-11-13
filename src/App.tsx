@@ -8,7 +8,6 @@ import type {
   AppTab,
   FormatPreferences,
   NewsArticle,
-  NewsCategory,
   NewsSource,
   NotificationSettings,
   PersonalizationProfile,
@@ -38,7 +37,7 @@ import { ArticleReaderModal } from './components/ArticleReaderModal';
 import { SettingsView, type SettingsSectionTab } from './components/SettingsView';
 import { OfflineIndicator } from './components/PWAInstallButton';
 
-import { DEFAULT_PREFERENCES, type AppPreferences } from './lib/preferences';
+import { DEFAULT_PREFERENCES, EDITIONS, resolveHomeTabs, type AppPreferences, type HomeTab } from './lib/preferences';
 import { Onboarding, ProfileView, type ProfilePage } from './components/Preferences';
 
 type AppLocation = {
@@ -69,7 +68,10 @@ export default function App() {
     return () => window.removeEventListener('popstate', restore);
   }, []);
   const [preferences, setPreferences] = useLocalStorage<AppPreferences>('opennews_preferences', DEFAULT_PREFERENCES);
-  const [homeCategory, setHomeCategory] = useState<NewsCategory>(preferences.home);
+  const [homeCategory, setHomeCategory] = useState<HomeTab>(preferences.home);
+  const homeTabs = useMemo(() => resolveHomeTabs(preferences), [preferences]);
+  const edition = EDITIONS[preferences.edition] ?? EDITIONS.balanced;
+  const selectedHomeTab = homeTabs.includes(homeCategory) ? homeCategory : homeTabs[0];
   const [onboarded, setOnboarded] = useLocalStorage('opennews_onboarded', false);
   const [theme, setTheme] = useLocalStorage<ThemeMode>('opennews_theme', 'system');
 
@@ -193,8 +195,8 @@ export default function App() {
   }, [formatPrefs]);
 
   const activeSources = useMemo(
-    () => sources.filter((s) => s.subscribed && (enabledFormats.has(s.format) || s.isCustom)),
-    [sources, enabledFormats]
+    () => sources.filter((s) => (s.subscribed || (edition.sources as readonly string[]).includes(s.id)) && (enabledFormats.has(s.format) || s.isCustom)),
+    [sources, enabledFormats, edition]
   );
 
   const normalizedProfile = useMemo(() => normalizeProfile(profile), [profile]);
@@ -308,24 +310,11 @@ export default function App() {
     }
   }, [activeSources, checkForAlert, setCachedLiveArticles]);
 
+  const initialFeedRefresh = useRef(false);
   useEffect(() => {
-    setIsLoadingFeeds(false);
+    if (initialFeedRefresh.current) return;
+    initialFeedRefresh.current = true;
     void fetchLiveFeeds();
-    const updateWhenVisible = () => {
-      if (document.visibilityState === 'visible') void fetchLiveFeeds();
-    };
-    const timer = window.setInterval(updateWhenVisible, 5 * 60_000);
-    document.addEventListener('visibilitychange', updateWhenVisible);
-    window.addEventListener('pageshow', updateWhenVisible);
-    window.addEventListener('online', updateWhenVisible);
-    return () => {
-      refresh.current?.abort();
-      refresh.current = null;
-      window.clearInterval(timer);
-      document.removeEventListener('visibilitychange', updateWhenVisible);
-      window.removeEventListener('pageshow', updateWhenVisible);
-      window.removeEventListener('online', updateWhenVisible);
-    };
   }, [fetchLiveFeeds]);
 
   const allArticles = useMemo(() => {
@@ -341,6 +330,10 @@ export default function App() {
     },
     [allArticles, normalizedProfile, sources, preferences.topics]
   );
+
+  const editionArticles = useMemo(() => edition.sources.length
+    ? scoredArticles.filter(({ article }) => (edition.sources as readonly string[]).includes(article.sourceId))
+    : scoredArticles, [edition, scoredArticles]);
 
   const openSettings = (sec: SettingsSectionTab = 'overview') => {
     navigate({ tab: 'settings', settings: sec });
@@ -460,9 +453,11 @@ export default function App() {
       <main className="app-content" inert={activeArticle ? true : undefined}>
         {activeTab === 'home' && (
           <HomeView
-            scoredArticles={scoredArticles}
+            tabs={homeTabs}
+            edition={preferences.edition ?? 'balanced'}
+            scoredArticles={editionArticles}
             showHero={preferences.hero}
-            selectedCategory={homeCategory}
+            selectedCategory={selectedHomeTab}
             onSelectCategory={setHomeCategory}
             profile={normalizedProfile}
             isLoading={isLoadingFeeds}
@@ -572,11 +567,6 @@ export default function App() {
           <ArticleReaderModal
             key={activeArticle.id}
             article={activeArticle}
-            relatedArticles={allArticles.filter(article => article.id !== activeArticle.id
-              && article.sourceId !== activeArticle.sourceId && article.category === activeArticle.category
-              && article.keywords.filter(keyword => activeArticle.keywords.includes(keyword)).length >= 2
-            ).filter((article, index, articles) => articles.findIndex(item => item.sourceId === article.sourceId) === index).slice(0, 4)}
-            onOpenRelated={handleOpenArticle}
             isBookmarked={normalizedProfile.bookmarkedIds.includes(activeArticle.id)}
             isLiked={normalizedProfile.likedIds.includes(activeArticle.id)}
             isDisliked={normalizedProfile.dislikedIds.includes(activeArticle.id)}

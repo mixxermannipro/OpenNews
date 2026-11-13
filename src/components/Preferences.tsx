@@ -1,6 +1,6 @@
 import { ArrowLeft, ArrowRight, Bell, Bookmark, BookOpen, ChevronRight, Compass, History, Layers, Palette, ShieldCheck, SlidersHorizontal, Sparkles } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { DEFAULT_PREFERENCES, TOPICS, type AppPreferences } from '../lib/preferences';
+import { DEFAULT_PREFERENCES, EDITIONS, HOME_TABS, TOPICS, resolveHomeTabs, type AppPreferences, type Edition, type HomeTab } from '../lib/preferences';
 import type { NewsCategory, ReaderFontFamily, ReaderFontSize, ThemeMode } from '../types/news';
 
 interface AppearanceProps {
@@ -133,11 +133,38 @@ export function ProfileView({ page, onPage, onBack, onSaved, onHistory, onSource
         </div>
       </>}
       {page === 'appearance' && <Appearance {...appearance} />}
-      {page === 'feed' && <div className="settings-group">
-        <PreferenceSelect label="Rubrik beim Start" value={preferences.home} options={{ 'Für dich': 'Für dich', Alle: 'Alle' }} onChange={home => onPreferences({ ...preferences, home })} />
-        <label className="preference-row">Großen Aufmacher zeigen <input type="checkbox" checked={preferences.hero} onChange={event => onPreferences({ ...preferences, hero: event.target.checked })} /></label>
-        <label className="preference-row">Vorschaubilder im Feed zeigen <input type="checkbox" checked={preferences.images} onChange={event => onPreferences({ ...preferences, images: event.target.checked })} /></label>
-      </div>}
+      {page === 'feed' && <>
+        <div className="settings-group">
+          <PreferenceSelect label="Journalistische Voreinstellung" value={preferences.edition ?? 'balanced'}
+            options={Object.fromEntries(Object.entries(EDITIONS).map(([key, value]) => [key, value.label])) as Record<Edition, string>}
+            onChange={edition => onPreferences({ ...preferences, edition })} />
+          <p className="px-4 pb-3 text-sm text-slate-600 dark:text-slate-300">
+            {(EDITIONS[preferences.edition] ?? EDITIONS.balanced).description} Neue Quellen werden beim nächsten Abruf geladen.
+          </p>
+        </div>
+        <div className="settings-group">
+          <div className="space-y-3 p-4">
+            <h2 className="font-semibold">Sichtbare Reiter</h2>
+            <div className="flex flex-wrap gap-2">
+              {HOME_TABS.map(tab => {
+                const visible = resolveHomeTabs(preferences);
+                const selected = visible.includes(tab);
+                return <button type="button" key={tab} className="choice-pill" aria-pressed={selected}
+                  disabled={selected && visible.length === 1} onClick={() => {
+                    const homeTabs = selected ? visible.filter(item => item !== tab) : [...visible, tab];
+                    const home = homeTabs.includes(preferences.home) ? preferences.home : homeTabs[0];
+                    onPreferences({ ...preferences, homeTabs, home });
+                  }}>{tab}</button>;
+              })}
+            </div>
+          </div>
+          <PreferenceSelect label="Rubrik beim Start" value={resolveHomeTabs(preferences).includes(preferences.home) ? preferences.home : resolveHomeTabs(preferences)[0]}
+            options={Object.fromEntries(resolveHomeTabs(preferences).map(tab => [tab, tab])) as Record<HomeTab, string>}
+            onChange={home => onPreferences({ ...preferences, home })} />
+          <label className="preference-row">Großen Aufmacher zeigen <input type="checkbox" checked={preferences.hero} onChange={event => onPreferences({ ...preferences, hero: event.target.checked })} /></label>
+          <label className="preference-row">Vorschaubilder im Feed zeigen <input type="checkbox" checked={preferences.images} onChange={event => onPreferences({ ...preferences, images: event.target.checked })} /></label>
+        </div>
+      </>}
       {page === 'reader' && <div className="settings-group">
         <PreferenceSelect label="Textgröße im Artikel" value={fontSize} options={{ normal: 'Standard', large: 'Groß', xlarge: 'Sehr groß' }} onChange={onFontSize} />
         <PreferenceSelect label="Schrift im Artikel" value={fontFamily} options={{ sans: 'Systemschrift', serif: 'Serifenschrift' }} onChange={onFontFamily} />

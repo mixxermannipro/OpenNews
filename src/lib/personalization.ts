@@ -269,37 +269,12 @@ export function rankArticlesForYou(
 }
 
 export function generateLocalExtractiveSummary(article: NewsArticle): AISummaryResult {
-  const fullText = article.paragraphs.join(' ') || article.summary;
-  const sentences = fullText
-    .split(/(?<=[.!?])\s+/)
-    .map((s) => s.trim())
-    .filter((s) => s.length > 28);
-
-  const bullets =
-    sentences.length >= 2
-      ? sentences.slice(0, 3)
-      : [
-          article.summary,
-          `Quelle: ${article.sourceName} in der Rubrik ${article.category}.`,
-          `Geschätzte Lesezeit: ${article.readingTimeMin} Min.`,
-        ];
-
-  const topKeywords = article.keywords.slice(0, 4).join(', ');
-  const context = topKeywords
-    ? `Dieser Beitrag von ${article.sourceName} ordnet aktuelle Entwicklungen im Bereich ${article.category} ein (Schwerpunkte: ${topKeywords}).`
-    : `Aktuelle Meldung aus der Rubrik ${article.category} von ${article.sourceName}.`;
-
+  const fullText = article.paragraphs.join(' ').trim() || article.summary.trim();
+  const sentences = [...new Intl.Segmenter('de', { granularity: 'sentence' }).segment(fullText)]
+    .map(item => item.segment.trim()).filter(sentence => sentence.length >= 24);
+  const bullets = [...new Set(sentences)].slice(0, 3);
   return {
-    bullets,
-    context,
-    perspectives: [
-      `Primäre Einordnung durch ${article.sourceName} mit Fokus auf ${article.category}.`,
-      'Für tiefere Analyse, Pro-&-Contra-Abwägung und Faktencheck kannst du in den Einstellungen deinen eigenen KI-Anbieter (Google AI Studio, OpenAI, Claude) hinterlegen.',
-    ],
-    criticalQuestions: [
-      'Welche Primärquellen oder Daten liegen dieser Berichterstattung zugrunde?',
-      'Welche mittel- und langfristigen Auswirkungen ergeben sich daraus?',
-    ],
+    bullets: bullets.length ? bullets : [fullText || article.title],
     mode: 'local',
     providerLabel: 'Lokale Textanalyse',
     generatedAt: new Date().toISOString(),
