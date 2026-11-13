@@ -1,6 +1,39 @@
 import type { NewsSource } from '../types/news';
 
+const shortChannels = [
+  ['zdfheute-clips', 'ZDFheute', 'UCeqKIgPQfNInOswGRWt48kQ', 'Politik', 'Politik und aktuelle Ereignisse.', 'ZDF'],
+  ['br24-clips', 'BR24', 'UCcweJsCV2TUP_kzMX25U-oQ', 'Gesellschaft', 'Aktuelle Meldungen und regionale Themen aus Bayern.', 'BR'],
+  ['quarks-clips', 'Quarks', 'UC1Y7onDsPyfP-lu--SXF-ew', 'Wissenschaft', 'Wissenschaft, Gesundheit und Alltag.', 'Q'],
+  ['terrax-clips', 'Terra X Lesch & Co', 'UC5E9-r42JlymhLPnDv2wHuA', 'Wissenschaft', 'Klima, Natur und Wissenschaft erklärt.', 'TX'],
+  ['mrwissen2go-clips', 'MrWissen2go', 'UCZHpIFMfoJJ_1QxNGLJTzyA', 'Politik', 'Politik und Zeitgeschehen im Zusammenhang.', 'MW'],
+  ['finanzfluss-clips', 'Finanzfluss', 'UCeARcCUiZg79SQQ-2_XNlXQ', 'Wirtschaft', 'Finanzwissen und Wirtschaft.', 'FF'],
+  ['strgf-clips', 'STRG_F', 'UCfa7jJFYnn3P5LdJXsFkrjw', 'Gesellschaft', 'Ausschnitte aus investigativen Reportagen.', 'STRG'],
+  ['wdrdoku-clips', 'WDR Doku', 'UCUuab1dctZzN5ZmRmQnTzkg', 'Gesellschaft', 'Dokumentarische Einblicke in den Alltag.', 'WDR'],
+  ['sportschau-clips', 'Sportschau', 'UCRFsyeKu07-LnHDG44O6uCA', 'Sport', 'Sportnachrichten und Hintergründe.', 'ARD'],
+  ['ct3003-clips', 'c’t 3003', 'UC1t9VFj-O6YUDPQxaVg-NkQ', 'Technologie', 'Computer, Software und KI.', 'c’t'],
+  ['weltspiegel-clips', 'Weltspiegel', 'UCFoKXoDoExwtBWdSTCIdEVQ', 'Europa', 'Auslandsreportagen und Alltag weltweit.', 'ARD'],
+  ['zdfbesseresser-clips', 'ZDF besseresser', 'UC-NZazksH-lR-Mif-3DZL3g', 'Gesellschaft', 'Lebensmittel und Ernährung.', 'ZDF'],
+  ['esa-clips', 'European Space Agency', 'UCIBaDdAbGlFDeS33shmlD0A', 'Wissenschaft', 'Europäische Raumfahrt und Astronomie auf Englisch.', 'ESA'],
+] as const;
+
+export const clipSourceIds = new Set<string>(['tagesschau-youtube', ...shortChannels.map(([id]) => id)]);
+
+const clipSources: NewsSource[] = shortChannels.map(([id, name, channelId, category, description, shortCode]) => ({
+  id,
+  name,
+  url: `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`,
+  format: 'podcast',
+  category,
+  description,
+  language: id === 'esa-clips' ? 'en' : 'de',
+  recommended: true,
+  subscribed: id !== 'esa-clips',
+  accentColor: '#2563EB',
+  shortCode,
+}));
+
 export const DEFAULT_SOURCES: NewsSource[] = [
+  ...clipSources,
   {
     id: 'tagesschau',
     name: 'Tagesschau',

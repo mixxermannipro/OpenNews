@@ -18,7 +18,7 @@ import type {
   ThemeMode,
 } from './types/news';
 import { DEFAULT_AI_CONFIG, migrateAIConfig } from './lib/aiClient';
-import { DEFAULT_SOURCES, legacyCatalogUrls, pushSources } from './lib/catalog';
+import { clipSourceIds, DEFAULT_SOURCES, legacyCatalogUrls, pushSources } from './lib/catalog';
 import {
   createDefaultProfile,
   normalizeProfile,
@@ -247,10 +247,9 @@ export default function App() {
     ]);
   }, [formatPrefs]);
 
-  const mediaStarter = sources.find(source => source.id === 'tagesschau-youtube' && source.subscribed);
   const activeSources = useMemo(
-    () => sources.filter((s) => s.subscribed && (enabledFormats.has(s.format) || s.isCustom || s === mediaStarter)),
-    [sources, enabledFormats, mediaStarter]
+    () => sources.filter((s) => s.subscribed && (enabledFormats.has(s.format) || s.isCustom || clipSourceIds.has(s.id))),
+    [sources, enabledFormats]
   );
 
   const [pushStatus, setPushStatus] = useState('');

@@ -2,7 +2,7 @@ import { Capacitor, SystemBars } from '@capacitor/core';
 import { ArrowLeft, Bookmark, Headphones, Heart, Play, Share2, Video } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { attachmentKey, getArticleMedia } from '../lib/articleMedia';
+import { collectDistinctMedia } from '../lib/articleMedia';
 import type { NewsArticle } from '../types/news';
 import { ArticleImage } from './ArticleImage';
 import { MediaPlayer } from './MediaPlayer';
@@ -30,15 +30,7 @@ export function MediaView({ articles, loading, background, onArticle, onSources,
   const dialogExit = useRef<(() => void) | undefined>(undefined);
   const clipsDialog = useRef<HTMLDialogElement>(null);
   const clipsPane = useRef<HTMLUListElement>(null);
-  const entries = useMemo(() => {
-    const seen = new Set<string>();
-    return articles.flatMap(article => getArticleMedia(article).flatMap(media => {
-      const key = attachmentKey(media);
-      if (seen.has(key)) return [];
-      seen.add(key);
-      return [{ article, media }];
-    }));
-  }, [articles]);
+  const entries = useMemo(() => collectDistinctMedia(articles), [articles]);
   const clips = entries.filter(({ media }) => media.portrait);
   const [startClip, setStartClip] = useState<string>();
   const closeClips = () => {
