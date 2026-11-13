@@ -45,7 +45,7 @@ OpenNews bündelt Nachrichten aus frei zugänglichen Feeds in einer ruhigen Ober
 
 | Bereich | Umfang |
 | --- | --- |
-| **Quellen** | 27 vorkonfigurierte Feeds (Tagesschau, ZDFheute, Deutschlandfunk, FAZ, SPIEGEL, ZEIT, SZ, Handelsblatt, WELT, BILD, heise, Golem, t3n, Guardian, BBC, Hacker News, Ars Technica, NASA u. a.) plus beliebig viele eigene Feeds |
+| **Quellen** | 30 vorkonfigurierte Feeds (Tagesschau, ZDFheute, Deutschlandfunk, FAZ, SPIEGEL, ZEIT, SZ, Handelsblatt, WELT, BILD, heise, Golem, t3n, Guardian, BBC, Hacker News, Ars Technica, NASA u. a.) plus beliebig viele eigene Feeds |
 | **Feed-Formate** | RSS 2.0, RDF, Atom 1.0, JSON Feed, Podcast-Feeds; Domain-Erkennung über `link rel="alternate"`; OPML-Import/-Export |
 | **Startseite** | **Heute** (ab Mitternacht), **Für dich** (48 h, personalisiert), **Neueste** (streng chronologisch); Pull-to-Refresh |
 | **Personalisierung** | Like, Dislike, Lesezeichen, Lesezeit und Verlauf formen lokale Gewichte; Vielfalt mischt Quellen und Themen |
@@ -187,7 +187,7 @@ OpenNews/
 │   │   ├── aiClient.test.ts            # Tests für KI-Konfiguration und Antwortparsing
 │   │   ├── aiClient.ts                 # BYOK-Anbieter, Prompt, Proxy/Fallback, Verbindungstest
 │   │   ├── articleMedia.ts             # Abspielbare Medien eines Artikels
-│   │   ├── catalog.ts                  # 27 Standardquellen und Legacy-URLs
+│   │   ├── catalog.ts                  # 30 Standardquellen und Legacy-URLs
 │   │   ├── nativeFeed.test.ts          # Tests für native Feed-Sicherheit
 │   │   ├── nativeFeed.ts               # CapacitorHttp, Feed-Erkennung, Volltext
 │   │   ├── newsFeed.ts                 # Merge, Pruning, Heute/Für dich/Neueste
@@ -290,7 +290,7 @@ NODE_ENV=production npm start
 | `npm start` | `node server.ts` | Express starten; mit `NODE_ENV=production` aus `dist/` |
 | `npm run preview` | `vite preview` | Statischen Build ansehen (ohne API) |
 | `npm run lint` | `tsc --noEmit` | TypeScript-Typprüfung |
-| `npm test` | `node --import tsx --test src/lib/*.test.ts` | 27 Unit-Tests |
+| `npm test` | `node --import tsx --test src/lib/*.test.ts` | 30 Unit-Tests |
 | `npm run clean` | `rm -rf dist server.js` | Build-Artefakte entfernen |
 | `npm run android:sync` | Build + `cap sync` + MainActivity + Icons | Web-Assets, natives Projekt und App-Symbole abgleichen |
 
@@ -374,7 +374,7 @@ Die APK liegt unter `android/app/build/outputs/apk/debug/app-debug.apk`. `npm ru
 
 ## Tests und Qualität
 
-`npm test` führt **27 Unit-Tests** aus sechs Dateien aus: `rssParser.test.ts`, `personalization.test.ts`, `opml.test.ts`, `nativeFeed.test.ts`, `aiClient.test.ts` und `scrollNavigation.test.ts`. Abgedeckt sind Parsing und Medien, Ranking und Vielfalt, OPML, native URL-Sicherheit, KI-Antwortparsing und die Scroll-Navigation.
+`npm test` führt **30 Unit-Tests** aus sieben Dateien aus: `rssParser.test.ts`, `personalization.test.ts`, `opml.test.ts`, `nativeFeed.test.ts`, `aiClient.test.ts`, `articleMedia.test.ts` und `scrollNavigation.test.ts`. Abgedeckt sind Parsing und Medien, Ranking und Vielfalt, OPML, native URL-Sicherheit, KI-Antwortparsing und die Scroll-Navigation.
 
 ```bash
 npm run lint
@@ -424,7 +424,7 @@ Das Repository ist privat und in einer frühen Alpha. Beiträge klein und prüfb
 | Native Push | nicht vorhanden (nur In-App) |
 | Artikelvolltext | Beta, abhängig von der Quelle |
 | BYOK-KI | Beta, abhängig von Anbieter und Schlüssel |
-| Tests | 27 Unit-Tests, keine E2E-Tests |
+| Tests | 30 Unit-Tests, keine E2E-Tests |
 | Lizenz | nicht hinterlegt |
 
 ## Lizenz

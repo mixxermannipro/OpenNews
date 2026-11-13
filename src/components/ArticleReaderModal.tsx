@@ -281,35 +281,19 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
           const { scrollTop, scrollHeight, clientHeight } = event.currentTarget;
           setActionsHidden(trackActionsScroll(scrollTop, scrollHeight - clientHeight));
         }}>
-          {/* Top-bleed Hero Media (Screenshot 3) */}
-          <div className="relative h-64 sm:h-80 w-full bg-slate-900">
-            <ArticleImage
-              src={heroImage}
-              alt={article.title}
-              sourceShortCode={article.sourceShortCode}
-              sourceColor={article.sourceColor}
-              className="h-full w-full"
-            />
-
-            <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/55 to-transparent" />
-
-            {/* Floating Glass Back & Source Pill */}
-            <div className="reader-toolbar absolute inset-x-4 flex items-center justify-between gap-3">
-              <button
-                type="button"
-                onClick={onClose}
-                ref={backButton}
-                className="inline-flex min-h-[42px] items-center gap-1 rounded-full bg-white/25 px-4 py-2 text-xs font-semibold text-white backdrop-blur-xl ring-1 ring-white/30 transition hover:bg-white/35 active:scale-95"
-              >
-                <ChevronLeft className="h-4 w-4" />
-                Zurück
-              </button>
-
-            </div>
+          <div className="reader-toolbar sticky top-0 z-10 border-b border-slate-400/20 bg-[var(--canvas)] px-5 pb-2 sm:px-8">
+            <button
+              type="button"
+              onClick={onClose}
+              ref={backButton}
+              className="choice-pill inline-flex min-h-11 items-center gap-1"
+            >
+              <ChevronLeft className="h-4 w-4" aria-hidden />
+              Zurück
+            </button>
           </div>
 
-          {/* Overlapping Rounded Reader Sheet */}
-          <div className="reader-surface reader-body relative -mt-7 rounded-t-[30px] px-5 pt-6 sm:px-8">
+          <div className="reader-body mx-auto max-w-[44rem] px-5 pt-5 sm:px-8">
             <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-300">
               {article.category}
             </div>
@@ -334,10 +318,21 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
               <span>{Math.max(1, Math.ceil((paragraphs.join(' ').match(/\S+/g)?.length ?? 0) / 220))} Min. Lesezeit</span>
             </div>
 
-            <ArticleMedia key={article.id} article={article} heroImage={heroImage} background={backgroundPlayback} />
-
-            <div className={`reader-prose mt-6 space-y-4 ${textSizeClass} ${fontFamily === 'serif' ? 'font-editorial-serif' : ''}`}>
-              {(paragraphs.length ? paragraphs : [article.summary]).map((paragraph, index) => headingIndexes.includes(index)
+            <div className={`reader-prose mt-5 space-y-4 ${textSizeClass} ${fontFamily === 'serif' ? 'font-editorial-serif' : ''}`}>
+              {paragraphs.length && headingIndexes.includes(0)
+                ? <h2>{paragraphs[0]}</h2>
+                : <p>{paragraphs[0] || article.summary}</p>}
+              {heroImage && (
+                <ArticleImage
+                  src={heroImage}
+                  alt=""
+                  sourceShortCode={article.sourceShortCode}
+                  sourceColor={article.sourceColor}
+                  className="aspect-video w-full overflow-hidden rounded-2xl"
+                />
+              )}
+              <ArticleMedia key={article.id} article={article} heroImage={heroImage} background={backgroundPlayback} />
+              {paragraphs.slice(1).map((paragraph, index) => headingIndexes.includes(index + 1)
                 ? <h2 key={index}>{paragraph}</h2> : <p key={index}>{paragraph}</p>)}
             </div>
             {loadingFullText && <p role="status" className="mt-3 text-sm text-slate-500 dark:text-slate-400">Artikeltext wird geladen …</p>}
