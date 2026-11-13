@@ -34,6 +34,7 @@ const ArticleShare = registerPlugin<{ share(options: { title: string; url: strin
 
 interface ArticleReaderModalProps {
   article: NewsArticle;
+  backgroundPlayback: boolean;
   isBookmarked: boolean;
   isLiked: boolean;
   isDisliked: boolean;
@@ -52,6 +53,7 @@ interface ArticleReaderModalProps {
 
 export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
   article,
+  backgroundPlayback,
   isBookmarked,
   isLiked,
   isDisliked,
@@ -332,7 +334,7 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
               <span>{Math.max(1, Math.ceil((paragraphs.join(' ').match(/\S+/g)?.length ?? 0) / 220))} Min. Lesezeit</span>
             </div>
 
-            <ArticleMedia key={article.id} article={article} heroImage={heroImage} />
+            <ArticleMedia key={article.id} article={article} heroImage={heroImage} background={backgroundPlayback} />
 
             <div className={`reader-prose mt-6 space-y-4 ${textSizeClass} ${fontFamily === 'serif' ? 'font-editorial-serif' : ''}`}>
               {(paragraphs.length ? paragraphs : [article.summary]).map((paragraph, index) => headingIndexes.includes(index)

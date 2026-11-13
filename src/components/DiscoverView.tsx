@@ -7,6 +7,8 @@ import { Check, ChevronRight, Plus } from 'lucide-react';
 import type { NewsArticle, NewsCategory, NewsSource, PersonalizationProfile } from '../types/news';
 import { BentoArticleCard, CompactArticleCard, HeroArticleCard } from './ArticleCards';
 
+import { DiscoverSearch } from './DiscoverSearch';
+
 interface DiscoverViewProps {
   articles: NewsArticle[];
   sources: NewsSource[];
@@ -47,6 +49,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
   onToggleLike,
   onOpenSourcesSettings,
 }) => {
+  const [query, setQuery] = useState('');
   const [category, setCategory] = useState<NewsCategory>('Alle');
 
   const filtered = useMemo(() => category === 'Alle' ? articles : articles.filter(article => article.category === category), [articles, category]);
@@ -73,6 +76,11 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
 
       </div>
 
+      <DiscoverSearch articles={articles} sources={sources} profile={profile}
+        query={query} onQuery={setQuery} onToggleSubscribe={onToggleSubscribe}
+        onOpenArticle={onOpenArticle} onToggleBookmark={onToggleBookmark} onToggleLike={onToggleLike} />
+
+      {!query.trim() && <>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Themen entdecken">
         {featuredTopics.map(({ topic, image }) => (
           <button key={topic} type="button" className="topic-card" aria-pressed={category === topic}
@@ -247,6 +255,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
           </p>
         </div>
       )}
+      </>}
     </section>
   );
 };

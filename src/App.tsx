@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Capacitor, SystemBars, SystemBarsStyle } from '@capacitor/core';
 import { fetchNativeFeeds } from './lib/nativeFeed';
-import { Bell, Compass, Home, Search, User } from 'lucide-react';
+import { Bell, Compass, Home, Clapperboard, User } from 'lucide-react';
 import { AnimatePresence, MotionConfig, motion } from 'motion/react';
 import type {
   AIProviderConfig,
@@ -33,7 +33,8 @@ import { trackNavigationScroll } from './lib/scrollNavigation';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { HomeView } from './components/HomeView';
 import { DiscoverView } from './components/DiscoverView';
-import { SavedView, SearchView } from './components/SavedAndSearchViews';
+import { SavedView } from './components/SavedView';
+import { MediaView } from './components/MediaView';
 import { ArticleReaderModal } from './components/ArticleReaderModal';
 import { SettingsView, type SettingsSectionTab } from './components/SettingsView';
 import { OfflineIndicator } from './components/PWAInstallButton';
@@ -79,6 +80,7 @@ export default function App() {
   const homeTabs = useMemo(() => resolveHomeTabs(preferences), [preferences]);
   const selectedHomeTab = homeTabs.includes(homeCategory) ? homeCategory : homeTabs[0];
   const [onboarded, setOnboarded] = useLocalStorage('opennews_onboarded', false);
+  const [backgroundPlayback, setBackgroundPlayback] = useLocalStorage('opennews_background_playback', false);
   const [theme, setTheme] = useLocalStorage<ThemeMode>('opennews_theme', 'system');
 
   useEffect(() => {
@@ -434,9 +436,9 @@ export default function App() {
   };
 
   const navItems = [
-    { id: 'home', label: 'Home', icon: Home, action: () => navigate({ tab: 'home' }) },
+    { id: 'home', label: 'Heute', icon: Home, action: () => navigate({ tab: 'home' }) },
     { id: 'discover', label: 'Entdecken', icon: Compass, action: () => navigate({ tab: 'discover' }) },
-    { id: 'search', label: 'Suche', icon: Search, action: () => navigate({ tab: 'search' }) },
+    { id: 'media', label: 'Video & Audio', icon: Clapperboard, action: () => navigate({ tab: 'media' }) },
     { id: 'profile', label: 'Profil', icon: User, action: () => openProfile() },
   ] as const;
   const navIsActive = (id: string) => activeTab === id || (id === 'profile' && ['settings', 'saved'].includes(activeTab));
@@ -535,19 +537,15 @@ export default function App() {
           />
         )}
 
-        {activeTab === 'search' && (
-          <SearchView
-            articles={allArticles}
-            profile={normalizedProfile}
-            onOpenArticle={handleOpenArticle}
-            onToggleBookmark={handleToggleBookmark}
-            onToggleLike={handleToggleLike}
-          />
+        {activeTab === 'media' && (
+          <MediaView articles={allArticles} loading={isLoadingFeeds} background={backgroundPlayback}
+            onArticle={handleOpenArticle} onSources={() => openSettings('feeds')} />
         )}
 
         {activeTab === 'profile' && <ProfileView {...appearance} page={profilePage} onPage={page => openProfile(page)} onBack={goBack}
           onSaved={() => openSaved('bookmarks')} onHistory={() => openSaved('history')}
           onSources={() => openSettings('feeds')} onAI={() => openSettings('ai')} onNotifications={() => openSettings('app')}
+          backgroundPlayback={backgroundPlayback} onBackgroundPlayback={setBackgroundPlayback}
           fontSize={fontSize} fontFamily={fontFamily} onFontSize={setFontSize} onFontFamily={setFontFamily} />}
 
         {activeTab === 'settings' && (
@@ -606,6 +604,7 @@ export default function App() {
           <ArticleReaderModal
             key={activeArticle.id}
             article={activeArticle}
+            backgroundPlayback={backgroundPlayback}
             isBookmarked={normalizedProfile.bookmarkedIds.includes(activeArticle.id)}
             isLiked={normalizedProfile.likedIds.includes(activeArticle.id)}
             isDisliked={normalizedProfile.dislikedIds.includes(activeArticle.id)}
