@@ -1,6 +1,39 @@
 import type { NewsSource } from '../types/news';
 
+const shortChannels = [
+  ['zdfheute-clips', 'ZDFheute', 'UCeqKIgPQfNInOswGRWt48kQ', 'Politik', 'Politik und aktuelle Ereignisse.', 'ZDF'],
+  ['br24-clips', 'BR24', 'UCcweJsCV2TUP_kzMX25U-oQ', 'Gesellschaft', 'Aktuelle Meldungen und regionale Themen aus Bayern.', 'BR'],
+  ['quarks-clips', 'Quarks', 'UC1Y7onDsPyfP-lu--SXF-ew', 'Wissenschaft', 'Wissenschaft, Gesundheit und Alltag.', 'Q'],
+  ['terrax-clips', 'Terra X Lesch & Co', 'UC5E9-r42JlymhLPnDv2wHuA', 'Wissenschaft', 'Klima, Natur und Wissenschaft erklärt.', 'TX'],
+  ['mrwissen2go-clips', 'MrWissen2go', 'UCZHpIFMfoJJ_1QxNGLJTzyA', 'Politik', 'Politik und Zeitgeschehen im Zusammenhang.', 'MW'],
+  ['finanzfluss-clips', 'Finanzfluss', 'UCeARcCUiZg79SQQ-2_XNlXQ', 'Wirtschaft', 'Finanzwissen und Wirtschaft.', 'FF'],
+  ['strgf-clips', 'STRG_F', 'UCfa7jJFYnn3P5LdJXsFkrjw', 'Gesellschaft', 'Ausschnitte aus investigativen Reportagen.', 'STRG'],
+  ['wdrdoku-clips', 'WDR Doku', 'UCUuab1dctZzN5ZmRmQnTzkg', 'Gesellschaft', 'Dokumentarische Einblicke in den Alltag.', 'WDR'],
+  ['sportschau-clips', 'Sportschau', 'UCRFsyeKu07-LnHDG44O6uCA', 'Sport', 'Sportnachrichten und Hintergründe.', 'ARD'],
+  ['ct3003-clips', 'c’t 3003', 'UC1t9VFj-O6YUDPQxaVg-NkQ', 'Technologie', 'Computer, Software und KI.', 'c’t'],
+  ['weltspiegel-clips', 'Weltspiegel', 'UCFoKXoDoExwtBWdSTCIdEVQ', 'Europa', 'Auslandsreportagen und Alltag weltweit.', 'ARD'],
+  ['zdfbesseresser-clips', 'ZDF besseresser', 'UC-NZazksH-lR-Mif-3DZL3g', 'Gesellschaft', 'Lebensmittel und Ernährung.', 'ZDF'],
+  ['esa-clips', 'European Space Agency', 'UCIBaDdAbGlFDeS33shmlD0A', 'Wissenschaft', 'Europäische Raumfahrt und Astronomie auf Englisch.', 'ESA'],
+] as const;
+
+export const clipSourceIds = new Set<string>(['tagesschau-youtube', ...shortChannels.map(([id]) => id)]);
+
+const clipSources: NewsSource[] = shortChannels.map(([id, name, channelId, category, description, shortCode]) => ({
+  id,
+  name,
+  url: `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`,
+  format: 'podcast',
+  category,
+  description,
+  language: id === 'esa-clips' ? 'en' : 'de',
+  recommended: true,
+  subscribed: id !== 'esa-clips',
+  accentColor: '#2563EB',
+  shortCode,
+}));
+
 export const DEFAULT_SOURCES: NewsSource[] = [
+  ...clipSources,
   {
     id: 'tagesschau',
     name: 'Tagesschau',
@@ -249,6 +282,58 @@ export const DEFAULT_SOURCES: NewsSource[] = [
     shortCode: 'NASA',
   },
   {
+    id: 'tagesschau-youtube',
+    name: 'tagesschau auf YouTube',
+    url: 'https://www.youtube.com/feeds/videos.xml?channel_id=UC5NOEUbkLheQcaaRldYW5GA',
+    format: 'podcast',
+    category: 'Politik',
+    description: 'Nachrichten, Erklärvideos und Hochkant-Clips der tagesschau.',
+    language: 'de',
+    recommended: true,
+    subscribed: true,
+    accentColor: '#2563EB',
+    shortCode: 'ARD',
+  },
+  {
+    id: 'nasa-video',
+    name: 'NASA auf YouTube',
+    url: 'https://www.youtube.com/feeds/videos.xml?channel_id=UCLA_DiR1FfKNvjuUpBHmylQ',
+    format: 'podcast',
+    category: 'Wissenschaft',
+    description: 'Videos vom offiziellen NASA-Kanal.',
+    language: 'en',
+    recommended: true,
+    subscribed: false,
+    accentColor: '#2563EB',
+    shortCode: 'NASA',
+  },
+  {
+    id: 'dw-news-video',
+    name: 'DW News auf YouTube',
+    url: 'https://www.youtube.com/feeds/videos.xml?channel_id=UCknLrEdhRCp1aegoMqRaCZg',
+    format: 'podcast',
+    category: 'Politik',
+    description: 'Internationale Nachrichten und Reportagen auf Englisch.',
+    language: 'en',
+    recommended: true,
+    subscribed: false,
+    accentColor: '#2563EB',
+    shortCode: 'DW',
+  },
+  {
+    id: 'nasa-curious-universe',
+    name: 'NASA’s Curious Universe',
+    url: 'https://feeds.megaphone.fm/nationalaeronauticsandspaceadministration8162188566',
+    format: 'podcast',
+    category: 'Wissenschaft',
+    description: 'Englischsprachiger NASA-Podcast über Raumfahrt und Forschung.',
+    language: 'en',
+    recommended: true,
+    subscribed: false,
+    accentColor: '#2563EB',
+    shortCode: 'NASA',
+  },
+  {
     id: 'tagesschau-100s',
     name: 'Tagesschau in 100 Sek.',
     url: 'https://www.tagesschau.de/multimedia/sendung/tagesschau_in_100_sekunden/podcast-ts100-video-100~podcast.xml',
@@ -453,3 +538,5 @@ export const legacyCatalogUrls: Partial<Record<string, string>> = {
   hackernews: 'https://hnrss.org/frontpage.jsonfeed',
   'tagesschau-100s': 'https://www.tagesschau.de/export/video-podcast/webxl/tagesschau-in-100-sekunden/',
 };
+
+export const pushSources = DEFAULT_SOURCES.filter(source => source.subscribed && source.format !== 'podcast');

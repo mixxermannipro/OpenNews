@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { MediaAttachment } from '../types/news';
-import { getArticleMedia, getReaderAttachments } from './articleMedia';
+import type { MediaAttachment, NewsArticle } from '../types/news';
+import { collectDistinctMedia, getArticleMedia, getReaderAttachments } from './articleMedia';
 
 test('shows BILD size and portrait variants of the lead image only once', () => {
   const base = 'https://images.bild.de/6af74e727f8bbad09ea62b09/';
@@ -50,4 +50,19 @@ test('keeps one version of a Tagesschau clip offered in multiple resolutions', (
   const clip: MediaAttachment = { type: 'video', url: stem + '.webxl.h264.mp4' };
   const small: MediaAttachment = { type: 'video', url: stem + '.webs.h264.mp4' };
   assert.deepEqual(getArticleMedia({ media: [clip, small] }), [clip]);
+});
+
+test('deduplicates matching Shorts links and well-described reposts across media providers', () => {
+  const makeArticle = (id: string, url: string, title: string): NewsArticle => ({
+    id, sourceId: id, sourceName: id, sourceShortCode: id, sourceColor: '#2563EB',
+    title, summary: '', paragraphs: [], keywords: [], category: 'Wissenschaft',
+    publishedAt: '2026-11-13T12:00:00Z', readingTimeMin: 1, link: url,
+    media: [{ type: 'youtube', url, portrait: true }],
+  });
+  const title = 'Wie entstehen Sterne in unserer Galaxie?';
+  const first = makeArticle('a', 'https://www.youtube.com/shorts/abcdefghijk', title);
+  const alternate = makeArticle('b', 'https://youtu.be/abcdefghijk', 'Alternativer Titel');
+  const repost = makeArticle('c', 'https://www.youtube.com/shorts/01234567890', title + ' #shorts');
+  const other = makeArticle('d', 'https://www.youtube.com/shorts/abcdef12345', 'Neue Erkenntnisse über ferne Planeten');
+  assert.deepEqual(collectDistinctMedia([first, alternate, repost, other]).map(({ article }) => article.id), ['a', 'd']);
 });

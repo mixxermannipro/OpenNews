@@ -1,4 +1,4 @@
-import { DEFAULT_SOURCES } from './catalog';
+import { clipSourceIds, DEFAULT_SOURCES } from './catalog';
 import type { NewsCategory, NewsSource } from '../types/news';
 
 export const TOPICS = [
@@ -45,7 +45,7 @@ export function applyEditionSources(sources: NewsSource[], edition: Edition): Ne
   const ids = new Set<string>(edition === 'balanced'
     ? DEFAULT_SOURCES.filter(source => source.subscribed).map(source => source.id)
     : preset.sources);
-  return sources.map(source => source.isCustom
+  return sources.map(source => source.isCustom || clipSourceIds.has(source.id)
     ? source
     : { ...source, subscribed: ids.has(source.id) });
 }

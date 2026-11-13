@@ -1,4 +1,4 @@
-import { Capacitor, registerPlugin } from '@capacitor/core';
+import { Capacitor } from '@capacitor/core';
 import { extractNativeArticle } from '../lib/nativeFeed';
 import React, { useEffect, useRef, useState } from 'react';
 import {
@@ -28,12 +28,13 @@ import { analyzeArticleWithBYOK } from '../lib/aiClient';
 import { formatRelativeTimeDe, generateLocalExtractiveSummary } from '../lib/personalization';
 import { trackNavigationScroll } from '../lib/scrollNavigation';
 import { ArticleImage } from './ArticleImage';
+import { shareArticle } from '../lib/shareArticle';
+import { translateToGerman } from '../lib/localTranslation';
 import { ArticleMedia } from './ArticleMedia';
-
-const ArticleShare = registerPlugin<{ share(options: { title: string; url: string }): Promise<void> }>('ArticleShare');
 
 interface ArticleReaderModalProps {
   article: NewsArticle;
+  translate: boolean;
   backgroundPlayback: boolean;
   isBookmarked: boolean;
   isLiked: boolean;
@@ -53,6 +54,7 @@ interface ArticleReaderModalProps {
 
 export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
   article,
+  translate,
   backgroundPlayback,
   isBookmarked,
   isLiked,
@@ -88,12 +90,29 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
     };
   }, [article, onRecordReadingDuration]);
 
-  const [paragraphs, setParagraphs] = useState<string[]>(article.paragraphs);
+  const [originalParagraphs, setParagraphs] = useState<string[]>(article.paragraphs);
+  const [translation, setTranslation] = useState<{ source: string[]; texts: string[] }>();
+  const [translationError, setTranslationError] = useState(false);
+  const [showOriginal, setShowOriginal] = useState(false);
+  const translated = translate && !showOriginal && translation?.source === originalParagraphs ? translation.texts : undefined;
+  const title = translated?.[0] ?? article.title;
+  const summary = translated?.[1] ?? article.summary;
+  const paragraphs = translated?.slice(2) ?? originalParagraphs;
+
+  useEffect(() => {
+    if (!translate) return;
+    let active = true;
+    setTranslationError(false);
+    void translateToGerman([article.title, article.summary, ...originalParagraphs]).then(texts => {
+      if (active) setTranslation({ source: originalParagraphs, texts });
+    }).catch(() => { if (active) setTranslationError(true); });
+    return () => { active = false; };
+  }, [translate, article.title, article.summary, originalParagraphs]);
   const [headingIndexes, setHeadingIndexes] = useState<number[]>([]);
   const hasStandLine = /^Stand:\s*\d{1,2}[./]\d{1,2}[./]\d{2,4}\b/i.test(paragraphs[0] ?? '');
   const firstTextIndex = hasStandLine ? 1 : 0;
   const leadIsHeading = headingIndexes.includes(firstTextIndex);
-  const lead = (leadIsHeading ? article.summary : paragraphs[firstTextIndex]) || article.summary;
+  const lead = (leadIsHeading ? summary : paragraphs[firstTextIndex]) || summary;
   const bodyStart = firstTextIndex + (leadIsHeading ? 0 : 1);
   const [heroImage, setHeroImage] = useState<string | undefined>(article.imageUrl);
   const [loadingFullText, setLoadingFullText] = useState(false);
@@ -147,7 +166,7 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
       setSpeaking(false);
       return;
     }
-    const utterance = new SpeechSynthesisUtterance([article.title, ...(paragraphs.length ? paragraphs : [article.summary])].join('\n\n'));
+    const utterance = new SpeechSynthesisUtterance([title, ...(paragraphs.length ? paragraphs : [summary])].join('\n\n'));
     utterance.lang = document.documentElement.lang;
     utterance.onend = () => setSpeaking(false);
     utterance.onerror = event => {
@@ -169,7 +188,7 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
       if (aiResult?.mode === 'ai') return;
       let cancelled = false;
       setAiLoading(true);
-      analyzeArticleWithBYOK({ ...article, paragraphs }, aiConfig)
+      analyzeArticleWithBYOK({ ...article, paragraphs: originalParagraphs }, aiConfig)
         .then((res) => {
           if (!cancelled) setAiResult(res);
         })
@@ -185,7 +204,7 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
         cancelled = true;
       };
     }
-  }, [article, aiConfig, hasBYOKKey, showSummary, loadingFullText, paragraphs]);
+  }, [article, aiConfig, hasBYOKKey, showSummary, loadingFullText, originalParagraphs]);
 
   const handleRunBYOK = async () => {
     if (!hasBYOKKey) {
@@ -196,7 +215,7 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
     setAiError(null);
     try {
       const res = await analyzeArticleWithBYOK(
-        { ...article, paragraphs },
+        { ...article, paragraphs: originalParagraphs },
         aiConfig
       );
       setAiResult(res);
@@ -239,19 +258,7 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
 
   const handleShare = async () => {
     try {
-      if (Capacitor.getPlatform() === 'android') {
-        await ArticleShare.share({ title: article.title, url: article.link });
-        return;
-      }
-      if (navigator.share) {
-        await navigator.share({
-          title: article.title,
-          text: article.summary,
-          url: article.link,
-        });
-        return;
-      }
-      await navigator.clipboard.writeText(`${article.title}\n${article.link}`);
+      if (!await shareArticle(article)) return;
       setShareFeedback('Link kopiert');
       setTimeout(() => setShareFeedback(null), 2000);
     } catch (error) {
@@ -272,7 +279,7 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label={`Artikel lesen: ${article.title}`}
+      aria-label={`Artikel lesen: ${title}`}
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/65"
     >
       <motion.div
@@ -304,8 +311,18 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
             </div>
 
             <h1 className="mt-2 text-2xl sm:text-3xl font-bold leading-tight tracking-tight text-slate-900 dark:text-white [text-wrap:balance]">
-              {article.title}
+              {title}
             </h1>
+            {translate && (
+              <div className="mt-2 text-sm" role="status">
+                {translationError ? 'Übersetzung gerade nicht verfügbar. Für den Modell-Download wird WLAN benötigt.'
+                  : translation?.source === originalParagraphs ? (
+                    <button type="button" className="choice-pill" onClick={() => setShowOriginal(current => !current)}>
+                      {showOriginal ? 'Deutsch anzeigen' : 'Original anzeigen'}
+                    </button>
+                  ) : 'Übersetzung wird vorbereitet …'}
+              </div>
+            )}
 
             <div className="mt-2.5 flex flex-wrap items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 tabular-nums">
               <span className="font-medium text-slate-700 dark:text-slate-300">

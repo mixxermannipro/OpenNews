@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/android-test-apk.yml'
       - 'src/**'
+      - 'scripts/**'
       - 'native/android/**'
       - 'public/**'
       - 'package.json'

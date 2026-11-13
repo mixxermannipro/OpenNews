@@ -48,6 +48,9 @@ interface SettingsViewProps {
   sourceKeys: SourceApiKeys;
   aiConfig: AIProviderConfig;
   notifications: NotificationSettings;
+  autoTranslate: boolean;
+  pushStatus: string;
+  onAutoTranslate: (enabled: boolean) => void;
   onImportSources: (sources: NewsSource[]) => void;
   onToggleSource: (sourceId: string) => void;
   onAddCustomSource: (source: NewsSource) => void;
@@ -81,6 +84,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   sourceKeys,
   aiConfig,
   notifications,
+  autoTranslate,
+  pushStatus,
+  onAutoTranslate,
   onImportSources,
   onToggleSource,
   onAddCustomSource,
@@ -888,6 +894,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       )}
 
       {/* SECTION 3: KI & API-KEY */}
+      {section === 'ai' && Capacitor.getPlatform() === 'android' && (
+        <div className="settings-group space-y-2 p-4">
+          <label className="flex items-center justify-between gap-4 text-sm font-semibold">
+            Artikel automatisch auf Deutsch lesen
+            <input type="checkbox" checked={autoTranslate} onChange={event => onAutoTranslate(event.target.checked)} />
+          </label>
+          <p className="text-xs text-slate-600 dark:text-slate-300">
+            Übersetzt englische Artikel beim Öffnen direkt auf diesem Gerät.
+            Das Sprachmodell wird beim ersten Einsatz über WLAN geladen.
+          </p>
+        </div>
+      )}
       {section === 'ai' && (
         <div className="liquid-glass rounded-[26px] p-5 space-y-5">
           <div className="flex items-center gap-3">
@@ -1071,7 +1089,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     Eilmeldungen &amp; Benachrichtigungen
                   </h2>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Hinweise beim Aktualisieren der Nachrichten in der geöffneten App
+                    {Capacitor.getPlatform() === 'android' ? 'Meldungen aus unterstützten Quellen auch bei geschlossener App.'
+                      : 'Hinweise beim Aktualisieren der Nachrichten in der geöffneten App'}
                   </p>
                 </div>
               </div>
@@ -1093,6 +1112,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </button>
             </div>
 
+            {notifications.enabled && pushStatus && <p role="status" className="text-sm">{pushStatus}</p>}
             {notifications.enabled && (
               <div className="space-y-4 border-t border-black/10 pt-3 dark:border-white/10">
                 <label className="preference-row px-0">
@@ -1115,7 +1135,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   <label className="flex items-center gap-2">Bis <input type="time" className="preference-input"
                     value={notifications.until ?? '23:59'} onChange={event => onUpdateNotifications({ ...notifications, until: event.target.value || undefined })} /></label>
                 </fieldset>
-                <button type="button" onClick={onSendTestNotification} className="choice-pill">Test-Meldung senden</button>
+                <button type="button" onClick={onSendTestNotification} className="choice-pill">Lokale Test-Meldung anzeigen</button>
               </div>
             )}
           </div>

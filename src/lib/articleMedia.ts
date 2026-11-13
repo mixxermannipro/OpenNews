@@ -1,4 +1,5 @@
 import { contentUrlKey, extractYouTubeId } from './contentIdentity';
+import { articleIdentity } from './newsFeed';
 import type { MediaAttachment, NewsArticle } from '../types/news';
 
 export type PlayableMedia = MediaAttachment & { type: 'audio' | 'video' | 'youtube' };
@@ -67,4 +68,28 @@ export function getArticleMedia(article: Pick<NewsArticle, 'media' | 'videoUrl' 
     media.unshift({ type: 'youtube', url: `https://www.youtube-nocookie.com/embed/${article.youtubeId}` });
   }
   return media;
+}
+
+export function collectDistinctMedia(articles: NewsArticle[]): { article: NewsArticle; media: PlayableMedia }[] {
+  const entries = new Map<string, { article: NewsArticle; media: PlayableMedia }>();
+  const knownClips = new Set<string>();
+  for (const article of articles) {
+    for (const media of getArticleMedia(article)) {
+      const key = attachmentKey(media);
+      const existing = entries.get(key);
+      if (existing) {
+        if (media.portrait && !existing.media.portrait) entries.set(key, { article, media });
+        continue;
+      }
+
+      const title = article.title.normalize('NFKC').toLocaleLowerCase('de-DE')
+        .replace(/#[\p{L}\p{N}_]+/gu, '').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+      const sameClip = media.portrait && title.length >= 24 ? title : '';
+      const identity = sameClip || (media.portrait && !article.linkIsFeed ? articleIdentity(article) : '');
+      if (identity && knownClips.has(identity)) continue;
+      if (identity) knownClips.add(identity);
+      entries.set(key, { article, media });
+    }
+  }
+  return [...entries.values()];
 }
