@@ -38,22 +38,3 @@ cd android
 ```
 
 Die Debug-APK befindet sich anschließend unter `android/app/build/outputs/apk/debug/app-debug.apk`.
-
-Dieses Repository ist direkt für [Capacitor](https://capacitorjs.com/) vorbereitet:
-
-```bash
-# 1. Web-Bundle bauen
-npm run build
-
-# 2. Capacitor CLI & Android/iOS Plattformen hinzufügen
-npm install @capacitor/core @capacitor/cli @capacitor/android @capacitor/ios
-npx cap add android
-npx cap add ios
-
-# 3. Assets synchronisieren & Android Studio / Xcode öffnen
-npx cap sync
-npx cap open android
-```
-
-### GitHub Actions Release
-Für automatische APK-/AAB-Releases auf GitHub kann in Android Studio unter `Build > Generate Signed Bundle / APK` gebaut oder eine Gradle-Workflow-Action auf `android/` ausgeführt werden.

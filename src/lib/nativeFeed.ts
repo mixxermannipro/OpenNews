@@ -12,7 +12,7 @@ function publicHttpUrl(value: string): string | null {
     // Prevent accidentally fetching device-local services from arbitrary saved feeds.
     const host = url.hostname.toLowerCase();
     if (host === 'localhost' || host === '0.0.0.0' || host === '127.0.0.1' || host === '[::1]') return null;
-    if (/^(10|127|192\\.168|169\\.254)\\./.test(host)) return null;
+    if (/^(10|127|192\.168|169\.254)\./.test(host)) return null;
     return url.toString();
   } catch {
     return null;
@@ -58,19 +58,19 @@ export async function fetchNativeFeeds(sources: NewsSource[]): Promise<NewsArtic
 /** Discover a site's public RSS/Atom/JSON links without an Express backend. */
 export async function discoverNativeFeeds(query: string): Promise<DiscoveredFeed[]> {
   const input = query.trim();
-  if (!/^https?:\\/\\//i.test(input) && !/^[a-z0-9.-]+\\.[a-z]{2,}(\\/.*)?$/i.test(input)) return [];
-  const url = publicHttpUrl(/^https?:\\/\\//i.test(input) ? input : `https://${input}`);
+  if (!/^https?:\/\//i.test(input) && !/^[a-z0-9.-]+\.[a-z]{2,}(\/.*)?$/i.test(input)) return [];
+  const url = publicHttpUrl(/^https?:\/\//i.test(input) ? input : `https://${input}`);
   if (!url) return [];
   const text = await getNativeText(url);
-  const domain = new URL(url).hostname.replace(/^www\\./, '');
-  if (/^\\s*<(?:\\?xml|rss|feed)/i.test(text) || /\\\"version\\\"\\s*:\\s*\\\"https?:\\/\\/jsonfeed\\.org/i.test(text)) {
-    return [{ name: domain, url, format: /<feed/i.test(text) ? 'atom' : /jsonfeed\\.org/i.test(text) ? 'json' : 'rss' }];
+  const domain = new URL(url).hostname.replace(/^www\./, '');
+  if (/^\s*<(?:\?xml|rss|feed)/i.test(text) || /\\"version\\"\s*:\s*\\"https?:\/\/jsonfeed\.org/i.test(text)) {
+    return [{ name: domain, url, format: /<feed/i.test(text) ? 'atom' : /jsonfeed\.org/i.test(text) ? 'json' : 'rss' }];
   }
   const document = new DOMParser().parseFromString(text, 'text/html');
   const found: DiscoveredFeed[] = [];
   for (const link of [...document.querySelectorAll('link[rel~="alternate"][href]')]) {
     const type = (link.getAttribute('type') || '').toLowerCase();
-    if (!/(rss|atom|xml|feed\\+json|json)/.test(type)) continue;
+    if (!/(rss|atom|xml|feed\+json|json)/.test(type)) continue;
     const href = link.getAttribute('href');
     if (!href) continue;
     const resolved = publicHttpUrl(new URL(href, url).toString());
@@ -92,7 +92,7 @@ export async function extractNativeArticle(url: string): Promise<{ paragraphs: s
   const document = new DOMParser().parseFromString(html, 'text/html');
   const scope = document.querySelector('article') || document.querySelector('main') || document.body;
   const paragraphs = [...scope.querySelectorAll('p')]
-    .map(p => (p.textContent || '').replace(/\\s+/g, ' ').trim())
+    .map(p => (p.textContent || '').replace(/\s+/g, ' ').trim())
     .filter(text => text.length > 45 && !/cookie|datenschutz|newsletter|anzeige|abonnieren/i.test(text))
     .slice(0, 18);
   const ogImageRaw = document.querySelector('meta[property="og:image"]')?.getAttribute('content');

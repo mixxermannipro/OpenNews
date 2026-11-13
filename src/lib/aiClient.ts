@@ -138,7 +138,7 @@ export async function analyzeArticleWithBYOK(
   // The Node server exists only in web/dev mode; installed APKs use native HTTP.
   // Avoid attempting https://localhost/api/... in the standalone Android WebView.
   if (!Capacitor.isNativePlatform()) {
-  try {
+    try {
     const proxyResp = await fetch('/api/ai/proxy', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -168,8 +168,7 @@ export async function analyzeArticleWithBYOK(
     if (err instanceof Error && !err.message.includes('Failed to fetch')) {
       throw err;
     }
-  }
-
+    }
   }
 
   // Direct fallback (works in Capacitor Android/iOS or standalone static PWA)
