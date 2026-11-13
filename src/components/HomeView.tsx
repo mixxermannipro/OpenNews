@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { ArrowDown, LoaderCircle, Sparkles } from 'lucide-react';
+import { ArrowDown, Bell, LoaderCircle, Sparkles } from 'lucide-react';
 import type { NewsArticle, NewsCategory, PersonalizationProfile } from '../types/news';
 import { type ScoredArticle } from '../lib/personalization';
 import { CompactArticleCard, HeroArticleCard } from './ArticleCards';
@@ -12,6 +12,7 @@ interface HomeViewProps {
   profile: PersonalizationProfile;
   isLoading: boolean;
   onRefresh: () => Promise<void>;
+  onOpenNotifications: () => void;
   onOpenArticle: (article: NewsArticle) => void;
   onToggleBookmark: (article: NewsArticle) => void;
   onToggleLike: (article: NewsArticle) => void;
@@ -38,6 +39,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   profile,
   isLoading,
   onRefresh,
+  onOpenNotifications,
   onOpenArticle,
   onToggleBookmark,
   onToggleLike,
@@ -101,7 +103,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
               : <ArrowDown size={17} aria-label="Zum Aktualisieren nach unten ziehen" />}
           </div>
         )}
-        <h1 className="text-slate-900 dark:text-white">Heute</h1>
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="text-slate-900 dark:text-white">Heute</h1>
+          <button type="button" className="glass-icon md:hidden" aria-label="Benachrichtigungen öffnen" onClick={onOpenNotifications}>
+            <Bell size={20} aria-hidden="true" />
+          </button>
+        </div>
         <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
           {new Intl.DateTimeFormat('de-DE', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())}
         </p>

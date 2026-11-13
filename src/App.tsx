@@ -420,7 +420,7 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      <header className="app-header" inert={activeArticle ? true : undefined}>
+      <header className="app-header hidden md:block" inert={activeArticle ? true : undefined}>
         <div className="app-header-inner">
           <button type="button" className="brand" onClick={() => setActiveTab('home')}>
             <img src="/logo.png" alt="" /> OpenNews
@@ -449,6 +449,7 @@ export default function App() {
             profile={normalizedProfile}
             isLoading={isLoadingFeeds}
             onRefresh={fetchLiveFeeds}
+            onOpenNotifications={() => openSettings('app')}
             onOpenArticle={handleOpenArticle}
             onToggleBookmark={handleToggleBookmark}
             onToggleLike={handleToggleLike}
@@ -528,11 +529,10 @@ export default function App() {
         <div className="liquid-glass-dock">
           {navItems.map(({ id, label, icon: Icon, action }) => (
             <button key={id} type="button" onClick={action}
-              aria-current={navIsActive(id) ? 'page' : undefined} className="dock-tab">
+              aria-current={navIsActive(id) ? 'page' : undefined} aria-label={label} className="dock-tab">
               {navIsActive(id) && <motion.span layoutId={reducedMotion ? undefined : 'dock-selection'} className="dock-selection"
                 transition={{ type: 'spring', stiffness: 440, damping: 34 }} />}
-              <Icon size={20} aria-hidden="true" />
-              <span>{label}</span>
+              <Icon size={25} strokeWidth={2} aria-hidden="true" />
             </button>
           ))}
         </div>
