@@ -75,7 +75,7 @@ export const SavedView: React.FC<SavedViewProps> = ({
           onClick={() => setSubTab('bookmarks')}
           className={`inline-flex min-h-[40px] items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-semibold transition ${
             subTab === 'bookmarks'
-              ? 'bg-slate-900 text-white shadow-sm dark:bg-white dark:text-slate-950'
+              ? 'bg-[#2C2F36] text-white shadow-sm dark:bg-white dark:text-slate-950'
               : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'
           }`}
         >
@@ -87,7 +87,7 @@ export const SavedView: React.FC<SavedViewProps> = ({
           onClick={() => setSubTab('likes')}
           className={`inline-flex min-h-[40px] items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-semibold transition ${
             subTab === 'likes'
-              ? 'bg-slate-900 text-white shadow-sm dark:bg-white dark:text-slate-950'
+              ? 'bg-[#2C2F36] text-white shadow-sm dark:bg-white dark:text-slate-950'
               : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'
           }`}
         >
@@ -99,7 +99,7 @@ export const SavedView: React.FC<SavedViewProps> = ({
           onClick={() => setSubTab('algorithm')}
           className={`inline-flex min-h-[40px] items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-semibold transition ${
             subTab === 'algorithm'
-              ? 'bg-slate-900 text-white shadow-sm dark:bg-white dark:text-slate-950'
+              ? 'bg-[#2C2F36] text-white shadow-sm dark:bg-white dark:text-slate-950'
               : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'
           }`}
         >
@@ -258,7 +258,7 @@ export const SearchView: React.FC<SearchViewProps> = ({
       </div>
 
       <div className="relative">
-        <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+        <Search className="pointer-events-none absolute left-4 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-slate-400" />
         <input
           type="search"
           value={query}
@@ -277,7 +277,7 @@ export const SearchView: React.FC<SearchViewProps> = ({
             onClick={() => setQuery(term === query ? '' : term)}
             className={`min-h-[38px] shrink-0 rounded-full px-3.5 py-1.5 text-xs font-medium transition ${
               query === term
-                ? 'bg-blue-600 text-white'
+                ? 'bg-[#2C2F36] text-white shadow-sm dark:bg-white dark:text-slate-950'
                 : 'liquid-glass-subtle text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'
             }`}
           >

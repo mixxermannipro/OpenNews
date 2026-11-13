@@ -75,6 +75,7 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
       }
     };
   }, [article, onRecordReadingDuration]);
+
   const [paragraphs, setParagraphs] = useState<string[]>(article.paragraphs);
   const [heroImage, setHeroImage] = useState<string | undefined>(article.imageUrl);
   const [loadingFullText, setLoadingFullText] = useState(false);
@@ -196,17 +197,17 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
       role="dialog"
       aria-modal="true"
       aria-label={`Artikel lesen: ${article.title}`}
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-md"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/65 backdrop-blur-md"
     >
       <motion.div
         initial={{ opacity: 0, y: 28 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 20 }}
         transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-        className="relative flex h-[96dvh] sm:h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-3xl sm:rounded-3xl bg-[#F2F3F7] dark:bg-[#0B0D12] shadow-2xl ring-1 ring-white/10"
+        className="relative flex h-[100dvh] sm:h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-none sm:rounded-[32px] bg-[#F1F2F6] dark:bg-[#0B0D12] shadow-2xl ring-1 ring-white/15"
       >
         <div className="flex-1 overflow-y-auto">
-          {/* Top-bleed Hero Media (Screenshot 3 layout) */}
+          {/* Top-bleed Hero Media (Screenshot 3) */}
           <div className="relative h-64 sm:h-80 w-full bg-slate-900">
             {article.youtubeId ? (
               <iframe
@@ -234,14 +235,14 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
               />
             )}
 
-            <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/60 to-transparent" />
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/55 to-transparent" />
 
             {/* Floating Glass Back & Source Pill */}
             <div className="absolute inset-x-4 top-4 flex items-center justify-between gap-3">
               <button
                 type="button"
                 onClick={onClose}
-                className="inline-flex min-h-[44px] items-center gap-1 rounded-full bg-black/50 px-4 py-2 text-xs font-semibold text-white backdrop-blur-xl ring-1 ring-white/20 transition hover:bg-black/70 active:scale-95"
+                className="inline-flex min-h-[42px] items-center gap-1 rounded-full bg-white/25 px-4 py-2 text-xs font-semibold text-white backdrop-blur-xl ring-1 ring-white/30 transition hover:bg-white/35 active:scale-95"
               >
                 <ChevronLeft className="h-4 w-4" />
                 Zurück
@@ -251,7 +252,7 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
                 href={article.link}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full bg-black/50 px-4 py-2 text-xs font-semibold text-white backdrop-blur-xl ring-1 ring-white/20 transition hover:bg-black/70"
+                className="inline-flex min-h-[42px] items-center gap-1.5 rounded-full bg-white/25 px-4 py-2 text-xs font-semibold text-white backdrop-blur-xl ring-1 ring-white/30 transition hover:bg-white/35"
               >
                 <Newspaper className="h-3.5 w-3.5" />
                 {article.sourceName}
@@ -260,8 +261,8 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
           </div>
 
           {/* Overlapping Rounded Reader Sheet */}
-          <div className="relative -mt-6 rounded-t-3xl bg-[#F2F3F7] dark:bg-[#0B0D12] px-5 pb-12 pt-6 sm:px-8">
-            <div className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+          <div className="relative -mt-7 rounded-t-[30px] bg-[#F1F2F6] dark:bg-[#0B0D12] px-5 pb-12 pt-6 sm:px-8">
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-300">
               {article.category}
             </div>
 
@@ -269,8 +270,8 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
               {article.title}
             </h1>
 
-            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400 tabular-nums">
-              <span className="font-semibold text-slate-700 dark:text-slate-300">
+            <div className="mt-2.5 flex flex-wrap items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 tabular-nums">
+              <span className="font-medium text-slate-700 dark:text-slate-300">
                 {article.sourceName}
               </span>
               {article.author && (
@@ -285,16 +286,16 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
               <span>Lesezeit: {article.readingTimeMin} Min.</span>
             </div>
 
-            {/* Action Pills (Speichern, Gefällt mir, Teilen, A | A) */}
+            {/* Action Pills matching Screenshot 3: [Speichern] [Teilen] [A | A] + Like */}
             <div className="mt-5 flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={() => onToggleBookmark(article)}
                 aria-pressed={isBookmarked}
-                className={`inline-flex min-h-[44px] items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold transition active:scale-95 ${
+                className={`inline-flex min-h-[42px] items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold transition active:scale-95 ${
                   isBookmarked
-                    ? 'bg-blue-600 text-white'
-                    : 'liquid-glass text-slate-700 dark:text-slate-200'
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'liquid-glass text-slate-800 dark:text-slate-100'
                 }`}
               >
                 <Bookmark className={`h-3.5 w-3.5 ${isBookmarked ? 'fill-current' : ''}`} />
@@ -303,22 +304,8 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
 
               <button
                 type="button"
-                onClick={() => onToggleLike(article)}
-                aria-pressed={isLiked}
-                className={`inline-flex min-h-[44px] items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold transition active:scale-95 ${
-                  isLiked
-                    ? 'bg-rose-600 text-white'
-                    : 'liquid-glass text-slate-700 dark:text-slate-200'
-                }`}
-              >
-                <Heart className={`h-3.5 w-3.5 ${isLiked ? 'fill-current' : ''}`} />
-                Gefällt mir
-              </button>
-
-              <button
-                type="button"
                 onClick={handleShare}
-                className="liquid-glass inline-flex min-h-[44px] items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 transition active:scale-95"
+                className="liquid-glass inline-flex min-h-[42px] items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold text-slate-800 dark:text-slate-100 transition active:scale-95"
               >
                 <Share2 className="h-3.5 w-3.5" />
                 {shareFeedback || 'Teilen'}
@@ -328,23 +315,36 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
                 type="button"
                 onClick={cycleFontSize}
                 aria-label="Schriftgröße ändern"
-                className="liquid-glass inline-flex min-h-[44px] items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 transition active:scale-95"
+                className="liquid-glass inline-flex min-h-[42px] items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold text-slate-800 dark:text-slate-100 transition active:scale-95"
               >
                 <span className="text-[11px] opacity-70">A</span>
-                <span className="text-slate-400">|</span>
+                <span className="text-slate-300 dark:text-slate-600">|</span>
                 <span className="text-sm font-bold">A</span>
               </button>
 
               <button
                 type="button"
+                onClick={() => onToggleLike(article)}
+                aria-pressed={isLiked}
+                className={`inline-flex min-h-[42px] items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-semibold transition active:scale-95 ${
+                  isLiked
+                    ? 'bg-rose-600 text-white shadow-sm'
+                    : 'liquid-glass text-slate-800 dark:text-slate-100'
+                }`}
+              >
+                <Heart className={`h-3.5 w-3.5 ${isLiked ? 'fill-current' : ''}`} />
+                Gefällt mir
+              </button>
+
+              <button
+                type="button"
                 onClick={() => onChangeFontFamily(fontFamily === 'sans' ? 'serif' : 'sans')}
-                className="liquid-glass inline-flex min-h-[44px] items-center rounded-full px-3.5 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 transition active:scale-95"
+                className="liquid-glass inline-flex min-h-[42px] items-center rounded-full px-3.5 py-2 text-xs font-semibold text-slate-800 dark:text-slate-100 transition active:scale-95"
               >
                 {fontFamily === 'sans' ? 'Serif' : 'Sans'}
               </button>
             </div>
 
-            {/* Audio / Podcast Player if available */}
             {article.audioUrl && (
               <div className="liquid-glass mt-5 rounded-2xl p-4">
                 <p className="mb-2 text-xs font-semibold text-slate-600 dark:text-slate-300">
@@ -354,11 +354,11 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
               </div>
             )}
 
-            {/* AI Summary & Einordnung Card (Screenshot 3: "Kurz zusammengefasst") */}
-            <div className="liquid-glass mt-6 rounded-3xl p-5 space-y-3.5">
+            {/* "Kurz zusammengefasst" Frosted Sage-Tinted Card (Screenshot 3) */}
+            <div className="liquid-glass-sage relative mt-6 overflow-hidden rounded-[24px] p-5 space-y-3.5">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-blue-500" />
+                  <Sparkles className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                   <h2 className="text-base font-bold text-slate-900 dark:text-white">
                     Kurz zusammengefasst
                   </h2>
@@ -372,7 +372,7 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
                     type="button"
                     onClick={handleRunBYOK}
                     disabled={aiLoading}
-                    className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full bg-blue-600 px-3.5 py-1 text-xs font-semibold text-white transition hover:bg-blue-500 disabled:opacity-60"
+                    className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full bg-slate-900 px-3.5 py-1 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
                   >
                     {aiLoading ? (
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -381,7 +381,7 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
                     ) : (
                       <Settings className="h-3.5 w-3.5" />
                     )}
-                    {hasBYOKKey ? 'KI-Einordnung aktualisieren' : 'Eigenen KI-Key verbinden'}
+                    {hasBYOKKey ? 'KI aktualisieren' : 'KI-Key verbinden'}
                   </button>
                 </div>
               </div>
@@ -393,8 +393,8 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
               )}
 
               {aiResult && (
-                <div className="space-y-3 text-sm leading-relaxed text-slate-700 dark:text-slate-200">
-                  <ul className="space-y-2 pl-4 list-disc marker:text-blue-500">
+                <div className="space-y-3 text-sm leading-relaxed text-slate-800 dark:text-slate-200">
+                  <ul className="space-y-2 pl-4 list-disc marker:text-emerald-600 dark:marker:text-emerald-400">
                     {aiResult.bullets.map((b, i) => (
                       <li key={i}>{b}</li>
                     ))}
@@ -421,7 +421,7 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
                           <li key={idx}>• {p}</li>
                         ))}
                         {aiResult.criticalQuestions.map((q, idx) => (
-                          <li key={`q-${idx}`} className="text-blue-600 dark:text-blue-400">
+                          <li key={`q-${idx}`} className="text-emerald-700 dark:text-emerald-400">
                             ? {q}
                           </li>
                         ))}
@@ -450,7 +450,7 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
                   type="button"
                   onClick={handleLoadFullText}
                   disabled={loadingFullText || fullTextLoaded}
-                  className="liquid-glass inline-flex min-h-[44px] items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 disabled:opacity-60"
+                  className="liquid-glass inline-flex min-h-[42px] items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 disabled:opacity-60"
                 >
                   {loadingFullText ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -464,7 +464,7 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
                   type="button"
                   onClick={() => onToggleDislike(article)}
                   aria-pressed={isDisliked}
-                  className={`inline-flex min-h-[44px] items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold transition ${
+                  className={`inline-flex min-h-[42px] items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold transition ${
                     isDisliked
                       ? 'bg-slate-800 text-white dark:bg-white dark:text-slate-900'
                       : 'liquid-glass text-slate-600 dark:text-slate-300'
@@ -479,7 +479,7 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
                 href={article.link}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full bg-slate-900 px-5 py-2 text-xs font-semibold text-white dark:bg-white dark:text-slate-950"
+                className="inline-flex min-h-[42px] items-center gap-1.5 rounded-full bg-slate-900 px-5 py-2 text-xs font-semibold text-white dark:bg-white dark:text-slate-950"
               >
                 Originalartikel öffnen
                 <ExternalLink className="h-3.5 w-3.5" />

@@ -15,6 +15,17 @@ interface CardActionsProps {
   onToggleLike: (article: NewsArticle) => void;
 }
 
+const CATEGORY_BADGE_STYLES: Record<string, string> = {
+  Politik: 'bg-rose-500/12 text-rose-700 dark:bg-rose-400/15 dark:text-rose-300',
+  Wirtschaft: 'bg-emerald-500/12 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-300',
+  Technologie: 'bg-sky-500/12 text-sky-700 dark:bg-sky-400/15 dark:text-sky-300',
+  Wissenschaft: 'bg-indigo-500/12 text-indigo-700 dark:bg-indigo-400/15 dark:text-indigo-300',
+  Europa: 'bg-blue-500/12 text-blue-700 dark:bg-blue-400/15 dark:text-blue-300',
+  Gesellschaft: 'bg-amber-500/12 text-amber-700 dark:bg-amber-400/15 dark:text-amber-300',
+  Kultur: 'bg-purple-500/12 text-purple-700 dark:bg-purple-400/15 dark:text-purple-300',
+  Sport: 'bg-orange-500/12 text-orange-700 dark:bg-orange-400/15 dark:text-orange-300',
+};
+
 export const HeroArticleCard: React.FC<CardActionsProps & { badgeLabel?: string; className?: string }> = ({
   article,
   isBookmarked,
@@ -31,15 +42,15 @@ export const HeroArticleCard: React.FC<CardActionsProps & { badgeLabel?: string;
 
   return (
     <motion.article
-      initial={{ opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-      className={`group relative overflow-hidden rounded-3xl bg-slate-900 shadow-lg ring-1 ring-black/10 dark:ring-white/10 ${className}`}
+      transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
+      className={`group relative overflow-hidden rounded-[28px] bg-slate-900 shadow-lg ring-1 ring-black/10 dark:ring-white/10 ${className}`}
     >
       <button
         type="button"
         onClick={() => onOpen(article)}
-        className="relative flex min-h-[300px] sm:min-h-[360px] h-full w-full flex-col justify-between gap-8 p-5 sm:p-6 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+        className="relative flex min-h-[290px] sm:min-h-[340px] h-full w-full flex-col justify-between gap-8 p-5 sm:p-6 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
         aria-label={`Artikel öffnen: ${article.title}`}
       >
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -50,40 +61,40 @@ export const HeroArticleCard: React.FC<CardActionsProps & { badgeLabel?: string;
             sourceColor={article.sourceColor}
             className="h-full w-full transition-transform duration-500 ease-out group-hover:scale-[1.02]"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/92 via-black/50 to-black/25" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/15" />
         </div>
 
-        {/* Top kicker */}
+        {/* Top Frosted Kicker */}
         <div className="relative z-10 flex items-center justify-between gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-black/50 px-3 py-1 text-xs font-medium text-white backdrop-blur-md ring-1 ring-white/15">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 text-xs font-medium text-white backdrop-blur-md ring-1 ring-white/25">
             {badgeLabel === 'Schwerpunktthema' ? (
-              <Sparkles className="h-3.5 w-3.5 text-blue-300" />
+              <Sparkles className="h-3.5 w-3.5 text-white" />
             ) : (
-              <Flame className="h-3.5 w-3.5 text-amber-300" />
+              <Flame className="h-3.5 w-3.5 text-amber-200" />
             )}
             {badgeLabel}
           </span>
           {hasMedia && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-black/50 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-md ring-1 ring-white/15">
+            <span className="inline-flex items-center gap-1 rounded-full bg-black/45 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-md ring-1 ring-white/20">
               <Play className="h-3 w-3 fill-current" />
               Medien
             </span>
           )}
         </div>
 
-        {/* Bottom editorial content with generous right clearance for action buttons */}
+        {/* Bottom Editorial Copy */}
         <div className="relative z-10 pr-24 sm:pr-28">
           {showReason && (
-            <p className="mb-1.5 text-xs font-medium text-blue-300">{reason}</p>
+            <p className="mb-1 text-xs font-medium text-blue-200">{reason}</p>
           )}
           <h2 className="line-clamp-3 text-xl sm:text-2xl font-bold leading-snug tracking-tight text-white [text-wrap:balance]">
             {article.title}
           </h2>
-          <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-white/80">
+          <p className="mt-1.5 line-clamp-2 text-[13px] sm:text-sm leading-relaxed text-white/85">
             {article.summary}
           </p>
-          <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-white/75 tabular-nums">
-            <span className="font-semibold text-white/95">{article.sourceName}</span>
+          <div className="mt-2.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-white/80 tabular-nums">
+            <span className="font-medium text-white">{article.sourceName}</span>
             <span aria-hidden="true">·</span>
             <span>{article.category}</span>
             <span aria-hidden="true">·</span>
@@ -92,17 +103,17 @@ export const HeroArticleCard: React.FC<CardActionsProps & { badgeLabel?: string;
         </div>
       </button>
 
-      {/* Bottom-right floating glass actions */}
+      {/* Bottom-right Frosted Glass Action Circles */}
       <div className="absolute bottom-4 right-4 z-20 flex items-center gap-2">
         <button
           type="button"
           onClick={() => onToggleLike(article)}
           aria-label={isLiked ? `Gefällt mir entfernen: ${article.title}` : `Gefällt mir: ${article.title}`}
           aria-pressed={isLiked}
-          className={`flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full backdrop-blur-md transition active:scale-95 ${
+          className={`flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full backdrop-blur-xl transition active:scale-95 ${
             isLiked
               ? 'bg-rose-500/90 text-white ring-1 ring-rose-300/40'
-              : 'bg-black/50 text-white/90 hover:bg-black/70 ring-1 ring-white/20'
+              : 'bg-white/20 text-white hover:bg-white/30 ring-1 ring-white/25'
           }`}
         >
           <Heart className={`h-4 w-4 ${isLiked ? 'fill-current' : ''}`} />
@@ -112,10 +123,10 @@ export const HeroArticleCard: React.FC<CardActionsProps & { badgeLabel?: string;
           onClick={() => onToggleBookmark(article)}
           aria-label={isBookmarked ? `Aus Gespeichert entfernen: ${article.title}` : `Artikel speichern: ${article.title}`}
           aria-pressed={isBookmarked}
-          className={`flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full backdrop-blur-md transition active:scale-95 ${
+          className={`flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full backdrop-blur-xl transition active:scale-95 ${
             isBookmarked
               ? 'bg-blue-500/95 text-white ring-1 ring-blue-300/40'
-              : 'bg-black/50 text-white/90 hover:bg-black/70 ring-1 ring-white/20'
+              : 'bg-white/20 text-white hover:bg-white/30 ring-1 ring-white/25'
           }`}
         >
           <Bookmark className={`h-4 w-4 ${isBookmarked ? 'fill-current' : ''}`} />
@@ -134,21 +145,25 @@ export const CompactArticleCard: React.FC<CardActionsProps> = ({
   onToggleBookmark,
   onToggleLike,
 }) => {
+  const catBadge =
+    CATEGORY_BADGE_STYLES[article.category] ||
+    'bg-blue-500/12 text-blue-700 dark:bg-blue-400/15 dark:text-blue-300';
+
   return (
     <motion.article
       layout="position"
-      initial={{ opacity: 0, y: 8 }}
+      initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-      className="liquid-glass group relative flex items-center gap-3.5 rounded-2xl p-3 sm:p-3.5 transition hover:border-black/15 dark:hover:border-white/15"
+      className="liquid-glass group relative flex items-center gap-3 rounded-[22px] p-2.5 sm:p-3 transition hover:scale-[1.005]"
     >
       <button
         type="button"
         onClick={() => onOpen(article)}
-        className="flex min-w-0 flex-1 items-center gap-3.5 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-xl"
+        className="flex min-w-0 flex-1 items-center gap-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-2xl"
         aria-label={`Artikel öffnen: ${article.title}`}
       >
-        <div className="relative h-20 w-24 sm:h-24 sm:w-28 shrink-0 overflow-hidden rounded-xl bg-slate-200 dark:bg-slate-800">
+        <div className="relative h-[76px] w-[104px] sm:h-[84px] sm:w-[116px] shrink-0 overflow-hidden rounded-[15px] bg-slate-200 dark:bg-slate-800">
           <ArticleImage
             src={article.imageUrl}
             alt={article.title}
@@ -164,20 +179,19 @@ export const CompactArticleCard: React.FC<CardActionsProps> = ({
         </div>
 
         <div className="min-w-0 flex-1 py-0.5">
-          <div className="flex items-center gap-2 text-xs font-medium text-blue-600 dark:text-blue-400">
-            <span>{article.category}</span>
+          <div className="flex items-center gap-1.5 text-[11px] font-semibold">
+            <span className={`inline-flex rounded-full px-2 py-0.5 ${catBadge}`}>
+              {article.category}
+            </span>
             {reason && (
-              <>
-                <span aria-hidden="true" className="text-slate-400 dark:text-slate-600">·</span>
-                <span className="truncate text-slate-500 dark:text-slate-400 font-normal">{reason}</span>
-              </>
+              <span className="truncate font-normal text-slate-500 dark:text-slate-400">{reason}</span>
             )}
           </div>
-          <h3 className="mt-1 line-clamp-2 text-[15px] sm:text-base font-semibold leading-snug text-slate-900 dark:text-slate-50 [text-wrap:balance]">
+          <h3 className="mt-0.5 line-clamp-2 text-[15px] font-bold leading-snug text-slate-900 dark:text-slate-50 [text-wrap:balance]">
             {article.title}
           </h3>
-          <div className="mt-1.5 flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 tabular-nums">
-            <span className="font-medium text-slate-700 dark:text-slate-300 truncate max-w-[130px]">
+          <div className="mt-1 flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 tabular-nums">
+            <span className="truncate max-w-[130px] font-medium text-slate-600 dark:text-slate-300">
               {article.sourceName}
             </span>
             <span aria-hidden="true">·</span>
@@ -186,16 +200,16 @@ export const CompactArticleCard: React.FC<CardActionsProps> = ({
         </div>
       </button>
 
-      <div className="flex shrink-0 flex-col items-center gap-1">
+      <div className="flex shrink-0 flex-col items-center gap-0.5">
         <button
           type="button"
           onClick={() => onToggleBookmark(article)}
           aria-label={isBookmarked ? `Aus Gespeichert entfernen: ${article.title}` : `Artikel speichern: ${article.title}`}
           aria-pressed={isBookmarked}
-          className={`flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl transition active:scale-95 ${
+          className={`flex min-h-[40px] min-w-[40px] items-center justify-center rounded-full transition active:scale-95 ${
             isBookmarked
-              ? 'text-blue-600 dark:text-blue-400 bg-blue-500/10'
-              : 'text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-slate-200 hover:bg-black/5 dark:hover:bg-white/5'
+              ? 'text-blue-600 dark:text-blue-400 bg-blue-500/12'
+              : 'text-slate-400 hover:text-slate-800 dark:text-slate-500 dark:hover:text-slate-100'
           }`}
         >
           <Bookmark className={`h-4 w-4 ${isBookmarked ? 'fill-current' : ''}`} />
@@ -205,34 +219,40 @@ export const CompactArticleCard: React.FC<CardActionsProps> = ({
           onClick={() => onToggleLike(article)}
           aria-label={isLiked ? `Gefällt mir entfernen: ${article.title}` : `Gefällt mir: ${article.title}`}
           aria-pressed={isLiked}
-          className={`flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl transition active:scale-95 ${
+          className={`flex min-h-[40px] min-w-[40px] items-center justify-center rounded-full transition active:scale-95 ${
             isLiked
-              ? 'text-rose-500 bg-rose-500/10'
-              : 'text-slate-400 hover:text-rose-500 dark:text-slate-500 dark:hover:text-rose-400 hover:bg-black/5 dark:hover:bg-white/5'
+              ? 'text-rose-500 bg-rose-500/12'
+              : 'text-slate-400 hover:text-rose-500 dark:text-slate-500 dark:hover:text-rose-400'
           }`}
         >
-          <Heart className={`h-4 w-4 ${isLiked ? 'fill-current' : ''}`} />
+          <Heart className={`h-3.5 w-3.5 ${isLiked ? 'fill-current' : ''}`} />
         </button>
       </div>
     </motion.article>
   );
 };
 
-export const BentoArticleCard: React.FC<CardActionsProps> = ({
+export const BentoArticleCard: React.FC<CardActionsProps & { tall?: boolean; className?: string }> = ({
   article,
   isBookmarked,
+  tall = false,
+  className = '',
   onOpen,
   onToggleBookmark,
 }) => {
   return (
-    <article className="group relative overflow-hidden rounded-3xl bg-slate-900 shadow-md ring-1 ring-black/10 dark:ring-white/10">
+    <article
+      className={`group relative overflow-hidden rounded-[24px] bg-slate-900 shadow-md ring-1 ring-black/10 dark:ring-white/10 ${className}`}
+    >
       <button
         type="button"
         onClick={() => onOpen(article)}
-        className="block h-full w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+        className={`relative flex w-full flex-col justify-between gap-4 p-3.5 sm:p-4 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+          tall ? 'h-full min-h-[300px] sm:min-h-[350px]' : 'h-full min-h-[144px] sm:min-h-[168px]'
+        }`}
         aria-label={`Artikel öffnen: ${article.title}`}
       >
-        <div className="relative aspect-[4/3] w-full overflow-hidden">
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
           <ArticleImage
             src={article.imageUrl}
             alt={article.title}
@@ -240,26 +260,26 @@ export const BentoArticleCard: React.FC<CardActionsProps> = ({
             sourceColor={article.sourceColor}
             className="h-full w-full transition-transform duration-500 group-hover:scale-105"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/45 to-black/15" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/92 via-black/45 to-black/15" />
+        </div>
 
-          <div className="absolute left-3.5 top-3.5">
-            <span className="text-xs font-semibold tracking-wide text-blue-300">
-              {article.category}
-            </span>
-          </div>
+        <div className="relative z-10">
+          <span className="inline-block rounded-full bg-white/22 px-2.5 py-0.5 text-[11px] font-semibold text-white backdrop-blur-md ring-1 ring-white/20">
+            {article.category}
+          </span>
+        </div>
 
-          <div className="absolute inset-x-0 bottom-0 p-4 pr-14">
-            <h3 className="line-clamp-2 text-base font-bold leading-snug text-white [text-wrap:balance]">
-              {article.title}
-            </h3>
-            <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-white/75">
-              {article.summary}
-            </p>
-            <div className="mt-2 flex items-center gap-1.5 text-[11px] text-white/70 tabular-nums">
-              <span className="font-medium text-white/90">{article.sourceName}</span>
-              <span aria-hidden="true">·</span>
-              <span>{formatRelativeTimeDe(article.publishedAt)}</span>
-            </div>
+        <div className="relative z-10 pr-9 sm:pr-11">
+          <h3 className={`${tall ? 'text-base sm:text-xl line-clamp-3' : 'text-[13px] sm:text-[15px] line-clamp-2'} font-bold leading-snug text-white [text-wrap:balance]`}>
+            {article.title}
+          </h3>
+          <p className={`mt-1 text-[11px] sm:text-xs leading-relaxed text-white/80 ${tall ? 'line-clamp-3' : 'hidden sm:line-clamp-2'}`}>
+            {article.summary}
+          </p>
+          <div className="mt-1.5 flex items-center gap-1 text-[10px] sm:text-[11px] text-white/75 tabular-nums truncate">
+            <span className="font-medium text-white/95 truncate">{article.sourceName}</span>
+            <span aria-hidden="true">·</span>
+            <span className="shrink-0">{formatRelativeTimeDe(article.publishedAt)}</span>
           </div>
         </div>
       </button>
@@ -269,13 +289,13 @@ export const BentoArticleCard: React.FC<CardActionsProps> = ({
         onClick={() => onToggleBookmark(article)}
         aria-label={isBookmarked ? `Aus Gespeichert entfernen: ${article.title}` : `Artikel speichern: ${article.title}`}
         aria-pressed={isBookmarked}
-        className={`absolute bottom-3.5 right-3.5 z-10 flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full backdrop-blur-md transition active:scale-95 ${
+        className={`absolute bottom-3 right-3 z-20 flex min-h-[38px] min-w-[38px] sm:min-h-[42px] sm:min-w-[42px] items-center justify-center rounded-full backdrop-blur-xl transition active:scale-95 ${
           isBookmarked
             ? 'bg-blue-500/95 text-white ring-1 ring-blue-300/40'
-            : 'bg-black/45 text-white/90 hover:bg-black/65 ring-1 ring-white/20'
+            : 'bg-white/20 text-white hover:bg-white/30 ring-1 ring-white/25'
         }`}
       >
-        <Bookmark className={`h-4 w-4 ${isBookmarked ? 'fill-current' : ''}`} />
+        <Bookmark className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${isBookmarked ? 'fill-current' : ''}`} />
       </button>
     </article>
   );

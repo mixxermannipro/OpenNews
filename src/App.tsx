@@ -33,14 +33,15 @@ import { HomeView } from './components/HomeView';
 import { DiscoverView } from './components/DiscoverView';
 import { SavedView, SearchView } from './components/SavedAndSearchViews';
 import { ArticleReaderModal } from './components/ArticleReaderModal';
-import { SettingsModal } from './components/SettingsModal';
+import { SettingsView, type SettingsSectionTab } from './components/SettingsView';
 import { OfflineIndicator } from './components/PWAInstallButton';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<AppTab>('home');
+  const [settingsSection, setSettingsSection] = useState<SettingsSectionTab>('overview');
   const [homeCategory, setHomeCategory] = useState<NewsCategory>('Für dich');
 
-  // Default Dark Mode as requested by user
+  // Supports 'dark' (default), 'light', and 'system' (device preference)
   const [theme, setTheme] = useLocalStorage<ThemeMode>('opennews_theme', 'dark');
   const [sources, setSources] = useLocalStorage<NewsSource[]>('opennews_sources', DEFAULT_SOURCES);
   const [profile, setProfile] = useLocalStorage<PersonalizationProfile>(
@@ -74,34 +75,43 @@ export default function App() {
   );
   const [isLoadingFeeds, setIsLoadingFeeds] = useState(false);
   const [activeArticle, setActiveArticle] = useState<NewsArticle | null>(null);
-  const [settingsOpen, setSettingsOpen] = useState<'sources' | 'ai' | 'app' | null>(null);
   const [alertBanner, setAlertBanner] = useState<{ title: string; source: string } | null>(null);
 
-  // Sync theme class with <html>
+  // Sync theme class with <html>, including live prefers-color-scheme listener for 'system'
   useEffect(() => {
     const root = document.documentElement;
-    if (theme === 'dark') {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
-    const metaTheme = document.querySelector('meta[name="theme-color"]');
-    if (metaTheme) {
-      metaTheme.setAttribute('content', theme === 'dark' ? '#08090C' : '#F2F3F7');
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+
+    const applyTheme = () => {
+      const resolvedDark = theme === 'system' ? media.matches : theme === 'dark';
+      if (resolvedDark) {
+        root.classList.add('dark');
+      } else {
+        root.classList.remove('dark');
+      }
+      const metaTheme = document.querySelector('meta[name="theme-color"]');
+      if (metaTheme) {
+        metaTheme.setAttribute('content', resolvedDark ? '#08090C' : '#E7ECF2');
+      }
+    };
+
+    applyTheme();
+    if (theme === 'system') {
+      media.addEventListener('change', applyTheme);
+      return () => media.removeEventListener('change', applyTheme);
     }
   }, [theme]);
 
-  // Escape key closes open modals
+  // Escape key closes Article Reader
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        if (settingsOpen) setSettingsOpen(null);
-        else if (activeArticle) setActiveArticle(null);
+      if (e.key === 'Escape' && activeArticle) {
+        setActiveArticle(null);
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [activeArticle, settingsOpen]);
+  }, [activeArticle]);
 
   const enabledFormats = useMemo(() => {
     return new Set<string>([
@@ -150,7 +160,6 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Merge live articles with deterministic seed articles (so offline/first-paint is always rich)
   const allArticles = useMemo(() => {
     const merged = [...cachedLiveArticles, ...SEED_ARTICLES];
     const seen = new Set<string>();
@@ -167,6 +176,11 @@ export default function App() {
     () => rankArticlesForYou(allArticles, normalizedProfile, sources),
     [allArticles, normalizedProfile, sources]
   );
+
+  const openSettings = (sec: SettingsSectionTab = 'overview') => {
+    setSettingsSection(sec);
+    setActiveTab('settings');
+  };
 
   const handleOpenArticle = (article: NewsArticle) => {
     setActiveArticle(article);
@@ -219,7 +233,7 @@ export default function App() {
     setTimeout(() => setAlertBanner(null), 5000);
   };
 
-  const navItems: Array<{ id: AppTab; label: string; icon: React.ReactNode }> = [
+  const navItems: Array<{ id: Exclude<AppTab, 'settings'>; label: string; icon: React.ReactNode }> = [
     { id: 'home', label: 'Home', icon: <Home className="h-5 w-5" /> },
     { id: 'discover', label: 'Entdecken', icon: <Compass className="h-5 w-5" /> },
     { id: 'saved', label: 'Gespeichert', icon: <Bookmark className="h-5 w-5" /> },
@@ -227,14 +241,8 @@ export default function App() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#F2F3F7] text-[#111318] dark:bg-[#08090C] dark:text-[#F4F6FA] transition-colors duration-200">
+    <div className="opennews-canvas min-h-screen text-[#111318] dark:text-[#F4F6FA] transition-colors duration-200">
       <OfflineIndicator />
-
-      {/* Subtle Ambient Background Gradient */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none fixed inset-x-0 top-0 h-72 bg-gradient-to-b from-blue-500/[0.07] via-transparent to-transparent dark:from-blue-500/[0.11]"
-      />
 
       {/* In-App Breaking Notification Banner */}
       <AnimatePresence>
@@ -256,8 +264,8 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Desktop Top Bar (3-zone Top Bar Contract) */}
-      <header className="hidden md:block sticky top-0 z-30 border-b border-black/[0.06] bg-[#F2F3F7]/80 backdrop-blur-xl dark:border-white/[0.07] dark:bg-[#08090C]/80">
+      {/* Desktop Top Bar (3-zone contract) */}
+      <header className="hidden md:block sticky top-0 z-30 border-b border-black/[0.06] bg-white/55 backdrop-blur-2xl dark:border-white/[0.07] dark:bg-[#08090D]/75">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-8 px-6 py-3.5">
           <button
             type="button"
@@ -290,8 +298,12 @@ export default function App() {
           <div className="flex items-center shrink-0">
             <button
               type="button"
-              onClick={() => setSettingsOpen('sources')}
-              className="liquid-glass inline-flex min-h-[42px] items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold text-slate-800 dark:text-slate-100 whitespace-nowrap shrink-0 transition hover:scale-[1.02]"
+              onClick={() => openSettings('overview')}
+              className={`liquid-glass inline-flex min-h-[42px] items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold whitespace-nowrap shrink-0 transition hover:scale-[1.02] ${
+                activeTab === 'settings'
+                  ? 'ring-2 ring-blue-500 text-blue-600 dark:text-blue-400'
+                  : 'text-slate-800 dark:text-slate-100'
+              }`}
             >
               <SlidersHorizontal className="h-3.5 w-3.5" />
               Quellen &amp; KI
@@ -308,13 +320,13 @@ export default function App() {
             allArticlesCount={allArticles.length}
             selectedCategory={homeCategory}
             onSelectCategory={setHomeCategory}
-            profile={profile}
+            profile={normalizedProfile}
             isLoading={isLoadingFeeds}
             onRefresh={fetchLiveFeeds}
             onOpenArticle={handleOpenArticle}
             onToggleBookmark={handleToggleBookmark}
             onToggleLike={handleToggleLike}
-            onOpenSettings={() => setSettingsOpen('sources')}
+            onOpenSettings={() => openSettings('overview')}
           />
         )}
 
@@ -322,12 +334,12 @@ export default function App() {
           <DiscoverView
             articles={allArticles}
             sources={sources}
-            profile={profile}
+            profile={normalizedProfile}
             onToggleSubscribe={handleToggleSubscribe}
             onOpenArticle={handleOpenArticle}
             onToggleBookmark={handleToggleBookmark}
             onToggleLike={handleToggleLike}
-            onOpenSourcesSettings={() => setSettingsOpen('sources')}
+            onOpenSourcesSettings={() => openSettings('feeds')}
           />
         )}
 
@@ -335,7 +347,7 @@ export default function App() {
           <SavedView
             articles={allArticles}
             sources={sources}
-            profile={profile}
+            profile={normalizedProfile}
             onOpenArticle={handleOpenArticle}
             onToggleBookmark={handleToggleBookmark}
             onToggleLike={handleToggleLike}
@@ -346,32 +358,57 @@ export default function App() {
         {activeTab === 'search' && (
           <SearchView
             articles={allArticles}
-            profile={profile}
+            profile={normalizedProfile}
             onOpenArticle={handleOpenArticle}
             onToggleBookmark={handleToggleBookmark}
             onToggleLike={handleToggleLike}
           />
         )}
+
+        {activeTab === 'settings' && (
+          <SettingsView
+            key={settingsSection}
+            initialSection={settingsSection}
+            sources={sources}
+            formatPrefs={formatPrefs}
+            sourceKeys={sourceKeys}
+            aiConfig={aiConfig}
+            theme={theme}
+            notifications={notifications}
+            onToggleSource={handleToggleSubscribe}
+            onAddCustomSource={(src) => setSources((prev) => [src, ...prev])}
+            onUpdateSource={handleUpdateSource}
+            onRemoveCustomSource={(id) =>
+              setSources((prev) => prev.filter((s) => s.id !== id))
+            }
+            onUpdateFormatPrefs={setFormatPrefs}
+            onUpdateSourceKeys={setSourceKeys}
+            onUpdateAIConfig={setAiConfig}
+            onChangeTheme={setTheme}
+            onUpdateNotifications={setNotifications}
+            onSendTestNotification={handleSendTestNotification}
+            onResetAlgorithm={() => setProfile(createDefaultProfile())}
+            onBackHome={() => setActiveTab('home')}
+          />
+        )}
       </main>
 
-      {/* Mobile Floating Liquid Glass Bottom Tab Bar (matching PDF screenshots, <= 12% height) */}
-      <nav
-        aria-label="Mobile Navigation"
-        className="md:hidden fixed inset-x-3 bottom-3 z-40"
-      >
-        <div className="liquid-glass mx-auto grid max-w-md grid-cols-4 items-center rounded-full px-2 py-1.5">
+      {/* Mobile Floating Liquid Glass Bottom Tab Bar matching Screenshots 1, 2, 4 */}
+      <nav aria-label="Mobile Navigation" className="md:hidden fixed inset-x-3 bottom-3 z-40">
+        <div className="liquid-glass-dock mx-auto grid max-w-md grid-cols-4 items-center rounded-[30px] p-1.5">
           {navItems.map((item) => {
             const active = activeTab === item.id;
+            const visualActive = active || (activeTab === 'settings' && item.id === 'home');
             return (
               <button
                 key={item.id}
                 type="button"
                 onClick={() => setActiveTab(item.id)}
                 aria-current={active ? 'page' : undefined}
-                className={`flex min-h-[46px] flex-col items-center justify-center gap-0.5 rounded-full px-2 py-1 transition active:scale-95 ${
-                  active
-                    ? 'bg-slate-900/10 text-slate-950 dark:bg-white/12 dark:text-white'
-                    : 'text-slate-500 dark:text-slate-400'
+                className={`flex min-h-[46px] flex-col items-center justify-center gap-0.5 rounded-[24px] px-2 py-1 transition active:scale-95 ${
+                  visualActive
+                    ? 'bg-black/[0.07] text-slate-950 dark:bg-white/[0.13] dark:text-white'
+                    : 'text-slate-600 dark:text-slate-400'
                 }`}
               >
                 {item.icon}
@@ -403,38 +440,9 @@ export default function App() {
             onRecordReadingDuration={handleRecordReadingDuration}
             onOpenAISettings={() => {
               setActiveArticle(null);
-              setSettingsOpen('ai');
+              openSettings('ai');
             }}
             onClose={() => setActiveArticle(null)}
-          />
-        )}
-      </AnimatePresence>
-
-      {/* Sources, AI & Settings Sheet */}
-      <AnimatePresence>
-        {settingsOpen && (
-          <SettingsModal
-            initialSection={settingsOpen}
-            sources={sources}
-            formatPrefs={formatPrefs}
-            sourceKeys={sourceKeys}
-            aiConfig={aiConfig}
-            theme={theme}
-            notifications={notifications}
-            onToggleSource={handleToggleSubscribe}
-            onAddCustomSource={(src) => setSources((prev) => [src, ...prev])}
-            onUpdateSource={handleUpdateSource}
-            onRemoveCustomSource={(id) =>
-              setSources((prev) => prev.filter((s) => s.id !== id))
-            }
-            onUpdateFormatPrefs={setFormatPrefs}
-            onUpdateSourceKeys={setSourceKeys}
-            onUpdateAIConfig={setAiConfig}
-            onToggleTheme={() => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))}
-            onUpdateNotifications={setNotifications}
-            onSendTestNotification={handleSendTestNotification}
-            onResetAlgorithm={() => setProfile(createDefaultProfile())}
-            onClose={() => setSettingsOpen(null)}
           />
         )}
       </AnimatePresence>

@@ -1,4 +1,5 @@
 import express from 'express';
+import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createServer as createViteServer } from 'vite';
@@ -302,9 +303,16 @@ app.post('/api/ai/proxy', async (req, res) => {
 
 async function start() {
   const isProd = process.env.NODE_ENV === 'production';
+  const httpServer = http.createServer(app);
+
   if (!isProd) {
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        allowedHosts: true,
+        hmr: false,
+        ws: { server: httpServer },
+      },
       appType: 'spa',
     });
     app.use(vite.middlewares);
@@ -316,7 +324,7 @@ async function start() {
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
+  httpServer.listen(PORT, '0.0.0.0', () => {
     console.log(`OpenNews server running on http://localhost:${PORT}`);
   });
 }

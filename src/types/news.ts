@@ -111,7 +111,7 @@ export interface NotificationSettings {
   topics: string[];
 }
 
-export type AppTab = 'home' | 'discover' | 'saved' | 'search';
+export type AppTab = 'home' | 'discover' | 'saved' | 'search' | 'settings';
 export type ReaderFontSize = 'normal' | 'large' | 'xlarge';
 export type ReaderFontFamily = 'sans' | 'serif';
-export type ThemeMode = 'dark' | 'light';
+export type ThemeMode = 'dark' | 'light' | 'system';

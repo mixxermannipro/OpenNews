@@ -23,16 +23,18 @@
       (function () {
         try {
           var savedTheme = localStorage.getItem('opennews_theme');
-          var theme = savedTheme === 'light' ? 'light' : 'dark';
+          var mode = savedTheme ? JSON.parse(savedTheme) : 'dark';
+          var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var resolvedDark = mode === 'system' ? prefersDark : mode !== 'light';
           var root = document.documentElement;
-          if (theme === 'dark') {
+          if (resolvedDark) {
             root.classList.add('dark');
           } else {
             root.classList.remove('dark');
           }
           var metaTheme = document.querySelector('meta[name="theme-color"]');
           if (metaTheme) {
-            metaTheme.setAttribute('content', theme === 'dark' ? '#08090C' : '#F2F3F7');
+            metaTheme.setAttribute('content', resolvedDark ? '#08090C' : '#E7ECF2');
           }
         } catch (e) {}
       })();
