@@ -12,12 +12,6 @@ on:
       - 'capacitor.config.ts'
       - 'vite.config.ts'
       - 'index.html'
-  push:
-    branches: [main]
-    paths:
-      # Publish once after this initial workflow is merged.
-      # Later debug releases can be started explicitly via "Run workflow".
-      - '.github/workflows/android-test-apk.yml'
   workflow_dispatch:
 
 permissions:
@@ -63,6 +57,9 @@ jobs:
       - name: Generate native Android project
         run: npx cap add android
 
+      - name: Install icon build tool
+        run: sudo apt-get install -y imagemagick
+
       - name: Sync native web assets
         run: npm run android:sync
 
@@ -81,7 +78,7 @@ jobs:
           retention-days: 7
 
       - name: Publish private pre-release
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
