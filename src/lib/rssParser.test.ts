@@ -152,3 +152,9 @@ test('keeps the portrait format for YouTube Shorts and portrait feed videos', ()
   assert.equal(article.media?.find(item => item.type === 'youtube')?.portrait, true);
   assert.equal(article.media?.find(item => item.type === 'video')?.portrait, true);
 });
+
+test('decodes hexadecimal entities and keeps unlinked RSS entries distinct', () => {
+  const articles = parseFeedPayload('<rss><channel><item><title>Someone&amp;#x27;s report</title></item><item><title>Another report</title></item></channel></rss>', mockSource);
+  assert.equal(articles[0].title, "Someone's report");
+  assert.notEqual(articles[0].id, articles[1].id);
+});

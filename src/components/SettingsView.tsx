@@ -36,6 +36,7 @@ import type {
 import { AI_PROVIDERS, testAIConnection } from '../lib/aiClient';
 import { TopicChoices } from './Preferences';
 import { exportOpml, importOpml } from '../lib/opml';
+import { SourceIcon } from './SourceIcon';
 import { PWAInstallButton } from './PWAInstallButton';
 
 export type SettingsSectionTab = 'overview' | 'feeds' | 'ai' | 'app';
@@ -98,6 +99,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [transferStatus, setTransferStatus] = useState('');
   const [showAISetup, setShowAISetup] = useState(Boolean(aiConfig.apiKey));
   const [feedSearch, setFeedSearch] = useState('');
+  const [website, setWebsite] = useState('');
+  const [discoveryStatus, setDiscoveryStatus] = useState('');
+  const [sourceType, setSourceType] = useState<'all' | 'news' | 'podcast' | 'custom'>('all');
   const [discovering, setDiscovering] = useState(false);
   const [discoveredFeeds, setDiscoveredFeeds] = useState<
     Array<{ name: string; url: string; format: 'rss' | 'atom' | 'json' }>
@@ -185,23 +189,25 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   const handleDiscoverFeeds = async (e: React.FormEvent) => {
     e.preventDefault();
-    const q = feedSearch.trim();
+    const q = website.trim();
     if (!q) return;
     setDiscovering(true);
+    setDiscoveryStatus('');
+    setDiscoveredFeeds([]);
     try {
+      let found: typeof discoveredFeeds;
       if (Capacitor.isNativePlatform()) {
-        setDiscoveredFeeds(await discoverNativeFeeds(q));
+        found = await discoverNativeFeeds(q);
       } else {
         const resp = await fetch(`/api/feeds/discover?q=${encodeURIComponent(q)}`);
-        if (resp.ok) {
-          const data = (await resp.json()) as {
-            discovered?: Array<{ name: string; url: string; format: 'rss' | 'atom' | 'json' }>;
-          };
-          setDiscoveredFeeds(Array.isArray(data.discovered) ? data.discovered : []);
-        }
+        if (!resp.ok) throw new Error('Feed discovery failed');
+        const data = await resp.json();
+        found = Array.isArray(data.discovered) ? data.discovered : [];
       }
+      setDiscoveredFeeds(found);
+      if (!found.length) setDiscoveryStatus('Auf dieser Website wurde kein Feed gefunden.');
     } catch {
-      setDiscoveredFeeds([]);
+      setDiscoveryStatus('Die Website konnte nicht geladen werden.');
     } finally {
       setDiscovering(false);
     }
@@ -233,6 +239,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   const normalizedFeedQuery = feedSearch.trim().toLowerCase();
   const filteredSources = sources.filter((s) => {
+    if (sourceType === 'custom' && !s.isCustom) return false;
+    if (sourceType === 'podcast' && s.format !== 'podcast') return false;
+    if (sourceType === 'news' && s.format === 'podcast') return false;
     if (!normalizedFeedQuery) return true;
     return (
       s.name.toLowerCase().includes(normalizedFeedQuery) ||
@@ -240,33 +249,31 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       s.category.toLowerCase().includes(normalizedFeedQuery) ||
       s.description.toLowerCase().includes(normalizedFeedQuery)
     );
-  });
+  }).sort((a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base', numeric: true }));
 
   const selectedSources = filteredSources.filter((s) => s.subscribed);
   const recommendedSources = filteredSources.filter((s) => !s.subscribed && s.recommended);
   const otherSources = filteredSources.filter((s) => !s.subscribed && !s.recommended);
 
   return (
-    <section aria-label="Quellen und Integrationen" className="space-y-5">
-      {/* Header matching Screenshot 1 */}
+    <section className="settings-page">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-900 dark:text-white">
-            {{ overview: 'Quellen', feeds: 'Quellen verwalten', ai: 'KI & Personalisierung', app: 'Benachrichtigungen' }[section]}
+          <h1 className="screen-title">
+            {{ overview: 'Quellenoptionen', feeds: 'Quellen', ai: 'KI & Personalisierung', app: 'Benachrichtigungen' }[section]}
           </h1>
         </div>
 
         <button
           type="button"
           onClick={onBackHome}
-          aria-label="Zurück zum Profil"
+          aria-label="Zurück"
           className="liquid-glass flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full text-slate-700 dark:text-slate-200 transition hover:scale-105 active:scale-95"
         >
           <ArrowLeft className="h-4 w-4" />
         </button>
       </div>
 
-      {/* SECTION 1: ÜBERSICHT (1-to-1 match with Screenshot 1!) */}
       {section === 'overview' && (
         <div className="space-y-4">
           {/* Card 1: Öffentliche Quellen */}
@@ -498,17 +505,37 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       {/* SECTION 2: FEED-MANAGER */}
       {section === 'feeds' && (
         <div className="space-y-4">
+          <div className="settings-group space-y-3 p-4">
+            <label className="block text-sm font-semibold" htmlFor="source-search">Quellen durchsuchen</label>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" aria-hidden />
+              <input id="source-search" type="search" value={feedSearch} placeholder="Name, Thema oder Adresse"
+                onChange={event => setFeedSearch(event.target.value)}
+                className="liquid-glass-subtle min-h-[44px] w-full rounded-xl pl-10 pr-3 text-sm" />
+            </div>
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Quellen filtern">
+              {(['all', 'news', 'podcast', 'custom'] as const).map(type => (
+                <button type="button" key={type} className="choice-pill" aria-pressed={sourceType === type}
+                  onClick={() => setSourceType(type)}>
+                  {{ all: 'Alle', news: 'Nachrichten', podcast: 'Video & Audio', custom: 'Eigene' }[type]}
+                </button>
+              ))}
+            </div>
+            <p role="status" className="text-sm text-slate-600 dark:text-slate-300">
+              {filteredSources.length === 0 ? 'Keine passenden Quellen gefunden.' : `${filteredSources.length} Quellen · ${selectedSources.length} abonniert`}
+            </p>
+          </div>
           <details className="settings-group p-4">
-            <summary className="cursor-pointer font-semibold">Quelle hinzufügen oder suchen</summary>
+            <summary className="cursor-pointer font-semibold">Eigene Quelle hinzufügen</summary>
             <div className="mt-4 space-y-3">
           {/* Feed Search & Auto-Discovery */}
           <div className="liquid-glass rounded-[26px] p-5 space-y-4">
             <div>
               <h2 className="text-base font-bold text-slate-900 dark:text-white">
-                RSS-Feed-Manager &amp; Suche
+                Feed einer Website finden
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Durchsuche Agenturen oder gib eine Website-Domain ein (z. B. netzpolitik.org)
+                Gib die Adresse der Website ein.
               </p>
             </div>
 
@@ -517,16 +544,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 <Search className="pointer-events-none absolute left-3.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <input
                   type="search"
-                  value={feedSearch}
-                  onChange={(e) => setFeedSearch(e.target.value)}
-                  placeholder="Feed, Thema oder Domain suchen (z. B. tagesschau, faz.net)…"
-                  aria-label="RSS-Feeds durchsuchen"
+                  value={website}
+                  onChange={(e) => setWebsite(e.target.value)}
+                  placeholder="z. B. netzpolitik.org"
+                  aria-label="Website-Adresse"
                   className="liquid-glass-subtle w-full min-h-[44px] rounded-2xl pl-10 pr-4 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white"
                 />
               </div>
               <button
                 type="submit"
-                disabled={discovering || !feedSearch.trim()}
+                disabled={discovering || !website.trim()}
                 className="inline-flex min-h-[44px] items-center gap-1.5 rounded-2xl bg-[#2C2F36] px-4 text-xs font-semibold text-white transition hover:opacity-90 disabled:opacity-50 dark:bg-white dark:text-slate-950"
               >
                 {discovering ? <Loader2 className="h-4 w-4 animate-spin" /> : <Globe className="h-4 w-4" />}
@@ -534,6 +561,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </button>
             </form>
 
+            {discoveryStatus && <p role="status" className="text-sm">{discoveryStatus}</p>}
             {discoveredFeeds.length > 0 && (
               <div className="space-y-2 rounded-2xl bg-blue-500/10 p-3.5">
                 <p className="text-xs font-semibold text-blue-600 dark:text-blue-400">
@@ -631,16 +659,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <div className="liquid-glass rounded-[26px] p-5 space-y-3">
             <div>
               <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                Meine ausgewählten Feeds ({selectedSources.length})
+                Abonniert ({selectedSources.length})
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Aktive Nachrichtenquellen in deinem Feed — jederzeit bearbeitbar
-              </p>
             </div>
 
             {selectedSources.length === 0 ? (
               <p className="py-3 text-xs text-slate-500 dark:text-slate-400">
-                Keine passenden aktiven Feeds gefunden. Wähle unten empfohlene Feeds aus.
+                Keine abonnierten Quellen in dieser Auswahl.
               </p>
             ) : (
               <div className="divide-y divide-black/[0.06] dark:divide-white/[0.08]">
@@ -650,18 +675,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <div key={src.id} className="py-3 space-y-2.5">
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex items-center gap-3 min-w-0">
-                          <div
-                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-xs font-bold text-white"
-                            style={{ backgroundColor: src.accentColor }}
-                          >
-                            {src.shortCode}
-                          </div>
+                          <SourceIcon source={src} />
                           <div className="min-w-0">
-                            <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">
+                            <p className="text-sm font-semibold text-slate-900 dark:text-white break-words">
                               {src.name}
                             </p>
                             <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                              {src.category} · {src.format.toUpperCase()} · {src.url}
+                              {src.category} · {src.format.toUpperCase()} · {src.language.toUpperCase()}
                             </p>
                           </div>
                         </div>
@@ -671,7 +691,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             type="button"
                             onClick={() => (isEditing ? setEditingFeedId(null) : startEditingSource(src))}
                             aria-label={`${src.name} bearbeiten`}
-                            className="flex min-h-[40px] min-w-[40px] items-center justify-center rounded-full text-slate-600 hover:bg-black/5 dark:text-slate-300 dark:hover:bg-white/10"
+                            className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full text-slate-600 hover:bg-black/5 dark:text-slate-300 dark:hover:bg-white/10"
                           >
                             <Pencil className="h-4 w-4" />
                           </button>
@@ -680,7 +700,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                               type="button"
                               onClick={() => onRemoveCustomSource(src.id)}
                               aria-label={`${src.name} löschen`}
-                              className="flex min-h-[40px] min-w-[40px] items-center justify-center rounded-full text-rose-500 hover:bg-rose-500/10"
+                              className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full text-rose-500 hover:bg-rose-500/10"
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>
@@ -689,7 +709,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             type="button"
                             onClick={() => onToggleSource(src.id)}
                             aria-pressed={true}
-                            className="inline-flex min-h-[40px] items-center gap-1 rounded-full bg-[#34C759]/15 px-3 text-xs font-semibold text-emerald-700 dark:text-emerald-400"
+                            aria-label={`${src.name} abbestellen`}
+                            className="inline-flex min-h-[44px] items-center gap-1 rounded-full bg-[#34C759]/15 px-3 text-xs font-semibold text-emerald-700 dark:text-emerald-400"
                           >
                             <Check className="h-3.5 w-3.5" />
                             Aktiv
@@ -759,7 +780,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
           {/* Empfohlene Feeds */}
           {recommendedSources.length > 0 && (
-            <details className="settings-group p-5 space-y-3">
+            <details open={feedSearch.trim() || sourceType !== 'all' ? true : undefined} className="settings-group p-4 space-y-3">
               <summary className="cursor-pointer font-semibold">
                 <Sparkles aria-hidden className="mr-2 inline h-4 w-4 text-blue-500" />
                 Empfohlene Feeds ({recommendedSources.length})
@@ -769,18 +790,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 {recommendedSources.map((src) => (
                   <div key={src.id} className="flex items-center justify-between gap-3 py-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div
-                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-xs font-bold text-white"
-                        style={{ backgroundColor: src.accentColor }}
-                      >
-                        {src.shortCode}
-                      </div>
+                      <SourceIcon source={src} />
                       <div className="min-w-0">
-                        <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">
+                        <p className="text-sm font-semibold text-slate-900 dark:text-white break-words">
                           {src.name}
                         </p>
                         <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                          {src.category} · {src.description}
+                          {src.category} · {src.format.toUpperCase()} · {src.language.toUpperCase()}
                         </p>
                       </div>
                     </div>
@@ -788,7 +804,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       type="button"
                       onClick={() => onToggleSource(src.id)}
                       aria-label={`${src.name} abonnieren`}
-                      className="inline-flex min-h-[40px] shrink-0 items-center gap-1.5 rounded-full bg-blue-600 px-3.5 text-xs font-semibold text-white transition hover:bg-blue-500"
+                      className="inline-flex min-h-[44px] shrink-0 items-center gap-1.5 rounded-full bg-blue-600 px-3.5 text-xs font-semibold text-white transition hover:bg-blue-500"
                     >
                       <Plus className="h-3.5 w-3.5" />
                       Abonnieren
@@ -801,7 +817,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
           {/* Weitere verfügbare Quellen */}
           {otherSources.length > 0 && (
-            <details className="settings-group p-5 space-y-3">
+            <details open={feedSearch.trim() || sourceType !== 'all' ? true : undefined} className="settings-group p-4 space-y-3">
               <summary className="cursor-pointer font-semibold">
                 Weitere Quellen ({otherSources.length})
               </summary>
@@ -809,25 +825,20 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 {otherSources.map((src) => (
                   <div key={src.id} className="flex items-center justify-between gap-3 py-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div
-                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-xs font-bold text-white"
-                        style={{ backgroundColor: src.accentColor }}
-                      >
-                        {src.shortCode}
-                      </div>
+                      <SourceIcon source={src} />
                       <div className="min-w-0">
-                        <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">
+                        <p className="text-sm font-semibold text-slate-900 dark:text-white break-words">
                           {src.name}
                         </p>
                         <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                          {src.category} · {src.description}
+                          {src.category} · {src.format.toUpperCase()} · {src.language.toUpperCase()}
                         </p>
                       </div>
                     </div>
                     <button
                       type="button"
                       onClick={() => onToggleSource(src.id)}
-                      className="liquid-glass-subtle inline-flex min-h-[40px] shrink-0 items-center gap-1.5 rounded-full px-3.5 text-xs font-semibold text-slate-800 dark:text-slate-100"
+                      className="liquid-glass-subtle inline-flex min-h-[44px] shrink-0 items-center gap-1.5 rounded-full px-3.5 text-xs font-semibold text-slate-800 dark:text-slate-100"
                     >
                       <Plus className="h-3.5 w-3.5" />
                       Folgen
@@ -1049,7 +1060,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       )}
 
-      {/* SECTION 4: APP & DESIGN (3-way Theme Mode + Notifications + PWA) */}
       {section === 'app' && (
         <div className="space-y-4">
           <div className="liquid-glass rounded-[26px] p-5 space-y-4">
@@ -1136,7 +1146,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <button
               type="button"
               onClick={onResetAlgorithm}
-              className="liquid-glass-subtle min-h-[40px] rounded-full px-4 text-xs font-semibold text-rose-500 hover:bg-rose-500/10"
+              className="liquid-glass-subtle min-h-[44px] rounded-full px-4 text-xs font-semibold text-rose-500 hover:bg-rose-500/10"
             >
               Algorithmus zurücksetzen
             </button>
