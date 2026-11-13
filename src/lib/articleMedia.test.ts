@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { MediaAttachment } from '../types/news';
-import { getReaderAttachments } from './articleMedia';
+import { getArticleMedia, getReaderAttachments } from './articleMedia';
 
 test('shows BILD size and portrait variants of the lead image only once', () => {
   const base = 'https://images.bild.de/6af74e727f8bbad09ea62b09/';
@@ -23,4 +23,14 @@ test('preserves image URLs distinguished by query parameters on other hosts', ()
   const hero = 'https://example.org/image?id=1';
   const other: MediaAttachment = { type: 'image', url: 'https://example.org/image?id=2' };
   assert.deepEqual(getReaderAttachments([other], hero), [other]);
+});
+
+test('uses one playable WELT rendition per video and prefers MP4', () => {
+  const base = 'https://welt.cdn.content-discovery.video/videos/';
+  const stream: MediaAttachment = { type: 'video', url: base + 'clip1/rendition/a/master.m3u8' };
+  const file: MediaAttachment = { type: 'video', url: base + 'clip1/rendition/b/file-v720p.mp4' };
+  const second: MediaAttachment = { type: 'video', url: base + 'clip2/rendition/c/master.m3u8' };
+
+  assert.deepEqual(getArticleMedia({ media: [stream, file, second] }), [file, second]);
+  assert.deepEqual(getReaderAttachments([stream, file, second]), [file, second]);
 });

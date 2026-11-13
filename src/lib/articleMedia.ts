@@ -17,7 +17,7 @@ function readerImageKey(value: string): string {
 
 export function getReaderAttachments(media: MediaAttachment[], heroImage?: string): MediaAttachment[] {
   const seenImages = new Set(heroImage ? [readerImageKey(heroImage)] : []);
-  return media.filter(attachment => {
+  return combineVideoRenditions(media).filter(attachment => {
     if (attachment.type !== 'image') return true;
     const key = readerImageKey(attachment.url);
     if (seenImages.has(key)) return false;
@@ -26,8 +26,23 @@ export function getReaderAttachments(media: MediaAttachment[], heroImage?: strin
   });
 }
 
-export function getArticleMedia(article: NewsArticle): PlayableMedia[] {
-  if (article.media) return article.media.filter((item): item is PlayableMedia => item.type !== 'image');
+function combineVideoRenditions<T extends MediaAttachment>(media: T[]): T[] {
+  const entries = new Map<string, T>();
+  for (const attachment of media) {
+    const clipId = attachment.type === 'video'
+      ? /^https:\/\/welt\.cdn\.content-discovery\.video\/videos\/([\w-]+)\/rendition\//i.exec(attachment.url)?.[1]
+      : undefined;
+    const key = clipId ? `welt-video:${clipId}` : `${attachment.type}:${attachment.url}`;
+    const existing = entries.get(key);
+    if (!existing || (clipId && /\.m3u8(?:[?#]|$)/i.test(existing.url) && /\.mp4(?:[?#]|$)/i.test(attachment.url))) {
+      entries.set(key, attachment);
+    }
+  }
+  return [...entries.values()];
+}
+
+export function getArticleMedia(article: Pick<NewsArticle, 'media' | 'videoUrl' | 'audioUrl' | 'youtubeId'>): PlayableMedia[] {
+  if (article.media) return combineVideoRenditions(article.media.filter((item): item is PlayableMedia => item.type !== 'image'));
   const attachments = [
     { type: 'video', url: article.videoUrl },
     { type: 'audio', url: article.audioUrl },
