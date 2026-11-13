@@ -157,7 +157,7 @@ test('Heute favors important stories and mixes sources independently of personal
   const localNoon = new Date(2026, 10, 12, 12).getTime();
   const politics = { ...sampleArticles[0], publishedAt: new Date(localNoon - 30 * 60_000).toISOString() };
   const technology = { ...sampleArticles[1], publishedAt: new Date(localNoon - 4 * 60 * 60_000).toISOString() };
-  const breaking = { ...politics, id: 'breaking', isBreaking: true, publishedAt: technology.publishedAt };
+  const breaking = { ...politics, id: 'breaking', link: 'https://example.com/breaking', isBreaking: true, publishedAt: technology.publishedAt };
   const profile = { ...createDefaultProfile(), dislikedIds: ['breaking'] };
   const sections = buildHomeSections([politics, breaking, technology], profile, DEFAULT_SOURCES, localNoon);
   assert.deepEqual(sections.Heute.map(article => article.id), ['breaking', 'a-tech', 'a-pol']);
@@ -182,7 +182,7 @@ test('feed retention expires at the chosen cutoff and falls back to four days', 
 
 test('feed refresh retains articles missing from the latest RSS response', () => {
   const [older, latest] = sampleArticles;
-  const previous = { ...older, id: 'previous', publishedAt: latest.publishedAt };
+  const previous = { ...older, id: 'previous', link: 'https://example.com/previous', publishedAt: latest.publishedAt };
   const updated = { ...older, title: 'Aktualisierte Überschrift' };
   assert.deepEqual(mergeFeedArticles([older, previous], [updated], '4', nowMs), [updated, previous]);
 });
@@ -191,7 +191,7 @@ test('Heute gives different stories room before near-identical headlines', () =>
   const now = new Date(2026, 10, 12, 12).getTime();
   const publishedAt = new Date(now - 60_000).toISOString();
   const first = { ...sampleArticles[0], id: 'one', title: 'Microsoft meldet Fortschritte nach weltweiten IT-Ausfällen', publishedAt, isBreaking: true };
-  const repeated = { ...first, id: 'two', sourceId: 'another', title: 'IT-Ausfällen weltweit: Microsoft meldet deutliche Fortschritte' };
+  const repeated = { ...first, id: 'two', link: 'https://example.net/report', sourceId: 'another', title: 'IT-Ausfällen weltweit: Microsoft meldet deutliche Fortschritte' };
   const different = { ...sampleArticles[1], id: 'three', title: 'Forschende entdecken neuen Exoplaneten', publishedAt };
 
   const sections = buildHomeSections([first, repeated, different], createDefaultProfile(), DEFAULT_SOURCES, now);

@@ -1,4 +1,6 @@
 import { XMLParser } from 'fast-xml-parser';
+import { deduplicateAttachments } from './articleMedia';
+import { extractYouTubeId } from './contentIdentity';
 import type { MediaAttachment, NewsArticle, NewsCategory, NewsSource } from '../types/news';
 
 const xmlParser = new XMLParser({
@@ -35,7 +37,12 @@ export function decodeHtmlEntities(input: string): string {
     .replace(/&Ouml;/g, 'Ö')
     .replace(/&Uuml;/g, 'Ü')
     .replace(/&szlig;/g, 'ß')
-    .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(Number(dec)));
+    .replace(/&#(\d+|x[\da-f]+);/gi, (entity, digits: string) => {
+      const point = /^x/i.test(digits) ? Number.parseInt(digits.slice(1), 16) : Number(digits);
+      return point > 0 && point <= 0x10ffff && !(point >= 0xd800 && point <= 0xdfff)
+        ? String.fromCodePoint(point)
+        : entity;
+    });
 }
 
 export function stripHtml(html: string): string {
@@ -70,21 +77,6 @@ export function extractFirstImageFromHtml(html: string): string | undefined {
     return decodeHtmlEntities(match[1]);
   }
   return undefined;
-}
-
-export function extractYouTubeId(url: string): string | undefined {
-  if (!url) return undefined;
-  const parsed = mediaUrl(url);
-  if (!parsed) return undefined;
-  const host = parsed.hostname;
-  let id: string | null | undefined;
-  if (host === 'youtu.be') {
-    id = parsed.pathname.split('/')[1];
-  } else if (['youtube.com', 'www.youtube.com', 'm.youtube.com', 'www.youtube-nocookie.com'].includes(host)) {
-    if (parsed.pathname === '/watch') id = parsed.searchParams.get('v');
-    else id = parsed.pathname.match(/^\/(?:embed|shorts|live)\/([^/]+)\/?$/)?.[1];
-  }
-  return id && /^[\w-]{11}$/.test(id) ? id : undefined;
 }
 
 export function extractKeywords(title: string, summary: string): string[] {
@@ -274,7 +266,7 @@ function collectMedia(
     }
   }
 
-  const entries = [...media.values()];
+  const entries = deduplicateAttachments([...media.values()]);
   const first = (type: MediaAttachment['type']) => entries.find(entry => entry.type === type)?.url;
   return {
     media: entries.length ? entries : undefined,
@@ -320,7 +312,7 @@ export function parseFeedPayload(rawText: string, source: NewsSource): NewsArtic
           const title = decodeHtmlEntities(String(item.title || 'Ohne Titel')).trim();
           const html = String(item.content_html || item.summary || item.content_text || '');
           const summary = stripHtml(String(item.summary || item.content_text || html)).slice(0, 280);
-          const link = String(item.url || item.external_url || source.url);
+          const link = String(item.url || item.external_url || '');
           const paragraphs = extractParagraphs(html, summary);
           const imageUrl =
             typeof item.image === 'string'
@@ -347,7 +339,8 @@ export function parseFeedPayload(rawText: string, source: NewsSource): NewsArtic
             title,
             summary: summary || title,
             paragraphs,
-            link,
+            link: link || source.url,
+            linkIsFeed: !link || link === source.url,
             author: authorName || undefined,
             category: inferCategory(item.tags, title, summary, source.category),
             publishedAt: safeIsoDate(item.date_published || item.date_modified),
@@ -389,7 +382,7 @@ export function parseFeedPayload(rawText: string, source: NewsSource): NewsArtic
           getText(item.description) ||
           getText(item['itunes:summary']);
         const summary = stripHtml(getText(item.description) || rawHtml).slice(0, 280);
-        const link = getText(item.link) || getText(item.guid) || source.url;
+        const link = getText(item.link) || getText(item.guid);
         const paragraphs = extractParagraphs(rawHtml, summary);
         const imageUrl = pickImageUrl(item, rawHtml);
         const media = collectMedia(item, link, source.url, rawHtml, getText(item.description), imageUrl);
@@ -404,7 +397,8 @@ export function parseFeedPayload(rawText: string, source: NewsSource): NewsArtic
           title,
           summary: summary || title,
           paragraphs,
-          link,
+          link: link || source.url,
+          linkIsFeed: !link || link === source.url,
           author,
           category: inferCategory(item.category, title, summary, source.category),
           isBreaking: asArray(item.category).some(category =>
@@ -434,7 +428,7 @@ export function parseFeedPayload(rawText: string, source: NewsSource): NewsArtic
 
       const links = asArray(entry.link as Record<string, unknown> | Record<string, unknown>[]);
       const altLink = links.find((l) => !l['@_rel'] || l['@_rel'] === 'alternate');
-      const link = String(altLink?.['@_href'] || getText(entry.id) || source.url);
+      const link = String(altLink?.['@_href'] || getText(entry.id));
 
       const paragraphs = extractParagraphs(rawHtml, summary);
       const media = collectMedia(entry, link, source.url, rawHtml, getText(entry.summary), pickImageUrl(entry, rawHtml));
@@ -450,7 +444,8 @@ export function parseFeedPayload(rawText: string, source: NewsSource): NewsArtic
         title,
         summary: summary || title,
         paragraphs,
-        link,
+        link: link || source.url,
+        linkIsFeed: !link || link === source.url,
         author: author || undefined,
         category: inferCategory(entry.category, title, summary, source.category),
         publishedAt: safeIsoDate(entry.published || entry.updated),

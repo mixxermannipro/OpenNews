@@ -1,3 +1,4 @@
+import { distinctArticles } from '../lib/newsFeed';
 import React, { useMemo, useState } from 'react';
 import { Bookmark, Heart, RotateCcw, SlidersHorizontal, Sparkles } from 'lucide-react';
 import type { NewsArticle, NewsSource, PersonalizationProfile } from '../types/news';
@@ -29,12 +30,12 @@ export const SavedView: React.FC<SavedViewProps> = ({
   const [subTab, setSubTab] = useState<'bookmarks' | 'likes' | 'history' | 'algorithm'>(initialPage);
 
   const bookmarkedArticles = useMemo(
-    () => articles.filter((a) => profile.bookmarkedIds.includes(a.id)),
+    () => distinctArticles(articles.filter((a) => profile.bookmarkedIds.includes(a.id))),
     [articles, profile.bookmarkedIds]
   );
 
   const likedArticles = useMemo(
-    () => articles.filter((a) => profile.likedIds.includes(a.id)),
+    () => distinctArticles(articles.filter((a) => profile.likedIds.includes(a.id))),
     [articles, profile.likedIds]
   );
 

@@ -1,3 +1,4 @@
+import { contentUrlKey } from './contentIdentity';
 import type { NewsArticle, NewsSource, PersonalizationProfile } from '../types/news';
 import { diversifyArticles, rankArticlesForYou } from './personalization';
 import type { HomeTab, Retention } from './preferences';
@@ -25,6 +26,23 @@ function newestFirst(a: NewsArticle, b: NewsArticle): number {
   return Date.parse(b.publishedAt) - Date.parse(a.publishedAt) || a.id.localeCompare(b.id);
 }
 
+export function articleIdentity(article: NewsArticle): string {
+  const link = !article.linkIsFeed && contentUrlKey(article.link, 'article');
+  return link ? `url:${link}` : `id:${article.id}`;
+}
+
+export function distinctArticles(articles: NewsArticle[]): NewsArticle[] {
+  const seen = new Set<string>();
+  const seenIds = new Set<string>();
+  return articles.filter(article => {
+    const key = articleIdentity(article);
+    if (seen.has(key) || seenIds.has(article.id)) return false;
+    seen.add(key);
+    seenIds.add(article.id);
+    return true;
+  });
+}
+
 export function pruneFeedArticles(articles: NewsArticle[], retention: Retention, now: number): NewsArticle[] {
   const cutoff = now - Number(retention) * DAY_MS;
   const fresh = articles.filter(article => Date.parse(article.publishedAt) > cutoff);
@@ -37,10 +55,18 @@ export function mergeFeedArticles(
   retention: Retention,
   now: number,
 ): NewsArticle[] {
-  const byId = new Map(previous.map(article => [article.id, article]));
+  const cacheKey = (article: NewsArticle) => JSON.stringify([article.sourceId, articleIdentity(article)]);
+  const byId = new Map(previous.map(article => [cacheKey(article), article]));
+  const keysById = new Map([...byId].map(([key, article]) => [article.id, key]));
   for (const article of incoming) {
-    byId.set(article.id, {
+    const key = cacheKey(article);
+    const oldKey = keysById.get(article.id);
+    if (oldKey && oldKey !== key) byId.delete(oldKey);
+    const id = byId.get(key)?.id ?? article.id;
+    keysById.set(id, key);
+    byId.set(key, {
       ...article,
+      id,
       paragraphs: article.paragraphs.slice(0, 6).map(paragraph => paragraph.slice(0, 500)),
     });
   }
@@ -54,7 +80,7 @@ export function buildHomeSections(
   now: number,
 ): Record<HomeTab, NewsArticle[]> {
   const podcastIds = new Set(sources.filter(source => source.format === 'podcast').map(source => source.id));
-  const latest = articles.filter(article => !podcastIds.has(article.sourceId)).sort(newestFirst);
+  const latest = distinctArticles(articles.filter(article => !podcastIds.has(article.sourceId)).sort(newestFirst));
   const todayStart = new Date(now);
   todayStart.setHours(0, 0, 0, 0);
 

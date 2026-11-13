@@ -34,3 +34,20 @@ test('uses one playable WELT rendition per video and prefers MP4', () => {
   assert.deepEqual(getArticleMedia({ media: [stream, file, second] }), [file, second]);
   assert.deepEqual(getReaderAttachments([stream, file, second]), [file, second]);
 });
+
+test('deduplicates tracking links, image sizes and YouTube URL forms', () => {
+  const image: MediaAttachment = { type: 'image', url: 'https://cdn.example.org/photo.jpg?w=200&utm_source=feed#preview' };
+  const first: MediaAttachment = { type: 'youtube', url: 'https://youtu.be/abcdefghijk' };
+  const second: MediaAttachment = { type: 'youtube', url: 'https://www.youtube-nocookie.com/embed/abcdefghijk', portrait: true };
+  const video: MediaAttachment = { type: 'video', url: 'https://cdn.example.org/film.mp4' };
+  assert.deepEqual(getReaderAttachments([image, first, second, video, {
+    ...video, url: video.url + '?utm_medium=rss#t=2',
+  }], 'https://cdn.example.org/photo.jpg?w=1280'), [second, video]);
+});
+
+test('keeps one version of a Tagesschau clip offered in multiple resolutions', () => {
+  const stem = 'https://tagesschau-progressive.ard-mcdn.de/video/2026/1112/TV-20261112-2304-2500';
+  const clip: MediaAttachment = { type: 'video', url: stem + '.webxl.h264.mp4' };
+  const small: MediaAttachment = { type: 'video', url: stem + '.webs.h264.mp4' };
+  assert.deepEqual(getArticleMedia({ media: [clip, small] }), [clip]);
+});

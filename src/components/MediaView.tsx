@@ -1,6 +1,6 @@
 import { Headphones, Play, Video } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { getArticleMedia } from '../lib/articleMedia';
+import { attachmentKey, getArticleMedia } from '../lib/articleMedia';
 import type { NewsArticle } from '../types/news';
 import { ArticleImage } from './ArticleImage';
 import { MediaPlayer } from './MediaPlayer';
@@ -21,8 +21,9 @@ export function MediaView({ articles, loading, background, onArticle, onSources 
   const entries = useMemo(() => {
     const seen = new Set<string>();
     return articles.flatMap(article => getArticleMedia(article).flatMap(media => {
-      if (seen.has(media.url)) return [];
-      seen.add(media.url);
+      const key = attachmentKey(media);
+      if (seen.has(key)) return [];
+      seen.add(key);
       return [{ article, media }];
     }));
   }, [articles]);

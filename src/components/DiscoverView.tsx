@@ -1,3 +1,4 @@
+import { SourceIcon } from './SourceIcon';
 import politicsImage from '../assets/images/news_bundestag_berlin_1794556463691.jpg';
 import businessImage from '../assets/images/news_renewable_europe_1794556463653.jpg';
 import technologyImage from '../assets/images/news_ai_semiconductor_1794556462965.jpg';
@@ -181,12 +182,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
             >
               <div>
                 <div className="flex items-center justify-between gap-1.5">
-                  <div
-                    className="flex h-8 w-8 items-center justify-center rounded-[10px] text-[10px] font-bold text-white shadow-sm"
-                    style={{ backgroundColor: src.accentColor }}
-                  >
-                    {src.shortCode}
-                  </div>
+                  <SourceIcon source={src} size="h-8 w-8" />
                   <button
                     type="button"
                     onClick={() => onToggleSubscribe(src.id)}

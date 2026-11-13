@@ -27,7 +27,7 @@ import {
   toggleArticleDislike,
   toggleArticleLike,
 } from './lib/personalization';
-import { buildHomeSections, mergeFeedArticles, pruneFeedArticles } from './lib/newsFeed';
+import { articleIdentity, buildHomeSections, distinctArticles, mergeFeedArticles, pruneFeedArticles } from './lib/newsFeed';
 import { SEED_ARTICLES } from './lib/seedArticles';
 import { trackNavigationScroll } from './lib/scrollNavigation';
 import { useLocalStorage } from './hooks/useLocalStorage';
@@ -281,7 +281,7 @@ export default function App() {
     alertTimer.current = window.setTimeout(() => setAlertBanner(null), 5000);
   }, []);
   useEffect(() => () => window.clearTimeout(alertTimer.current), []);
-  const initialArticleIds = useRef(new Set(cachedLiveArticles.map(article => article.id)));
+  const initialArticleIds = useRef(new Set(cachedLiveArticles.map(articleIdentity)));
 
   const checkForAlert = useCallback((articles: NewsArticle[]) => {
     const firstLoad = !feedHasLoaded.current;
@@ -292,8 +292,9 @@ export default function App() {
     const withinWindow = from <= until ? time >= from && time <= until : time >= from || time <= until;
     let candidate: NewsArticle | undefined;
     for (const article of articles) {
-      if (announcedArticles.current.has(article.id) || initialArticleIds.current.has(article.id)) continue;
-      announcedArticles.current.add(article.id);
+      const identity = articleIdentity(article);
+      if (announcedArticles.current.has(identity) || initialArticleIds.current.has(identity)) continue;
+      announcedArticles.current.add(identity);
       const age = now.getTime() - Date.parse(article.publishedAt);
       if (!candidate && age >= 0 && age <= 2 * 60 * 60_000
         && (notifications.breakingOnly ? article.isBreaking : !notifications.topics.length || notifications.topics.includes(article.category))) {
@@ -358,19 +359,21 @@ export default function App() {
     };
   }, [activeSources]);
 
-  const allArticles = useMemo(() => {
+  const activeArticles = useMemo(() => {
     const activeIds = new Set(activeSources.map(source => source.id));
     return pruneFeedArticles(cachedLiveArticles, retention, feedClock)
       .filter(article => activeIds.has(article.sourceId));
   }, [activeSources, cachedLiveArticles, feedClock, retention]);
 
+  const allArticles = useMemo(() => distinctArticles(activeArticles), [activeArticles]);
+
   const homeSections = useMemo(
     () => {
       const topicWeights = { ...normalizedProfile.topicWeights };
       for (const topic of preferences.topics) topicWeights[topic] = (topicWeights[topic] ?? 0) + 4;
-      return buildHomeSections(allArticles, { ...normalizedProfile, topicWeights }, sources, feedClock);
+      return buildHomeSections(activeArticles, { ...normalizedProfile, topicWeights }, sources, feedClock);
     },
-    [allArticles, normalizedProfile, sources, preferences.topics, feedClock]
+    [activeArticles, normalizedProfile, sources, preferences.topics, feedClock]
   );
 
   const openSettings = (sec: SettingsSectionTab = 'overview') => {
@@ -385,7 +388,7 @@ export default function App() {
       summary: article.summary.slice(0, 800),
       paragraphs: article.paragraphs.slice(0, 4).map(paragraph => paragraph.slice(0, 450)),
     };
-    setReadArticles(previous => [historyEntry, ...previous.filter(item => item.id !== article.id)].slice(0, 60));
+    setReadArticles(previous => [historyEntry, ...previous.filter(item => articleIdentity(item) !== articleIdentity(article))].slice(0, 60));
     setProfile((prev) => recordArticleRead(normalizeProfile(prev), article));
   };
 
@@ -528,7 +531,7 @@ export default function App() {
           <SavedView
             key={savedPage}
             initialPage={savedPage}
-            history={[...readArticles, ...allArticles.filter(article => normalizedProfile.readIds.includes(article.id) && !readArticles.some(read => read.id === article.id))]}
+            history={distinctArticles([...readArticles, ...allArticles.filter(article => normalizedProfile.readIds.includes(article.id))])}
             articles={Object.values(savedArticles)}
             sources={sources}
             profile={normalizedProfile}
@@ -540,7 +543,7 @@ export default function App() {
         )}
 
         {activeTab === 'media' && (
-          <MediaView articles={allArticles} loading={isLoadingFeeds} background={backgroundPlayback}
+          <MediaView articles={activeArticles} loading={isLoadingFeeds} background={backgroundPlayback}
             onArticle={handleOpenArticle} onSources={() => openSettings('feeds')} />
         )}
 

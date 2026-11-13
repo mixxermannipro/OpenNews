@@ -45,6 +45,7 @@ export interface NewsArticle {
   contentHtml?: string;
   paragraphs: string[];
   link: string;
+  linkIsFeed?: boolean;
   author?: string;
   category: Exclude<NewsCategory, 'Alle' | 'Für dich'>;
   publishedAt: string; // ISO string

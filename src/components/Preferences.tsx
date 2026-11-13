@@ -87,8 +87,8 @@ export function ProfileView({ page, onPage, onBack, onSaved, onHistory, onSource
 }) {
   const { preferences, onPreferences } = appearance;
   const labels: Record<ProfilePage, string> = {
-    profile: 'Profil', preferences: 'Individuelle Einstellungen', appearance: 'Darstellung & Design',
-    feed: 'Feed & Startseite', reader: 'Lesen & Artikel', motion: 'Navigation & Bewegung',
+    profile: 'Profil', preferences: 'Einstellungen', appearance: 'Darstellung',
+    feed: 'Feed & Startseite', reader: 'Lesen', motion: 'Navigation & Bewegung',
     playback: 'Wiedergabe', privacy: 'Datenschutz', topics: 'Interessen',
   };
   const title = useRef<HTMLHeadingElement>(null);
@@ -112,11 +112,9 @@ export function ProfileView({ page, onPage, onBack, onSaved, onHistory, onSource
           {link('Leseverlauf', <History />, onHistory)}
         </div>
         <div className="settings-group">
-          {link(labels.preferences, <SlidersHorizontal />, () => onPage('preferences'))}
-          {link('Benachrichtigungen', <Bell />, onNotifications)}
-          {link(labels.topics, <Compass />, () => onPage('topics'))}
           {link('Quellen', <Layers />, onSources)}
-          {link(labels.privacy, <ShieldCheck />, () => onPage('privacy'))}
+          {link(labels.topics, <Compass />, () => onPage('topics'))}
+          {link(labels.preferences, <SlidersHorizontal />, () => onPage('preferences'))}
         </div>
       </>}
       {page === 'preferences' && <>
@@ -131,8 +129,12 @@ export function ProfileView({ page, onPage, onBack, onSaved, onHistory, onSource
           {link(labels.feed, <Layers />, () => onPage('feed'))}
           {link(labels.reader, <BookOpen />, () => onPage('reader'))}
           {link(labels.playback, <Clapperboard />, () => onPage('playback'))}
-          {link('KI & Personalisierung', <Sparkles />, onAI)}
           {link(labels.motion, <SlidersHorizontal />, () => onPage('motion'))}
+        </div>
+        <div className="settings-group">
+          {link('Benachrichtigungen', <Bell />, onNotifications)}
+          {link('KI & Personalisierung', <Sparkles />, onAI)}
+          {link(labels.privacy, <ShieldCheck />, () => onPage('privacy'))}
         </div>
       </>}
       {page === 'playback' && (
