@@ -1,7 +1,6 @@
 import React, { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { NewsPush } from './lib/newsPush';
 import { Capacitor, SystemBars, SystemBarsStyle } from '@capacitor/core';
-import { fetchNativeFeeds } from './lib/nativeFeed';
 import { Bell, Compass, Home, Clapperboard, User } from 'lucide-react';
 import { AnimatePresence, MotionConfig, motion } from 'motion/react';
 import type {
@@ -405,6 +404,7 @@ export default function App() {
 
     try {
       if (Capacitor.isNativePlatform()) {
+        const { fetchNativeFeeds } = await import('./lib/nativeFeed');
         await fetchNativeFeeds(activeSources, applyArticles, controller.signal, undefined, result => recordResults([result]));
       } else {
         for (let i = 0; i < activeSources.length && !controller.signal.aborted; i += 6) {

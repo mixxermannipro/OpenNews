@@ -1,23 +1,16 @@
 import { CapacitorHttp } from '@capacitor/core';
 import type { FeedResult, NewsArticle, NewsSource } from '../types/news';
 import { parseFeedPayload } from './rssParser';
+import { isSafeHttpUrl } from './publicHttpUrl';
 
 type FeedFormat = 'rss' | 'atom' | 'json';
 type DiscoveredFeed = { name: string; url: string; format: FeedFormat };
 
 export function publicHttpUrl(value: string): string | null {
-  try {
-    const url = new URL(value);
-    if (url.username || url.password || !['http:', 'https:'].includes(url.protocol)) return null;
-    // Prevent accidentally fetching device-local services from arbitrary saved feeds.
-    const host = url.hostname.toLowerCase();
-    if (host === 'localhost' || host === '0.0.0.0' || host === '127.0.0.1' || host === '[::1]') return null;
-    if (/^(10|127|192\.168|169\.254)\./.test(host)) return null;
-    url.hash = '';
-    return url.toString();
-  } catch {
-    return null;
-  }
+  if (!isSafeHttpUrl(value)) return null;
+  const url = new URL(value);
+  url.hash = '';
+  return url.toString();
 }
 
 async function getNativeText(url: string, timeout = 6500): Promise<string> {
