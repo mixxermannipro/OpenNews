@@ -125,14 +125,14 @@ export function HeadlineArticleCard({ article, lead = false, onOpen, ...actions 
   const hasVideo = Boolean(article.videoUrl || article.youtubeId);
 
   return (
-    <article className="min-w-0 border-b border-slate-300 dark:border-slate-700">
+    <article className="settings-group min-w-0 overflow-hidden">
       <button
         type="button"
         onClick={() => onOpen(article)}
         className="group block w-full text-left focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-red-700"
       >
         {article.imageUrl && (
-          <div className={`relative overflow-hidden bg-slate-200 dark:bg-slate-800 ${lead ? 'aspect-[16/9]' : 'aspect-[4/3] sm:aspect-[16/9]'}`}>
+          <div className={`relative overflow-hidden bg-slate-200 dark:bg-slate-800 ${lead ? 'aspect-[2.1] rounded-b-[var(--card-radius)]' : 'aspect-[4/3] sm:aspect-[16/9]'}`}>
             <ArticleImage
               key={article.imageUrl}
               src={article.imageUrl}
@@ -149,21 +149,21 @@ export function HeadlineArticleCard({ article, lead = false, onOpen, ...actions 
             )}
           </div>
         )}
-        <div className={lead ? 'pt-3' : 'pt-2'}>
+        <div className="px-4 pt-3">
           <p className="text-xs font-bold tracking-wide text-red-800 dark:text-red-400">
             {article.isBreaking ? `Eilmeldung · ${article.category}` : article.category}
           </p>
-          <Heading className={`mt-1 font-extrabold leading-[1.1] tracking-tight text-slate-950 [overflow-wrap:anywhere] group-hover:underline group-hover:decoration-2 group-hover:underline-offset-4 dark:text-white ${lead ? 'text-[clamp(1.7rem,6vw,3.25rem)]' : 'text-[clamp(1.05rem,4.5vw,1.5rem)]'}`}>
+          <Heading className={`mt-1 font-extrabold leading-[1.1] tracking-tight text-slate-950 [overflow-wrap:anywhere] group-hover:underline group-hover:decoration-2 group-hover:underline-offset-4 dark:text-white ${lead ? 'text-[clamp(1.4rem,5.8vw,2.75rem)]' : 'text-[clamp(1.05rem,4.5vw,1.5rem)]'}`}>
             {article.title}
           </Heading>
           {lead && article.summary && (
-            <p className="mt-2 line-clamp-2 max-w-[65ch] text-sm leading-snug text-slate-700 sm:text-base dark:text-slate-300">
+            <p className="mt-2 line-clamp-3 max-w-[65ch] text-sm leading-snug text-slate-700 sm:text-base dark:text-slate-300">
               {article.summary}
             </p>
           )}
         </div>
       </button>
-      <div className="flex flex-wrap items-center justify-between gap-x-2">
+      <div className="flex flex-wrap items-center justify-between gap-x-2 px-4 pb-1">
         <p className="min-w-0 py-1 text-xs leading-snug text-slate-600 [overflow-wrap:anywhere] dark:text-slate-400">
           {article.sourceName} <span aria-hidden="true">·</span> {formatRelativeTimeDe(article.publishedAt)}
         </p>
@@ -192,7 +192,7 @@ export const CompactArticleCard: React.FC<CardActionsProps> = ({
         className="flex min-w-0 flex-1 items-center gap-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-2xl"
         aria-label={`Artikel öffnen: ${article.title}`}
       >
-        <div className="article-thumbnail relative h-[76px] w-[104px] sm:h-[84px] sm:w-[116px] shrink-0 overflow-hidden rounded-[15px] bg-slate-200 dark:bg-slate-800">
+        <div className="article-thumbnail relative h-[76px] w-[76px] sm:h-[84px] sm:w-[116px] shrink-0 overflow-hidden rounded-[15px] bg-slate-200 dark:bg-slate-800">
           <ArticleImage
             src={article.imageUrl}
             alt={article.title}
@@ -209,14 +209,14 @@ export const CompactArticleCard: React.FC<CardActionsProps> = ({
 
         <div className="min-w-0 flex-1 py-0.5">
           <div className="flex items-center gap-1.5 text-[11px] font-semibold">
-            <span className={`inline-flex rounded-full px-2 py-0.5 ${catBadge}`}>
+            <span className={`inline-flex rounded-full px-2 py-0.5 [overflow-wrap:anywhere] ${catBadge}`}>
               {article.category}
             </span>
           </div>
-          <h3 className="mt-0.5 line-clamp-2 text-[15px] font-bold leading-snug text-slate-900 dark:text-slate-50 [text-wrap:balance]">
+          <h3 className="mt-0.5 line-clamp-2 [overflow-wrap:anywhere] text-[15px] font-bold leading-snug text-slate-900 dark:text-slate-50 [text-wrap:balance]">
             {article.title}
           </h3>
-          <div className="mt-1 flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 tabular-nums">
+          <div className="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-slate-500 dark:text-slate-400 tabular-nums">
             <span className="truncate max-w-[130px] font-medium text-slate-600 dark:text-slate-300">
               {article.sourceName}
             </span>

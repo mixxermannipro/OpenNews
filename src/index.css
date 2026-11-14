@@ -118,7 +118,7 @@
   font-size: clamp(1.9rem, 8vw, 2.75rem);
   line-height: 1.07;
   letter-spacing: -.04em;
-  font-weight: 720;
+  font-weight: 780;
   overflow-wrap: anywhere;
   text-wrap: balance;
 }
@@ -294,7 +294,67 @@
 .settings-link svg { width: 19px; height: 19px; flex-shrink: 0; color: var(--muted); }
 .settings-link:hover { background: color-mix(in srgb, var(--accent) 6%, transparent); }
 
-.segmented-control { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+/* The dock uses its own glass surface and selection. */
+.app-content {
+  --panel: #fff;
+  --control: #efeeeb;
+}
+
+.dark .app-content {
+  --panel: #1a1b1f;
+  --control: #242529;
+}
+
+.segmented-control {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .25rem;
+  padding: .1875rem;
+  background: var(--control);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+}
+
+.segmented-control .choice-pill {
+  padding-inline: .125rem;
+  border-color: transparent;
+}
+.segmented-control .choice-pill[aria-pressed="false"] { background: transparent; }
+.media-tabs { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+.screen-subtitle { margin-top: .25rem; color: var(--muted); }
+.profile-intro {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-height: 7rem;
+  padding: 1.25rem;
+  background: linear-gradient(145deg, var(--control), var(--panel) 70%);
+  font-size: 1.125rem;
+  font-weight: 650;
+}
+.profile-avatar {
+  display: grid;
+  place-items: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  flex: none;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--control);
+}
+.profile-page .settings-link { min-height: 3.75rem; font-weight: 650; }
+
+.media-audio {
+  display: grid;
+  grid-template-columns: clamp(3rem, 18vw, 5.5rem) minmax(0, 1fr);
+  align-items: center;
+  gap: .75rem;
+  padding: .75rem;
+}
+.media-artwork { aspect-ratio: 1; border-radius: calc(var(--card-radius) / 2); }
+.media-audio-player { grid-column: 1 / -1; grid-row: 2; }
+
 .onboarding {
   width: min(calc(100% - 2rem), 29rem);
   min-height: 100dvh;
@@ -497,16 +557,6 @@
 }
 
 .screen-heading p, .view-status-detail { color: var(--muted); font-size: .875rem; }
-
-.home-tabs {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  padding: .25rem;
-  background: var(--control);
-  border: 1px solid var(--line);
-  border-radius: var(--card-radius);
-}
-
-.home-tabs .choice-pill { padding-inline: .25rem; border-color: transparent; }
 
 .view-status {
   padding: clamp(1rem, 5vw, 2rem);
