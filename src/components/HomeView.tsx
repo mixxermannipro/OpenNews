@@ -1,6 +1,7 @@
-import React, { useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { ArrowDown, LoaderCircle, Sparkles } from 'lucide-react';
 import type { NewsArticle, PersonalizationProfile } from '../types/news';
+import { clusterStories } from '../lib/storyClusters';
 import { HOME_TABS, type HomeTab } from '../lib/preferences';
 import { CompactArticleCard, HeadlineArticleCard } from './ArticleCards';
 
@@ -41,7 +42,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
   const [batch, setBatch] = useState({ category: selectedCategory, limit: 30 });
   const visibleLimit = batch.category === selectedCategory ? batch.limit : 30;
-  const visibleArticles = articles.slice(0, visibleLimit);
+  const stories = useMemo(() => clusterStories(articles), [articles]);
+  const reportsById = useMemo(() => new Map(stories.map(story => [story.lead.id, story.reports])), [stories]);
+  const visibleArticles = stories.slice(0, visibleLimit).map(story => story.lead);
   const isToday = selectedCategory === 'Heute';
   const lead = isToday && showHero ? visibleArticles[0] : undefined;
   const headlines = visibleArticles.slice(lead ? 1 : 0);
@@ -54,6 +57,26 @@ export const HomeView: React.FC<HomeViewProps> = ({
     onToggleBookmark,
     onToggleLike,
   });
+
+  const related = (article: NewsArticle) => {
+    const reports = reportsById.get(article.id) ?? [];
+    const sources = new Set(reports.map(report => report.sourceId)).size;
+    if (reports.length < 2) return null;
+    return (
+      <details className="px-2 py-2 text-sm">
+        <summary className="cursor-pointer">{sources > 1 ? `${sources} Quellen berichten` : 'Weitere Berichte'}</summary>
+        <ul className="space-y-1 pt-2">
+          {reports.slice(1).map(report => (
+            <li key={report.id}>
+              <button className="text-left underline" type="button" onClick={() => onOpenArticle(report)}>
+                {report.sourceName} · {report.title}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </details>
+    );
+  };
 
   return (
     <section aria-label="Startseite Nachrichten" className="space-y-5"
@@ -148,13 +171,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
         <div className="space-y-5">
           {isToday ? (
             <>
-              {lead && <HeadlineArticleCard {...cardProps(lead)} lead />}
+              {lead && <div><HeadlineArticleCard {...cardProps(lead)} lead />{related(lead)}</div>}
               {headlines.length > 0 && (
                 <section aria-labelledby="today-headlines">
                   <h2 id="today-headlines" className="mb-3 text-xl font-bold tracking-tight">Schlagzeilen</h2>
                   <div className="grid grid-cols-2 gap-x-3 gap-y-4 sm:gap-x-5 lg:grid-cols-4">
                     {headlines.slice(0, overviewCount).map(article => (
-                      <HeadlineArticleCard key={article.id} {...cardProps(article)} />
+                      <div key={article.id}><HeadlineArticleCard {...cardProps(article)} />{related(article)}</div>
                     ))}
                   </div>
                 </section>
@@ -164,7 +187,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   <h2 id="today-more" className="mb-3 text-xl font-bold tracking-tight">Weitere Meldungen</h2>
                   <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
                     {headlines.slice(overviewCount).map(article => (
-                      <CompactArticleCard key={article.id} {...cardProps(article)} />
+                      <div key={article.id}><CompactArticleCard {...cardProps(article)} />{related(article)}</div>
                     ))}
                   </div>
                 </section>
@@ -173,11 +196,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
           ) : (
             <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
               {visibleArticles.map(article => (
-                <CompactArticleCard key={article.id} {...cardProps(article)} />
+                <div key={article.id}><CompactArticleCard {...cardProps(article)} />{related(article)}</div>
               ))}
             </div>
           )}
-          {articles.length > visibleLimit && <button type="button" className="choice-pill" onClick={() =>
+          {stories.length > visibleLimit && <button type="button" className="choice-pill" onClick={() =>
             setBatch({ category: selectedCategory, limit: visibleLimit + 30 })}>Weitere Meldungen</button>}
         </div>
       )}
