@@ -235,7 +235,6 @@ OpenNews/
 │   │   ├── scrollNavigation.ts         # Scroll-Richtung und Schwellwerte
 │   │   ├── shareArticle.ts             # Nativer Share-Dialog
 │   │   ├── storyClusters.ts            # Ähnliche Meldungen bündeln
-│   │   ├── seedArticles.ts             # Lokale Demo-Artikel
 │   │   └── *.test.ts                   # 11 Testdateien
 │   │
 │   ├── types/news.ts                   # Artikel, Quellen, Profil, KI

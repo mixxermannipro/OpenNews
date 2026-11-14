@@ -32,7 +32,6 @@ import {
   toggleArticleLike,
 } from './lib/personalization';
 import { articleIdentity, buildHomeSections, distinctArticles, mergeFeedArticles, pruneFeedArticles } from './lib/newsFeed';
-import { SEED_ARTICLES } from './lib/seedArticles';
 import { trackNavigationScroll } from './lib/scrollNavigation';
 import { useArticleStorage } from './hooks/useArticleStorage';
 import { useLocalStorage } from './hooks/useLocalStorage';
@@ -308,7 +307,7 @@ export default function App() {
   useEffect(() => {
     setSavedArticles(previous => {
       const entries = new Map(Object.entries(previous).filter(([id]) => savedIds.has(id)));
-      for (const article of [...cachedLiveArticles, ...readArticles, ...SEED_ARTICLES]) {
+      for (const article of [...cachedLiveArticles, ...readArticles]) {
         if (savedIds.has(article.id) && !entries.has(article.id)) entries.set(article.id, article);
       }
       if (entries.size === Object.keys(previous).length
