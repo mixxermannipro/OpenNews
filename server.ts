@@ -2,6 +2,7 @@ import express from 'express';
 import { JSDOM } from 'jsdom';
 import { extractArticle } from './src/lib/articleExtraction.ts';
 import helmet from 'helmet';
+import { isDiagnostic } from './src/lib/diagnosticEvents.ts';
 import { rateLimit } from 'express-rate-limit';
 import { fetchPublic, isSafeHttpUrl, readPublicText } from './src/lib/publicHttp.ts';
 import http from 'node:http';
@@ -46,6 +47,23 @@ app.use('/api/ai/proxy', rateLimit({
   message: { error: 'Zu viele KI-Anfragen. Bitte versuche es gleich erneut.' },
 }));
 app.use(express.json({ limit: '128kb' }));
+
+app.get('/api/diagnostics', (_req, res) => {
+  res.set('Cache-Control', 'no-store').json({ enabled: process.env.OPENNEWS_DIAGNOSTICS === '1' });
+});
+
+app.post('/api/diagnostics', (req, res) => {
+  if (process.env.OPENNEWS_DIAGNOSTICS !== '1') {
+    res.sendStatus(404);
+    return;
+  }
+  if (!isDiagnostic(req.body?.event) || Object.keys(req.body).length !== 1) {
+    res.sendStatus(400);
+    return;
+  }
+  console.info(JSON.stringify({ event: req.body.event, hour: Math.floor(Date.now() / 3_600_000) }));
+  res.status(204).end();
+});
 
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true, service: 'OpenNews' });
