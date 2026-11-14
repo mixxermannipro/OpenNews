@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { NewsPush } from './lib/newsPush';
 import { Capacitor, SystemBars, SystemBarsStyle } from '@capacitor/core';
 import { fetchNativeFeeds } from './lib/nativeFeed';
@@ -34,15 +34,17 @@ import { SEED_ARTICLES } from './lib/seedArticles';
 import { trackNavigationScroll } from './lib/scrollNavigation';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { HomeView } from './components/HomeView';
-import { DiscoverView } from './components/DiscoverView';
-import { SavedView } from './components/SavedView';
-import { MediaView } from './components/MediaView';
-import { ArticleReaderModal } from './components/ArticleReaderModal';
-import { SettingsView, type SettingsSectionTab } from './components/SettingsView';
+import type { SettingsSectionTab } from './components/SettingsView';
 import { OfflineIndicator } from './components/PWAInstallButton';
 
 import { DEFAULT_PREFERENCES, applyEditionSources, resolveHomeTab, resolveRetention, type AppPreferences, type HomeTab } from './lib/preferences';
 import { Onboarding, ProfileView, type ProfilePage } from './components/Preferences';
+
+const DiscoverView = lazy(() => import('./components/DiscoverView').then(module => ({ default: module.DiscoverView })));
+const SavedView = lazy(() => import('./components/SavedView').then(module => ({ default: module.SavedView })));
+const MediaView = lazy(() => import('./components/MediaView').then(module => ({ default: module.MediaView })));
+const ArticleReaderModal = lazy(() => import('./components/ArticleReaderModal').then(module => ({ default: module.ArticleReaderModal })));
+const SettingsView = lazy(() => import('./components/SettingsView').then(module => ({ default: module.SettingsView })));
 
 type AppLocation = {
   tab: AppTab;
@@ -585,6 +587,7 @@ export default function App() {
           />
         )}
 
+        <Suspense fallback={<p className="px-5 py-6" role="status">Ansicht wird geladen …</p>}>
         {activeTab === 'discover' && (
           <DiscoverView
             articles={allArticles}
@@ -671,6 +674,7 @@ export default function App() {
             onBackHome={goBack}
           />
         )}
+        </Suspense>
       </main>
 
       <nav aria-label="Mobile Navigation" className="mobile-navigation"
@@ -688,6 +692,7 @@ export default function App() {
       </nav>
 
       {/* Article Reader Sheet */}
+      <Suspense fallback={<button className="fixed inset-0 z-50 bg-black/60 text-white" onClick={goBack}>Artikel wird geladen … Schließen</button>}>
       <AnimatePresence>
         {activeArticle && (
           <ArticleReaderModal
@@ -712,6 +717,7 @@ export default function App() {
           />
         )}
       </AnimatePresence>
+      </Suspense>
       </>}
     </div>
     </MotionConfig>
