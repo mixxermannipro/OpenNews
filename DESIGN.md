@@ -25,7 +25,7 @@ Die App übernimmt die Systemschrift. Für Lesetext gibt es zusätzlich eine Ser
 | Lead | Ein Aufmacher mit klarer Überschrift. Text auf Fotos braucht einen dunklen Verlauf bis zur Textkante und eine deckende Ersatzfläche für fehlende Bilder. |
 | Standard | Titel und Quelle bleiben auch bei einem fehlenden Bild sichtbar. Bildbereiche reservieren ihren Platz beim Laden. |
 | Kompakt | Bild links, Text und Metadaten daneben. Merken und Liken haben eigene Tasten. |
-| Medien | Audio hat einen klaren Wiedergabeknopf, Video ein ruhiges Vorschaubild. Hochformat nutzt seinen eigenen Vollbildbereich. |
+| Medien | Die Übersicht zeigt ein großes Video, eine kompakte Audiokarte und bis zu drei Clip-Vorschauen. Hochformat nutzt seinen eigenen Vollbildbereich. |
 | Buttons und Eingaben | `primary-action` für die Hauptaktion, `choice-pill` für Auswahl, `preference-input` für Eingaben. Jede Nur-Icon-Taste braucht einen zugänglichen Namen. |
 | Tabs und Chips | Feste Anordnung beim Wechsel. Auswahl bleibt durch Farbe und Semantik (`aria-pressed` oder `aria-current`) erkennbar. |
 | Einstellungen | Deckende Gruppen, eindeutige Namen und zusammengehörige Zeilen. Beschriftungen dürfen umbrechen. |

@@ -126,7 +126,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </div>
       </div>
 
-      <div role="group" aria-label="Ansicht der Startseite" className="segmented-control home-tabs">
+      <div role="group" aria-label="Ansicht der Startseite" className="segmented-control">
         {HOME_TABS.map(cat => (
           <button key={cat} type="button" aria-pressed={selectedCategory === cat}
             onClick={() => onSelectCategory(cat)} className="choice-pill">
@@ -154,9 +154,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
               {headlines.length > 0 && (
                 <section aria-labelledby="today-headlines">
                   <h2 id="today-headlines" className="mb-3 text-xl font-bold tracking-tight">Schlagzeilen</h2>
-                  <div className="grid grid-cols-2 gap-x-3 gap-y-4 sm:gap-x-5 lg:grid-cols-4">
+                  <div className="grid gap-3.5 md:grid-cols-2">
                     {headlines.slice(0, overviewCount).map(article => (
-                      <div key={article.lead.id}><HeadlineArticleCard {...cardProps(article)} />{related(article)}</div>
+                      <div key={article.lead.id}><CompactArticleCard {...cardProps(article)} />{related(article)}</div>
                     ))}
                   </div>
                 </section>

@@ -1,6 +1,6 @@
 import { ViewStatus } from './ViewStatus';
 import { Capacitor, SystemBars } from '@capacitor/core';
-import { ArrowLeft, Bookmark, Headphones, Heart, Play, Share2, Video } from 'lucide-react';
+import { ArrowLeft, Bookmark, ChevronRight, Headphones, Heart, Play, Share2, Video } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { collectDistinctMedia } from '../lib/articleMedia';
@@ -91,7 +91,7 @@ export function MediaView({ articles, loading, background, onArticle, onSources,
   }, [filter, entries]);
   const groups = (['video', 'audio'] as const).map(kind => ({
     kind,
-    items: entries.filter(({ media }) => kind === 'audio' ? media.type === 'audio' : media.type !== 'audio'),
+    items: entries.filter(({ media }) => kind === 'audio' ? media.type === 'audio' : media.type !== 'audio' && !media.portrait),
   })).filter(group => group.items.length && (filter === 'all' || filter === group.kind));
 
   const renderCard = ({ article, media }: (typeof entries)[number], clip = false) => {
@@ -102,8 +102,8 @@ export function MediaView({ articles, loading, background, onArticle, onSources,
     const Icon = audio ? Headphones : Video;
     return (
       <li key={media.url} data-media-url={media.url}
-        className={clip ? 'relative h-full snap-start snap-always overflow-hidden bg-black text-white' : 'settings-group overflow-hidden'}>
-        <div className={embeddedClip ? 'absolute inset-x-0 top-[12%] bottom-[34%] bg-black' : clip ? 'absolute inset-0 bg-black' : audio ? 'relative aspect-square max-h-72 bg-slate-900' : media.portrait ? 'relative mx-auto aspect-[9/16] max-h-[65svh] bg-black' : 'relative aspect-video bg-black'}>
+        className={clip ? 'relative h-full snap-start snap-always overflow-hidden bg-black text-white' : audio ? 'settings-group media-audio overflow-hidden' : 'overflow-hidden'}>
+        <div className={embeddedClip ? 'absolute inset-x-0 top-[12%] bottom-[34%] bg-black' : clip ? 'absolute inset-0 bg-black' : audio ? 'media-artwork relative overflow-hidden bg-slate-900' : 'relative aspect-[2.1] overflow-hidden rounded-[var(--card-radius)] bg-black'}>
           {playing && !audio ? (
             <MediaPlayer media={media} title={article.title} poster={artwork} background={!clip && background} clip={clip} autoPlay onEngaged={seconds => onEngaged(article, seconds)} />
           ) : (
@@ -116,20 +116,20 @@ export function MediaView({ articles, loading, background, onArticle, onSources,
               className="absolute inset-0 grid w-full place-items-center text-white">
               {artwork ? <ArticleImage src={artwork} alt="" sourceShortCode={article.sourceShortCode}
                 sourceColor={article.sourceColor} className="absolute inset-0 h-full w-full" /> : <Icon size={44} aria-hidden />}
-              <span className="relative grid size-14 place-items-center rounded-full bg-black/75">
+              <span className="relative grid size-12 place-items-center rounded-full border border-white/30 bg-black/75">
                 <Play size={24} fill="currentColor" aria-hidden />
               </span>
             </button>
           )}
         </div>
-        {playing && audio && <div className="px-4 pt-3"><MediaPlayer media={media} title={article.title} background={background} autoPlay onEngaged={seconds => onEngaged(article, seconds)} /></div>}
+        {playing && audio && <div className="media-audio-player px-4 pt-3"><MediaPlayer media={media} title={article.title} background={background} autoPlay onEngaged={seconds => onEngaged(article, seconds)} /></div>}
         <div className={embeddedClip ? 'absolute inset-x-0 top-[66%] bottom-0 overflow-auto px-4 pt-3 pb-safe space-y-1.5' : clip
           ? 'pointer-events-none absolute inset-x-0 bottom-0 space-y-1.5 bg-gradient-to-t from-black via-black/70 to-transparent px-4 pt-16 pb-[calc(3.5rem+env(safe-area-inset-bottom))] [&_a]:pointer-events-auto [&_button]:pointer-events-auto'
-          : 'space-y-1.5 px-4 py-3'}>
+          : audio ? 'min-w-0 space-y-1.5' : 'space-y-1.5 py-3'}>
           <p className={clip ? 'text-xs text-slate-300' : 'text-xs text-slate-600 dark:text-slate-300'}>
             {article.sourceName} · {formatRelativeTimeDe(article.publishedAt)}
           </p>
-          <button type="button" className="block text-left font-semibold leading-snug" onClick={() => {
+          <button type="button" className="block text-left text-base font-bold leading-snug [overflow-wrap:anywhere]" onClick={() => {
             if (clip) {
               dialogExit.current = () => onArticle(article);
               window.history.back();
@@ -163,8 +163,11 @@ export function MediaView({ articles, loading, background, onArticle, onSources,
   return (
     <section aria-labelledby="media-heading" className="space-y-5">
       <p role="status" className={shareFeedback ? "text-sm" : "sr-only"}>{shareFeedback}</p>
-      <h1 id="media-heading" className="screen-title">Video &amp; Audio</h1>
-      <div className="segmented-control" role="group" aria-label="Medien filtern">
+      <header>
+        <h1 id="media-heading" className="screen-title">Video &amp; Audio</h1>
+        <p className="screen-subtitle">Nachrichten in Bild und Ton.</p>
+      </header>
+      <div className="segmented-control media-tabs" role="group" aria-label="Medien filtern">
         {(Object.keys(FILTERS) as Array<keyof typeof FILTERS>).map(key => (
           <button key={key} type="button" className="choice-pill" aria-pressed={filter === key}
             onClick={() => { setFilter(key); setSelected(undefined); }}>{FILTERS[key]}</button>
@@ -194,22 +197,48 @@ export function MediaView({ articles, loading, background, onArticle, onSources,
       {groups.length ? groups.map(({ kind, items }) => (
         <section key={kind} aria-labelledby={`media-${kind}`} className="space-y-3">
           <div className="flex items-center justify-between gap-3">
-            <h2 id={`media-${kind}`} className="text-lg font-semibold">{kind === 'audio' ? 'Zum Hören' : 'Zum Ansehen'}</h2>
-            {filter === 'all' && items.length > 3 && (
+            <h2 id={`media-${kind}`} className="text-xl font-bold tracking-tight">{kind === 'audio' ? 'Audio & Podcasts' : 'Jetzt ansehen'}</h2>
+            {filter === 'all' && items.length > 1 && (
               <button className="choice-pill" type="button" onClick={() => { setFilter(kind); setSelected(undefined); }}>
                 {kind === 'audio' ? 'Alle Audios' : 'Alle Videos'}
               </button>
             )}
           </div>
-          <ul className={kind === 'audio' ? 'grid gap-4 sm:grid-cols-2 lg:grid-cols-3' : 'grid gap-4 sm:grid-cols-2'}>
-            {(filter === 'all' ? items.slice(0, 3) : items).map(entry => renderCard(entry))}
+          <ul className={filter === 'all' ? 'grid gap-4' : kind === 'audio' ? 'grid gap-4 sm:grid-cols-2 lg:grid-cols-3' : 'grid gap-4 sm:grid-cols-2'}>
+            {(filter === 'all' ? items.slice(0, 1) : items).map(entry => renderCard(entry))}
           </ul>
         </section>
-      )) : (
+      )) : filter !== 'clips' && !(filter === 'all' && clips.length > 0) && (
         <ViewStatus
           title={loading ? 'Beiträge werden geladen …' : 'Hier sind gerade keine passenden Beiträge verfügbar.'}
           action={!loading && <button type="button" className="choice-pill" onClick={onSources}>Quellen verwalten</button>}
         />
+      )}
+      {filter === 'all' && clips.length > 0 && (
+        <section aria-labelledby="clips-heading" className="space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <h2 id="clips-heading" className="text-xl font-bold tracking-tight">Kurze Clips</h2>
+            <button className="choice-pill inline-flex items-center gap-1" type="button"
+              onClick={() => { setSelected(undefined); setFilter('clips'); }}>
+              Alle Clips <ChevronRight size={16} aria-hidden="true" />
+            </button>
+          </div>
+          <ul className="grid grid-cols-3 gap-2 sm:gap-3">
+            {clips.slice(0, 3).map(({ article, media }) => (
+              <li key={media.url} className="min-w-0">
+                <button type="button" aria-label={`${article.title} abspielen`}
+                  className="relative grid aspect-square w-full place-items-center overflow-hidden rounded-[var(--card-radius)] bg-slate-900 text-white"
+                  onClick={() => { setStartClip(media.url); setFilter('clips'); }}>
+                  <ArticleImage src={article.imageUrl} alt="" sourceShortCode={article.sourceShortCode}
+                    sourceColor={article.sourceColor} className="absolute inset-0 h-full w-full" />
+                  <span className="relative grid size-11 place-items-center rounded-full bg-black/75">
+                    <Play size={18} fill="currentColor" aria-hidden="true" />
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
       {groups.length > 0 && <button type="button" className="choice-pill" onClick={onSources}>Medienquellen verwalten</button>}
     </section>
