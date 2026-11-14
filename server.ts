@@ -1,4 +1,6 @@
 import express from 'express';
+import { JSDOM } from 'jsdom';
+import { extractArticle } from './src/lib/articleExtraction.ts';
 import helmet from 'helmet';
 import { rateLimit } from 'express-rate-limit';
 import { fetchPublic, isSafeHttpUrl, readPublicText } from './src/lib/publicHttp.ts';
@@ -6,7 +8,7 @@ import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createServer as createViteServer } from 'vite';
-import { parseFeedPayload, stripHtml } from './src/lib/rssParser.ts';
+import { parseFeedPayload } from './src/lib/rssParser.ts';
 import type { NewsSource } from './src/types/news.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -191,18 +193,12 @@ app.get('/api/article/extract', async (req, res) => {
       return;
     }
     const html = await readPublicText(resp);
-    const ogImageMatch =
-      html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ||
-      html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
-    const ogImage = ogImageMatch?.[1];
-
-    // A whole-page fallback can mistake navigation and promotions for article text.
-    const articleScope = html.match(/<article\b[\s\S]*?<\/article>/i)?.[0] ?? '';
-    const pMatches = [...articleScope.matchAll(/<(p|h2|h3)\b[^>]*>([\s\S]*?)<\/\1>/gi)];
-    const blocks = pMatches.map(match => ({ text: stripHtml(match[2]), heading: /^h[23]$/i.test(match[1]) })).filter(block => block.text);
-    const paragraphs = blocks.map(block => block.text);
-    const headingIndexes = blocks.flatMap((block, index) => block.heading ? [index] : []);
-    res.json({ paragraphs, headingIndexes, ogImage });
+    const dom = new JSDOM(html, { url: resp.url });
+    try {
+      res.set('Cache-Control', 'no-store').json(extractArticle(dom.window.document, resp.url));
+    } finally {
+      dom.window.close();
+    }
   } catch {
     res.status(504).json({ error: 'Zeitüberschreitung beim Laden des Artikels' });
   } finally {
