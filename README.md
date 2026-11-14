@@ -67,12 +67,15 @@ Die App zeigt die Hauptmeldung auf einer großen Bildkarte. Darunter wechseln si
 
 ## Screenshots
 
-> [!NOTE]
-> Design-Referenzen aus der Konzeptphase. Die reale App nutzt echte Quellen und kann je nach Feed und Gerät abweichen.
+Aufnahmen der laufenden App vom 14. November 2026 im dunklen Modus, mit echten Meldungen aus öffentlichen Feeds und einem frischen Browserprofil im Handyformat. Die Beiträge wechseln mit den Feeds.
 
-| Startseite | Entdecken | Artikel-Reader |
+| Heute | Für dich | Entdecken |
 | :---: | :---: | :---: |
-| <img src="docs/screenshots/startseite.jpeg" width="240" alt="Startseite" /> | <img src="docs/screenshots/entdecken.jpeg" width="240" alt="Entdecken" /> | <img src="docs/screenshots/artikel.jpeg" width="240" alt="Artikel-Reader" /> |
+| <img src="docs/screenshots/startseite.jpeg" width="240" alt="Heute im dunklen Modus" /> | <img src="docs/screenshots/fuer-dich.jpeg" width="240" alt="Für dich im dunklen Modus" /> | <img src="docs/screenshots/entdecken.jpeg" width="240" alt="Entdecken im dunklen Modus" /> |
+
+| Video & Audio | Profil | Artikel-Reader |
+| :---: | :---: | :---: |
+| <img src="docs/screenshots/medien.jpeg" width="240" alt="Video & Audio im dunklen Modus" /> | <img src="docs/screenshots/profil.jpeg" width="240" alt="Profil im dunklen Modus" /> | <img src="docs/screenshots/artikel.jpeg" width="240" alt="Artikel-Reader im dunklen Modus" /> |
 
 ## Architektur
 
@@ -145,7 +148,7 @@ OpenNews/
 │       └── web-ci.yml                  # CI: Typen, Tests, Build, Web-Budget, E2E
 │
 ├── docs/
-│   ├── screenshots/                    # Design-Referenzen für diese README
+│   ├── screenshots/                    # Aktuelle App-Aufnahmen für diese README
 │   ├── android-release.md              # Signierung und Play-Store-Checkliste
 │   ├── artikelvolltext.md              # Readability, Rechte, Offline-Kopien
 │   ├── datenschutz.md                  # Entwurf der Datenschutzerklärung
