@@ -22,14 +22,14 @@ Datenschutzfreundliche, Apple-inspirierte Nachrichten-App für freie RSS-, Atom-
 
 <br />
 
-[Funktionen](#funktionen) · [Screenshots](#screenshots) · [Architektur](#architektur) · [Projektstruktur](#projektstruktur) · [Erste Schritte](#erste-schritte) · [Konfiguration](#konfiguration) · [Server-API](#server-api) · [Android](#android) · [Mitwirken](#mitwirken)
+[Funktionen](#funktionen) · [Screenshots](#screenshots) · [Architektur](#architektur) · [Projektstruktur](#projektstruktur) · [Erste Schritte](#erste-schritte) · [Konfiguration](#konfiguration) · [Server-API](#server-api) · [Android](#android) · [Tests](#tests-und-qualität) · [Dokumentation](#dokumentation) · [Mitwirken](#mitwirken)
 
 </div>
 
 ---
 
 > [!NOTE]
-> **Alpha:** OpenNews steht bei `0.1.0-alpha.1`. Web und PWA sind nutzbar, Android ist ein privater Debug-Build. Artikelvolltext und BYOK-KI sind Beta. Ein Play-Store-Release steht noch aus.
+> **Alpha:** OpenNews steht bei `0.1.0-alpha.1`. Web und PWA sind nutzbar, Android ist ein privater Debug-Build. Artikelvolltext und BYOK-KI sind Beta. iOS ist mit WidgetKit- und Brückendateien vorbereitet, aber ohne geprüften Xcode-Build. Ein Play-Store-Release steht noch aus.
 
 ## Was ist OpenNews?
 
@@ -39,22 +39,26 @@ OpenNews bündelt Nachrichten aus frei zugänglichen Feeds in einer ruhigen Ober
 - **Freie Quellen.** RSS 2.0, RSS 1.0/RDF, Atom 1.0 und JSON Feed 1.0/1.1.
 - **Nachvollziehbare Empfehlungen.** Sichtbare Gewichte für Thema, Quelle, Schlagwörter und Aktualität.
 - **KI nur auf Wunsch.** Lokale Zusammenfassung ist immer da; ein eigenes Sprachmodell ist optional (BYOK).
-- **Eine Codebasis.** React im Browser, dieselbe Oberfläche als PWA und als Capacitor-App auf Android.
+- **Eine Codebasis.** React im Browser, dieselbe Oberfläche als PWA und als Capacitor-App auf Android; iOS ist mit WidgetKit-Dateien vorbereitet.
 
 ## Funktionen
 
 | Bereich | Umfang |
 | --- | --- |
-| **Quellen** | 34 vorkonfigurierte Feeds (Tagesschau, ZDFheute, Deutschlandfunk, FAZ, SPIEGEL, ZEIT, SZ, Handelsblatt, WELT, BILD, heise, Golem, t3n, Guardian, BBC, Hacker News, Ars Technica, NASA u. a.) plus beliebig viele eigene Feeds |
+| **Quellen** | 38 vorkonfigurierte Feeds (Tagesschau, ZDFheute, Deutschlandfunk, FAZ, SPIEGEL, ZEIT, SZ, Handelsblatt, WELT, BILD, heise, Golem, t3n, Guardian, BBC, Hacker News, Ars Technica, NASA, n-tv, DW, taz, Standard, ORF, SRF u. a.) plus beliebig viele eigene Feeds |
 | **Feed-Formate** | RSS 2.0, RDF, Atom 1.0, JSON Feed, Podcast-Feeds; Domain-Erkennung über `link rel="alternate"`; OPML-Import/-Export |
 | **Startseite** | **Heute** (ab Mitternacht), **Für dich** (48 h, personalisiert), **Neueste** (streng chronologisch); Pull-to-Refresh, ähnliche Titel weiter unten |
-| **Personalisierung** | Like, Dislike, Lesezeichen, Lesezeit und Verlauf formen lokale Gewichte; Vielfalt mischt Quellen und Themen |
+| **Personalisierung** | Like, Dislike, Lesezeichen, Lesezeit und Verlauf formen lokale Gewichte; Vielfalt mischt Quellen und Themen; gelernte Interessen verblassen mit der Zeit |
 | **Reader** | Volltext-Extraktion mit Feed-Fallback, Zusammenfassung, drei Schriftgrößen, Serif/Sans, Vorlesen, Teilen |
 | **Video & Audio** | Große Vorschauen für Videos und Audio, Hochformat-Clips zum Wischen mit automatischer Wiedergabe, Likes, Merkliste und Teilen. YouTube über den offiziellen Player. |
+| **Tagesüberblick** | Optionaler gesprochener Überblick über bis zu acht Schlagzeilen; die Texte erzeugt die eingerichtete KI, vorgelesen wird mit der Systemstimme (Android) oder im Browser |
 | **Entdecken** | Themenraster, Quellen- und Volltextsuche, letzte sechs Suchbegriffe lokal gespeichert |
 | **Darstellung** | System/Hell/Dunkel, Akzentfarbe, Transparenz, Ecken, Kartendichte, Textgröße, reduzierte Bewegung |
+| **Sicherung** | Export und Import von Abos, Reaktionen und Lesezeichen als JSON-Datei bis 5 MB; bleibt auf dem Gerät |
+| **Diagnose** | Freiwillige lokale Fehleraufzeichnung ohne Fehlertexte, Adressen oder Gerätekennungen; Export als JSON, optionales Senden der Fehlerart an den eigenen Server |
+| **Widget** | Android-Widget „Top-Themen“ mit zwei Überschriften; iOS-WidgetKit-Dateien liegen bereit, benötigen aber Xcode |
 | **PWA** | Installierbar, Service Worker mit Auto-Update, Offline-Hinweis, maskierbares Icon |
-| **Android** | Capacitor-WebView, direkte HTTP-Aufrufe, nativer Zurück-Knopf und Share-Dialog |
+| **Android** | Capacitor-WebView, direkte HTTP-Aufrufe, nativer Zurück-Knopf, Share-Dialog, Systemstimme und lokale Übersetzung |
 | **Benachrichtigungen** | Android-Push für unterstützte abonnierte Quellen mit eingerichtetem Firebase. Im Web erscheinen Hinweise in der geöffneten App. |
 
 **Aufbewahrung:** 2, 4, 7, 14, 30 oder 90 Tage (Standard **4**), maximal **600** Beiträge im Speicher. Beim Aktualisieren werden neue Artikel zusammengeführt; Abos, Lesezeichen, Likes und Verlauf bleiben erhalten.
@@ -86,7 +90,7 @@ flowchart LR
 
     subgraph "Web-Betrieb"
         S[Express<br/>server.ts]
-        R -->|/api/feeds/fetch<br/>/api/article/extract<br/>/api/ai/proxy| S
+        R -->|/api/feeds/fetch<br/>/api/article/extract<br/>/api/ai/proxy<br/>/api/diagnostics| S
     end
 
     subgraph "Android-Betrieb"
@@ -120,11 +124,12 @@ flowchart LR
 | Build | Vite 8 |
 | Styling | Tailwind CSS 4 |
 | Feed-Parsing | fast-xml-parser 5 |
-| Server | Express 4 |
+| Server | Express 4, Helmet, express-rate-limit |
+| Sicherheit | `publicHttp.ts` prüft jede Adresse per DNS und erlaubt nur öffentliche Ziele |
 | PWA | vite-plugin-pwa 2 |
 | Android | Capacitor 8 |
-| Tests | Node Test Runner mit tsx |
-| CI | GitHub Actions (Typecheck, Tests, Build, Debug-APK) |
+| Tests | Node Test Runner mit tsx, Playwright für Browsertests |
+| CI | GitHub Actions (Typecheck, Unit-Tests, Build, Web-Budget, E2E, Debug-APK) |
 
 ## Projektstruktur
 
@@ -134,91 +139,126 @@ Versionierte Ordner und Dateien. Bilddateien sind gruppiert; generierte Ordner s
 OpenNews/
 ├── .github/
 │   └── workflows/
-│       └── android-test-apk.yml        # CI: Typecheck, Tests, Web-Build, Debug-APK, Pre-Release
+│       ├── android-test-apk.yml        # CI: Android-Debug-APK und Pre-Release
+│       └── web-ci.yml                  # CI: Typen, Tests, Build, Web-Budget, E2E
 │
 ├── docs/
-│   └── screenshots/                    # Design-Referenzen für diese README
-│       ├── artikel.jpeg
-│       ├── entdecken.jpeg
-│       └── startseite.jpeg
+│   ├── screenshots/                    # Design-Referenzen für diese README
+│   ├── android-release.md              # Signierung und Play-Store-Checkliste
+│   ├── artikelvolltext.md              # Readability, Rechte, Offline-Kopien
+│   ├── datenschutz.md                  # Entwurf der Datenschutzerklärung
+│   ├── ios-widget.md                   # WidgetKit und iOS-Einrichtung
+│   └── monetarisierung.md              # Preis- und Erlösmodell
+│
+├── e2e/
+│   └── news.spec.ts                    # Browsertests für Kernabläufe
 │
 ├── native/
-│   └── android/
-│       ├── MainActivity.java           # Nativer Einstieg: Back-Navigation + ArticleShare
-│       └── sync-icons.sh               # Erzeugt die Android-Launcher-Icons aus dem Logo
+│   ├── android/
+│   │   ├── BriefingSpeech.java         # Systemstimme für den Tagesüberblick
+│   │   ├── LocalTranslation.java       # Lokale Übersetzung auf Android
+│   │   ├── MainActivity.java           # Zurück-Navigation und ArticleShare
+│   │   ├── NewsMessagingService.java   # Firebase-Nachrichten
+│   │   ├── NewsPush.java               # Push-Registrierung
+│   │   ├── NewsWidget.java             # Widget-Brücke
+│   │   ├── OpenNewsWidget.java         # Android-Widget
+│   │   ├── widget/                     # Layout, Bilder und Farben des Widgets
+│   │   ├── sync-icons.sh               # Launcher-Icons aus dem Logo
+│   │   └── sync-plugins.sh             # Native Dateien ins Android-Projekt kopieren
+│   └── ios/
+│       ├── NewsWidgetPlugin.swift
+│       ├── OpenNewsBridgeViewController.swift
+│       └── OpenNewsWidget.swift
 │
-├── public/                             # Statisch ausgelieferte Dateien
-│   ├── assets/aistudio/                # Design-Mockups und PDF aus der Konzeptphase
+├── public/
+│   ├── assets/aistudio/                # Design-Mockups aus der Konzeptphase
 │   ├── apple-touch-icon.png
 │   ├── icon.svg
 │   ├── logo.png
 │   ├── pwa-192x192.png
 │   ├── pwa-512x512.png
-│   └── pwa-maskable-512x512.png
+│   ├── pwa-maskable-512x512.png
+│   └── theme-init.js                   # Theme vor dem ersten Rendern setzen
+│
+├── scripts/
+│   ├── check-web-budget.mjs            # Prüft das JS-Budget von 170 KiB gzip
+│   └── push-news.ts                    # Feed-Dienst für Android-Push
 │
 ├── src/
 │   ├── assets/images/                  # Redaktionelle Bilder für Demo-Artikel
-│   │   ├── news_ai_semiconductor_*.jpg
-│   │   ├── news_bundestag_berlin_*.jpg
-│   │   ├── news_eu_parliament_*.jpg
-│   │   ├── news_exoplanet_space_*.jpg
-│   │   └── news_renewable_europe_*.jpg
 │   │
 │   ├── components/                     # React-Komponenten
 │   │   ├── ArticleCards.tsx            # Aufmacher- und Kompaktkarten
 │   │   ├── ArticleImage.tsx            # Bild mit Quellen-Fallback
 │   │   ├── ArticleMedia.tsx            # Medien im Reader
-│   │   ├── ArticleReaderModal.tsx      # Reader-Sheet, Zusammenfassung, Teilen, Vorlesen
+│   │   ├── ArticleReaderModal.tsx      # Reader-Sheet, Zusammenfassung, Teilen
+│   │   ├── AudioBriefing.tsx           # Tagesüberblick und Vorlesen
+│   │   ├── DiagnosticsSettings.tsx     # Freiwillige Diagnose
 │   │   ├── DiscoverSearch.tsx          # Suche, Vorschläge, letzte Suchen
 │   │   ├── DiscoverView.tsx            # Themen- und Quellenübersicht
-│   │   ├── HomeView.tsx                # Heute / Für dich / Neueste, Pull-to-Refresh
+│   │   ├── HomeView.tsx                # Heute / Für dich / Neueste
 │   │   ├── MediaPlayer.tsx             # Audio-, Video- und YouTube-Player
 │   │   ├── MediaView.tsx               # Bereich Video & Audio
-│   │   ├── Preferences.tsx             # Onboarding, Profil, Darstellung, Themen
+│   │   ├── Preferences.tsx             # Onboarding, Profil, Darstellung
 │   │   ├── PWAInstallButton.tsx        # Installationshilfe und Offline-Hinweis
-│   │   ├── SavedView.tsx               # Lesezeichen, Likes, Verlauf, Algorithmus-Reset
-│   │   └── SettingsView.tsx            # Quellen, KI, Benachrichtigungen
+│   │   ├── SavedView.tsx               # Lesezeichen, Likes, Verlauf
+│   │   ├── SettingsView.tsx            # Quellen, KI, Benachrichtigungen
+│   │   └── SourceIcon.tsx              # Quellen-Logo mit Initialen-Fallback
 │   │
 │   ├── hooks/
-│   │   ├── useLocalStorage.ts          # Typsicherer localStorage-Hook mit Fehlerbehandlung
+│   │   ├── useArticleStorage.ts        # Quota-sichere Artikelablage
+│   │   ├── useLocalStorage.ts          # Typsicherer localStorage-Hook
 │   │   └── usePWAInstall.ts            # Installierbarkeit und Online-Status
 │   │
 │   ├── lib/                            # Fachlogik, unabhängig von React
-│   │   ├── aiClient.test.ts            # Tests für KI-Konfiguration und Antwortparsing
-│   │   ├── aiClient.ts                 # BYOK-Anbieter, Prompt, Proxy/Fallback, Verbindungstest
+│   │   ├── aiClient.ts                 # BYOK-Anbieter, Prompt, Tagesüberblick
+│   │   ├── articleExtraction.ts        # Volltext mit Mozilla Readability
 │   │   ├── articleMedia.ts             # Abspielbare Medien eines Artikels
-│   │   ├── catalog.ts                  # 34 Standardquellen und Legacy-URLs
-│   │   ├── nativeFeed.test.ts          # Tests für native Feed-Sicherheit
-│   │   ├── nativeFeed.ts               # CapacitorHttp, Feed-Erkennung, Volltext
-│   │   ├── newsFeed.ts                 # Merge, Pruning, Heute/Für dich/Neueste
-│   │   ├── opml.test.ts                # Tests für OPML
+│   │   ├── catalog.ts                  # 38 Standardquellen und Push-Auswahl
+│   │   ├── contentIdentity.ts          # Gleiche Beiträge erkennen
+│   │   ├── deviceBackup.ts             # Sicherung exportieren und lesen
+│   │   ├── diagnosticEvents.ts         # Erlaubte Fehlerarten
+│   │   ├── diagnostics.ts              # Lokale Diagnose
+│   │   ├── localTranslation.ts         # Android-Übersetzung
+│   │   ├── nativeFeed.ts               # CapacitorHttp und Feed-Erkennung
+│   │   ├── newsFeed.ts                 # Merge, Aufbewahrung, Startseiten
+│   │   ├── newsPush.ts                 # Push-Themen
+│   │   ├── newsWidget.ts               # Widget-Daten
+│   │   ├── offlineArticle.ts           # Offline-Kopien
 │   │   ├── opml.ts                     # OPML 2.0 lesen und schreiben
-│   │   ├── personalization.test.ts     # Tests für Ranking, Vielfalt, Reaktionen
-│   │   ├── personalization.ts          # Profil, Gewichte, Scoring, lokale Zusammenfassung
-│   │   ├── preferences.ts              # Presets, Aufbewahrung, Startseiten, Defaults
-│   │   ├── rssParser.test.ts           # Tests für RSS, Atom, JSON und Medien
+│   │   ├── personalization.ts          # Profil, Gewichte, Scoring
+│   │   ├── preferences.ts              # Presets, Aufbewahrung, Defaults
+│   │   ├── publicHttp.ts               # SSRF-Schutz und Größenlimit
 │   │   ├── rssParser.ts                # Feed-Parser und Normalisierung
-│   │   ├── scrollNavigation.test.ts    # Tests für das Ausblenden der Navigation
 │   │   ├── scrollNavigation.ts         # Scroll-Richtung und Schwellwerte
-│   │   └── seedArticles.ts             # Lokale Demo-Artikel mit Bildern
+│   │   ├── shareArticle.ts             # Nativer Share-Dialog
+│   │   ├── storyClusters.ts            # Ähnliche Meldungen bündeln
+│   │   ├── seedArticles.ts             # Lokale Demo-Artikel
+│   │   └── *.test.ts                   # 11 Testdateien
 │   │
-│   ├── types/news.ts                   # Artikel, Quellen, Profil, KI, Einstellungen
-│   ├── App.tsx                         # App-Zustand, Navigation, Feed-Abruf, Theme
-│   ├── index.css                       # Design-Tokens, Glas-Optik, Layout, Dark Mode
+│   ├── types/news.ts                   # Artikel, Quellen, Profil, KI
+│   ├── App.tsx                         # App-Zustand, Navigation, Feed-Abruf
+│   ├── index.css                       # Design-Tokens, Glas-Optik, Dark Mode
 │   └── main.tsx                        # React-Root
 │
-├── .env.example                        # Platzhalter aus der AI-Studio-Vorlage (siehe Konfiguration)
-├── .gitignore                          # Node, Build, Logs, .env
+├── .env.example                        # Vorlage für Server-Variablen
+├── .gitignore
+├── AGENTS.md                           # Regeln für Agenten und Mitwirkende
+├── CODE_OF_CONDUCT.md
+├── CONTRIBUTING.md
 ├── DESIGN.md                           # Gestaltungsleitlinien
+├── LICENSE
 ├── PRODUCT.md                          # Produktbeschreibung
 ├── README.md                           # Diese Datei
-├── package-lock.json                   # Festgeschriebene npm-Abhängigkeiten
+├── SECURITY.md
 ├── capacitor.config.ts                 # App-ID, WebView, CapacitorHttp
-├── index.html                          # HTML-Shell, Theme-Bootstrap, Meta-Tags
+├── index.html                          # HTML-Shell und Meta-Tags
 ├── package.json                        # Abhängigkeiten und Skripte
+├── package-lock.json                   # Festgeschriebene npm-Abhängigkeiten
+├── playwright.config.ts                # Browsertests gegen den Produktionsbuild
 ├── server.ts                           # Express-API und Vite-/Produktions-Server
 ├── tsconfig.json                       # TypeScript-Konfiguration
-└── vite.config.ts                      # React, Tailwind, PWA, Alias, Dev-Server
+└── vite.config.ts                      # React, Tailwind, PWA, Alias
 ```
 
 ### Generierte Ordner
@@ -227,9 +267,10 @@ OpenNews/
 | --- | --- | --- |
 | `node_modules/` | `npm ci` | Abhängigkeiten |
 | `dist/` | `npm run build` | Produktionsbuild inkl. Service Worker |
-| `dev-dist/` | Vite-PWA im Dev-Modus | Wird derzeit mitversioniert |
+| `dev-dist/` | Vite-PWA im Dev-Modus | Nicht versioniert |
 | `android/` | `npx cap add android` | Nicht versioniert; CI erzeugt es bei jedem Lauf |
 | `android/app/build/` | Gradle | Debug-APK und Zwischendateien |
+| `playwright-report/`, `test-results/` | `npm run test:e2e` | Berichte der Browsertests |
 | `coverage/` | Testabdeckung | Nur bei entsprechender Konfiguration |
 
 > [!IMPORTANT]
@@ -286,10 +327,13 @@ NODE_ENV=production npm start
 | --- | --- | --- |
 | `npm run dev` | `tsx server.ts` | Dev-Server mit Vite-Middleware auf Port `3000` |
 | `npm run build` | `vite build` | Produktionsbuild nach `dist/` inkl. PWA-Assets |
-| `npm start` | `node server.ts` | Express starten; mit `NODE_ENV=production` aus `dist/` |
+| `npm start` | `tsx server.ts` | Express starten; mit `NODE_ENV=production` aus `dist/` |
 | `npm run preview` | `vite preview` | Statischen Build ansehen (ohne API) |
 | `npm run lint` | `tsc --noEmit` | TypeScript-Typprüfung |
-| `npm test` | `node --import tsx --test src/lib/*.test.ts` | 34 Unit-Tests |
+| `npm test` | `node --import tsx --test src/lib/*.test.ts` | 48 Unit-Tests |
+| `npm run test:e2e` | `playwright test` | 8 Browsertests gegen den Produktionsbuild |
+| `npm run push:worker` | `tsx scripts/push-news.ts` | Android-Push aus den Standardquellen senden |
+| `node scripts/check-web-budget.mjs` | Node | Prüft das Start-JavaScript gegen 170 KiB gzip |
 | `npm run clean` | `rm -rf dist server.js` | Build-Artefakte entfernen |
 | `npm run android:sync` | Build + `cap sync` + MainActivity + Icons | Web-Assets, natives Projekt und App-Symbole abgleichen |
 
@@ -300,11 +344,15 @@ NODE_ENV=production npm start
 | Variable | Standard | Bedeutung |
 | --- | --- | --- |
 | `PORT` | `3000` | Port des Express-Servers |
-| `NODE_ENV` | nicht gesetzt | `production` liefert `dist/` aus, sonst wird Vite eingebunden |
+| `NODE_ENV` | nicht gesetzt | `production` liefert `dist/` aus und aktiviert CSP/HSTS, sonst wird Vite eingebunden |
 | `DISABLE_HMR` | nicht gesetzt | `true` deaktiviert Hot Reload und Watch (nur Entwicklung) |
+| `OPENNEWS_ORIGIN` | Anfrage-Host | Erlaubte Herkunft für `/api/*` hinter einem Reverse-Proxy, z. B. `https://news.example.org` |
+| `OPENNEWS_DIAGNOSTICS` | nicht gesetzt | `1` aktiviert den Empfang freiwilliger Fehlerberichte unter `/api/diagnostics` |
+| `OPENNEWS_FIREBASE_PROJECT` | nicht gesetzt | Firebase-Projekt-ID für `npm run push:worker` (Pflicht dort) |
+| `OPENNEWS_PUSH_STATE` | `./opennews-push-state.json` | Datei mit bereits versendeten Meldungen |
 
 > [!WARNING]
-> `.env.example` enthält Platzhalter aus der ursprünglichen AI-Studio-Vorlage (`GEMINI_API_KEY`, `APP_URL`). Der Server liest sie **nicht**. API-Schlüssel gehören in die App unter **Profil → KI & Personalisierung**.
+> `.env.example` enthält weiterhin Platzhalter aus der ursprünglichen AI-Studio-Vorlage (`GEMINI_API_KEY`, `APP_URL`). Der Server liest sie **nicht**. API-Schlüssel gehören in die App unter **Profil → KI & Personalisierung**. Die `OPENNEWS_*`-Zeilen sind auskommentiert und müssen im Server-Prozess gesetzt werden.
 
 ### Lokaler Speicher
 
@@ -321,6 +369,12 @@ OpenNews nutzt ausschließlich `localStorage` (JSON). Die wichtigsten Schlüssel
 | `opennews_read_articles` | Leseverlauf (max. 60) |
 | `opennews_notifications` | Benachrichtigungsregeln und Zeitfenster |
 | `opennews_recent_searches` | Letzte sechs Suchbegriffe |
+| `opennews_feed_health` | Letzter Abrufstatus je Quelle |
+| `opennews_formats` | Bevorzugte Medienformate |
+| `opennews_source_keys` | Zugangsschlüssel für einzelne Quellen |
+| `opennews_auto_translate` | Lokale Übersetzung englischer Quellen auf Android |
+| `opennews_background_playback` | Weiterhören im Hintergrund |
+| `opennews_diagnostics`, `opennews_diagnostics_enabled`, `opennews_diagnostics_reports` | Lokale Diagnose, Einwilligung und Versandfreigabe |
 | `opennews_theme`, `opennews_onboarded`, `opennews_font_size`, `opennews_font_family` | Theme, Onboarding, Reader-Typografie |
 
 Bei Parse- oder Quota-Fehlern fällt der Hook auf den Standardwert zurück, ohne die App abzubrechen.
@@ -334,27 +388,36 @@ Bei Parse- oder Quota-Fehlern fällt der Hook auf den Standardwert zurück, ohne
 | `GET` | `/api/feeds/discover?q=` | URL oder Domain | `{ discovered: [{ name, url, format }] }` |
 | `GET` | `/api/article/extract?url=` | Artikel-URL | `{ paragraphs, headingIndexes, ogImage }` |
 | `POST` | `/api/ai/proxy` | `{ provider, apiKey, model, prompt, customEndpoint? }` | `{ text }` oder `{ error }` |
+| `GET` | `/api/diagnostics` | — | `{ enabled }` |
+| `POST` | `/api/diagnostics` | `{ event }` | `204`; `404` ohne `OPENNEWS_DIAGNOSTICS=1`, `400` bei unbekannter Fehlerart |
 
-**Grenzen:** maximal 20 Feeds pro Anfrage (5,5 s Timeout je Feed), 25 Beiträge pro Feed, 1 MB JSON-Body, 6 s für Volltext, 5 s und 6 Treffer für die Feed-Erkennung, 4 MB und 6 parallele Worker im nativen Abruf.
+**Grenzen:** maximal 20 Feeds pro Anfrage (5,5 s Timeout je Feed), 25 Beiträge pro Feed, 128 KB JSON-Body, 45 API-Anfragen pro Minute und IP, 10 KI-Anfragen pro Minute, 4 MB je Antwort, 5 Weiterleitungen, 6 s für Volltext, 5 s und 6 Treffer für die Feed-Erkennung, 6 parallele Abrufe im nativen Betrieb.
 
-**Sicherheit:** Loopback-Adressen sowie `10.*`, `192.168.*` und `169.254.*` werden blockiert (Hostname-Prüfung, keine DNS-Auflösung). Es gibt keine Authentifizierung und kein Rate-Limit — die API ist für lokalen bzw. privaten Betrieb gedacht. Feed-HTML wird bereinigt, OPML-Importe mit DOCTYPE/ENTITY werden abgelehnt. BYOK-Schlüssel werden nicht gespeichert oder protokolliert, liegen aber im Arbeitsspeicher des Servers.
+**Sicherheit:** Jede ausgehende Adresse wird per DNS aufgelöst; nur öffentliche Ziele sind erlaubt (kein Loopback, kein `10.*`, `192.168.*` oder `169.254.*`, keine Zugangsdaten in der URL). Helmet setzt Sicherheits-Header, in Produktion zusätzlich eine Content-Security-Policy. `/api/*` prüft `Origin` bzw. `Sec-Fetch-Site` und begrenzt Anfragen pro IP. Es gibt **keine Authentifizierung** — die API ist für lokalen bzw. privaten Betrieb gedacht. Feed-HTML wird bereinigt, OPML-Importe mit DOCTYPE/ENTITY werden abgelehnt. BYOK-Schlüssel werden nicht gespeichert oder protokolliert, liegen aber im Arbeitsspeicher des Servers.
+
+**Diagnose:** Der Server nimmt nur bekannte Fehlerarten an und schreibt sie mit der auf Stunden gerundeten Empfangszeit ins Betriebsprotokoll. Es gibt keine Authentifizierung; schütze den Endpunkt über den vorgeschalteten Webserver und führe dort keine Zugriffsprotokolle für diesen Pfad.
 
 ## Datenschutz
 
 **Nicht vorhanden:** Benutzerkonten, Cloud-Sync, Analytics, Tracking, Werbung, Telemetrie, serverseitige Speicherung von Artikeln oder Profilen.
 
-**Das Gerät verlässt:** die IP-Adresse und der User-Agent beim Abruf von Feeds und Artikeln, beim Öffnen eines Artikels die Artikel-URL, bei BYOK der Prompt mit Quellname, Rubrik, Titel und Artikeltext an den gewählten KI-Anbieter.
+**Das Gerät verlässt:** die IP-Adresse und der User-Agent beim Abruf von Feeds und Artikeln, beim Öffnen eines Artikels die Artikel-URL, bei BYOK der Prompt mit Quellname, Rubrik, Titel und Artikeltext an den gewählten KI-Anbieter. Für den **Tagesüberblick** gehen bis zu acht Überschriften und Kurztexte an die eingerichtete KI. Für die **Android-Übersetzung** lädt ML Kit Sprachmodelle von Google; übersetzt wird auf dem Gerät. Die **Sicherung** bleibt als Datei auf dem Gerät.
 
-**Löschen:** Website-Daten im Browser bzw. App-Speicher unter Android; den Algorithmus über **Gespeichert → Algorithmus zurücksetzen**; den Suchverlauf über **Entdecken → Alle löschen**.
+**Freiwillige Diagnose:** Standardmäßig aus. Wer sie einschaltet, speichert Fehlerarten und auf Stunden gerundete Zeiten lokal. Auf einem selbst betriebenen Server lässt sich zusätzlich das Senden der reinen Fehlerart aktivieren (`OPENNEWS_DIAGNOSTICS=1`); der Server protokolliert sie mit gerundeter Stunde, ohne IP-Adresse, URL, Gerätekennung oder Fehlertexte. Beim Verbindungsaufbau ist die IP-Adresse für den Betreiber technisch sichtbar.
+
+**Löschen:** Website-Daten im Browser bzw. App-Speicher unter Android; den Algorithmus über **Gespeichert → Algorithmus zurücksetzen**; den Suchverlauf über **Entdecken → Alle löschen**; die Diagnose beim Ausschalten.
 
 > [!WARNING]
 > `localStorage` ist nicht verschlüsselt. Wer Zugriff auf dein Browserprofil oder dein entsperrtes Gerät hat, kann den API-Schlüssel auslesen. Nutze Schlüssel mit engem Budget und widerrufe sie bei Gerätewechsel.
 
 ## Android
 
-Die App ist eine Capacitor-WebView mit `CapacitorHttp` (Feed- und KI-Aufrufe direkt auf dem Gerät), nativem Zurück-Knopf, `ArticleShare`-Plugin und synchronisierten Systemleisten.
+Die App ist eine Capacitor-WebView mit `CapacitorHttp` (Feed- und KI-Aufrufe direkt auf dem Gerät), nativem Zurück-Knopf, `ArticleShare`-Plugin, Systemstimme für den Tagesüberblick, lokaler Übersetzung über ML Kit, Firebase-Nachrichten und synchronisierten Systemleisten. Das Widget „OpenNews Top-Themen“ zeigt bis zu zwei Überschriften aus **Heute**.
 
-**CI:** Der Workflow `OpenNews Android Test APK` läuft bei Pull Requests gegen `main` (bei Änderungen an `src/**`, `native/android/**`, `public/**`, Build-Dateien) und manuell über **Actions → Run workflow**. Er richtet Node 22 und JDK 21 ein, führt Typecheck, Tests und Build aus, erzeugt das Android-Projekt, baut `assembleDebug`, lädt die APK als Artefakt (7 Tage) hoch und veröffentlicht bei Push oder manuellem Lauf ein privates Pre-Release `v0.1.0-alpha.<Run-Nummer>`.
+**CI:** Zwei Workflows laufen bei Pull Requests gegen `main`:
+
+- **Web CI** (`web-ci.yml`): Typprüfung, 48 Unit-Tests, Build, JavaScript-Budget und 8 Browsertests mit Playwright.
+- **OpenNews Android Test APK** (`android-test-apk.yml`): bei Änderungen an `src/**`, `scripts/**`, `native/android/**`, `public/**` und Build-Dateien sowie manuell über **Actions → Run workflow**. Richtet Node 22 und JDK 21 ein, prüft Typen, führt Unit-Tests und Build aus, erzeugt das Android-Projekt, baut `assembleDebug`, lädt die APK als Artefakt (7 Tage) hoch und veröffentlicht bei manuellem Lauf ein privates Pre-Release `v0.1.0-alpha.<Run-Nummer>`.
 
 **Lokal:**
 
@@ -385,18 +448,26 @@ OpenNews nutzt die öffentlichen YouTube-Kanalfeeds unter anderem von tagesschau
 > [!NOTE]
 > Alle CI-Builds sind mit einem Debug-Schlüssel signiert. Wegen abweichender Signaturen lässt sich eine neue APK nicht über eine ältere installieren — vorher deinstallieren (lokale Daten gehen verloren). Die APK ist nicht für den Play Store bestimmt.
 
+### iOS (in Vorbereitung)
+
+Für iOS liegen die Brücken- und Widget-Dateien unter `native/ios/`. Ein Build benötigt macOS mit Xcode und die zum Projekt passende Capacitor-Version: `npm ci`, `npm run build`, `npx cap add ios`, `npx cap sync ios`. App und Widget-Erweiterung teilen sich die App Group `group.io.opennews.app`; das Schema `opennews` öffnet die App aus dem Widget. Die Einrichtung ist unter Linux **nicht geprüft**. Details stehen in [docs/ios-widget.md](docs/ios-widget.md).
+
 ## Tests und Qualität
 
-`npm test` führt **34 Unit-Tests** aus sieben Dateien aus: `rssParser.test.ts`, `personalization.test.ts`, `opml.test.ts`, `nativeFeed.test.ts`, `aiClient.test.ts`, `articleMedia.test.ts` und `scrollNavigation.test.ts`. Abgedeckt sind Parsing und Medien, Ranking und Vielfalt, OPML, native URL-Sicherheit, KI-Antwortparsing und die Scroll-Navigation.
+`npm test` führt **48 Unit-Tests** aus elf Dateien aus: `rssParser.test.ts`, `personalization.test.ts`, `newsFeed.test.ts`, `opml.test.ts`, `nativeFeed.test.ts`, `aiClient.test.ts`, `articleMedia.test.ts`, `articleExtraction.test.ts`, `publicHttp.test.ts`, `storyClusters.test.ts` und `scrollNavigation.test.ts`. Abgedeckt sind Parsing und Medien, Aufbewahrung, Ranking und Vielfalt, OPML, native URL-Sicherheit, KI-Antwortparsing, Volltext, SSRF-Schutz, Themencluster und die Scroll-Navigation.
+
+`npm run test:e2e` startet den Produktionsbuild auf Port `3099` und prüft mit Playwright acht Kernabläufe gegen einen simulierten Feed: Onboarding, Artikel öffnen und speichern, eigene Quelle, OPML-Import, Clip-Ansicht, Offline-Lesen, Tagesüberblick und Migration des Leseverlaufs. Einmalig `npx playwright install chromium` ausführen.
 
 ```bash
 npm run lint
 npm test
 npm run build
+node scripts/check-web-budget.mjs
+npm run test:e2e
 git diff --check
 ```
 
-Es gibt derzeit **keine End-to-End- oder UI-Tests**. Für sichtbare Änderungen lohnt ein manueller Blick auf Startseite (hell/dunkel), Onboarding, Reader mit und ohne Volltext, Medienwiedergabe und die installierte PWA.
+Für sichtbare Änderungen lohnt zusätzlich ein manueller Blick auf Startseite (hell/dunkel), Onboarding, Reader mit und ohne Volltext, Medienwiedergabe, Widget und die installierte PWA.
 
 ## Fehlerbehebung
 
@@ -412,6 +483,30 @@ Es gibt derzeit **keine End-to-End- oder UI-Tests**. Für sichtbare Änderungen 
 | Kein Volltext | Quelle liefert nur einen Ausschnitt | Feed-Text wird angezeigt; Original öffnen |
 | PWA zeigt alte Version | Service Worker cached alte Assets | Neu laden oder Website-Daten löschen |
 | OPML-Import schlägt fehl | Ungültiges XML oder über 500 Quellen | Datei bereinigen, erneut importieren |
+| API antwortet `403` | Herkunft passt nicht zum Server | `OPENNEWS_ORIGIN` auf die öffentliche Adresse setzen |
+| API antwortet `429` | Rate-Limit erreicht | Eine Minute warten oder Grenzen im Server anpassen |
+| `/api/diagnostics` antwortet `404` | Empfang ist ausgeschaltet | `OPENNEWS_DIAGNOSTICS=1` setzen und neu starten |
+| `npm run test:e2e` findet keinen Browser | Chromium fehlt | `npx playwright install chromium` |
+| Web-Budget schlägt fehl | Start-JavaScript über 170 KiB gzip | Importe aufteilen oder Abhängigkeit prüfen |
+
+## Dokumentation
+
+| Datei | Inhalt |
+| --- | --- |
+| [README.md](README.md) | Einstieg, Funktionen, Aufbau, Befehle, API und Datenschutz |
+| [AGENTS.md](AGENTS.md) | Regeln für Agenten und Mitwirkende, inklusive Dokumentationspflicht |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Ablauf für Beiträge |
+| [DESIGN.md](DESIGN.md) | Gestaltungsleitlinien |
+| [PRODUCT.md](PRODUCT.md) | Produktbeschreibung |
+| [SECURITY.md](SECURITY.md) | Sicherheitslücken melden |
+| [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | Verhaltensregeln |
+| [docs/android-release.md](docs/android-release.md) | Signierung und Play-Store-Checkliste |
+| [docs/artikelvolltext.md](docs/artikelvolltext.md) | Volltext-Extraktion, Rechte und Offline-Kopien |
+| [docs/datenschutz.md](docs/datenschutz.md) | Entwurf der Datenschutzerklärung |
+| [docs/ios-widget.md](docs/ios-widget.md) | WidgetKit und iOS-Einrichtung |
+| [docs/monetarisierung.md](docs/monetarisierung.md) | Preis- und Erlösmodell |
+
+Dokumentation wird **im selben Pull Request** wie die Änderung gepflegt. Wer Befehle, Konfiguration, API, Datenübertragung, Tests oder die Projektstruktur ändert, passt README und betroffene Dateien unter `docs/` an. Zahlen wie Quellen- und Testanzahl werden vor dem PR gegen den Code geprüft.
 
 ## Mitwirken
 
@@ -420,9 +515,10 @@ Das Repository ist privat und in einer frühen Alpha. Beiträge klein und prüfb
 1. Branch von `main` anlegen, z. B. `feat/mikrofon-auswahl` oder `fix/absturz-leerer-text`.
 2. Eine logische Änderung pro Commit und pro Pull Request.
 3. Conventional Commits: `feat(bereich): …`, `fix(bereich): …`, `docs(bereich): …`, `test(bereich): …`, `chore(bereich): …`.
-4. Vor dem Push: `npm run lint`, `npm test`, `npm run build`, `git diff --check`.
-5. Pull Request mit Was, Warum, Prüfung, Risiko und Rücknahme beschreiben.
-6. **Nicht selbst mergen** — der PR wartet auf ausdrückliche Freigabe.
+4. Vor dem Push: `npm run lint`, `npm test`, `npm run build`, `node scripts/check-web-budget.mjs`, bei UI-Änderungen `npm run test:e2e`, danach `git diff --check`.
+5. README und betroffene Dateien unter `docs/` im selben Pull Request aktualisieren.
+6. Pull Request mit Was, Warum, Prüfung, Risiko und Rücknahme beschreiben.
+7. **Nicht selbst mergen** — der PR wartet auf ausdrückliche Freigabe.
 
 **Stil:** TypeScript ohne `any` wo möglich, neue Fachlogik in `src/lib/` mit Test, bestehende Muster für Farben, Abstände und Animationen übernehmen, keine Schlüssel oder personenbezogenen Daten committen, externe Inhalte immer als nicht vertrauenswürdig behandeln.
 
@@ -433,11 +529,15 @@ Das Repository ist privat und in einer frühen Alpha. Beiträge klein und prüfb
 | Web-App | nutzbar |
 | PWA | nutzbar (Installation, Offline-Hinweis) |
 | Android | Alpha, Debug-APK |
-| iOS | nicht vorhanden |
+| iOS | vorbereitet (Brücken und WidgetKit), Build nur mit Xcode/macOS |
+| Android-Widget | verfügbar (Top-Themen) |
+| iOS-Widget | vorbereitet, nicht geprüft |
 | Native Push | Android mit Firebase und laufendem Feed-Dienst |
 | Artikelvolltext | Beta, abhängig von der Quelle |
 | BYOK-KI | Beta, abhängig von Anbieter und Schlüssel |
-| Tests | 34 Unit-Tests, keine E2E-Tests |
+| Tagesüberblick | Beta, benötigt eingerichtete KI und Systemstimme |
+| Diagnose | lokal verfügbar, Senden optional |
+| Tests | 48 Unit-Tests und 8 Playwright-Browsertests |
 | Lizenz | Apache-2.0 |
 
 ## Lizenz
@@ -454,4 +554,4 @@ Der OpenNews-Quellcode steht unter der [Apache License 2.0](LICENSE). Nachrichte
 
 </div>
 
-Der [Android-Release-Leitfaden](docs/android-release.md) enthält Store-Checkliste und Signierschritte.
+Der [Android-Release-Leitfaden](docs/android-release.md) enthält Store-Checkliste und Signierschritte. Alle Dokumente sind im Abschnitt [Dokumentation](#dokumentation) aufgelistet.
