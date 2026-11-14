@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { AI_PROVIDERS, DEFAULT_AI_CONFIG, migrateAIConfig } from './aiClient';
 
-import { buildGroundedPrompt, parseArticleAnswer, parseBriefingText, parseSummaryBullets } from './aiResponse';
+import { buildGroundedPrompt, parseArticleAnswer, parseBriefingText, parseSourcedReport, parseSummaryBullets } from './aiResponse';
 test('Google offers moving aliases and migrates the previous Flash defaults', () => {
   assert.deepEqual(AI_PROVIDERS.find(provider => provider.id === 'google')?.models.map(model => model.id), [
     'gemini-flash-latest', 'gemini-flash-lite-latest',
@@ -36,4 +36,14 @@ test('article answers require a verbatim citation or an explicit no-answer resul
     { answer: 'Mittwoch.', quote: 'erschien am Mittwoch' });
   assert.deepEqual(parseArticleAnswer('{"answer":null,"quote":null}', text), { answer: null, quote: null });
   assert.throws(() => parseArticleAnswer('{"answer":"Donnerstag.","quote":"erschien am Donnerstag"}', text));
+});
+
+test('comparison requires valid source references and covers each submitted source', () => {
+  const report = (id: number) => JSON.stringify({ sections: [
+    { text: 'Erster Schwerpunkt.', sources: [1] },
+    { text: 'Zweiter Schwerpunkt.', sources: [id] },
+  ] });
+  assert.equal(parseSourcedReport(report(2), 2).length, 2);
+  assert.throws(() => parseSourcedReport(report(1), 2));
+  assert.throws(() => parseSourcedReport(report(3), 2));
 });
