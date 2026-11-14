@@ -74,6 +74,8 @@ Die App zeigt die Hauptmeldung auf einer großen Bildkarte. Weitere Meldungen st
 | :---: | :---: | :---: |
 | <img src="docs/screenshots/startseite.jpeg" width="240" alt="Startseite" /> | <img src="docs/screenshots/entdecken.jpeg" width="240" alt="Entdecken" /> | <img src="docs/screenshots/artikel.jpeg" width="240" alt="Artikel-Reader" /> |
 
+Der [Messplan für die Inhaltsauswahl](docs/content-ranking.md) beschreibt den Vergleich der Top-Meldungen über mehrere Tage.
+
 ## Architektur
 
 React-SPA, schlanker Express-Server für den Web-Betrieb und eine Capacitor-Hülle für Android. Die Fachlogik liegt in `src/lib/` und ist frameworkunabhängig testbar.

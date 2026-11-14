@@ -26,3 +26,19 @@ Die Tests in `src/lib/newsFeed.test.ts` bilden einen festen Beispieltag mit fün
 | Threads | Empfehlungen und chronologischer Feed abonnierter Profile sind eigene Ansichten. | Chronologie und Empfehlungen bekommen getrennte Reiter. [Meta zur Einführung von Threads](https://about.fb.com/news/2023/07/introducing-threads-new-app-text-sharing/) |
 
 Die Tabelle stützt sich auf Produktdokumentation. Die im Issue verlangte mehrtägige Beobachtung, Screenshots und ein quantitativer Vergleich realer Feeds stehen aus. Verlässliche Regionssignale und eine Clickbait-Erkennung sind noch offen.
+
+## Mehrtägige Messung
+
+Pro Angebot und Ansicht an mindestens drei verschiedenen Tagen zu denselben lokalen Uhrzeiten die ersten zwölf redaktionellen Beiträge erfassen. Einen frischen Zustand getrennt von einem bestehenden, personalisierten Profil erfassen. Vermerken, wenn ein Angebot oder eine Ansicht im gewählten Land fehlt, eine Anmeldung verlangt oder wegen eines Abos nicht geöffnet werden kann. Region, Gerätesprache, Plattform und Zeitpunkt festhalten.
+
+Je Beitrag Position, Überschrift, kanonische URL, sichtbare Quelle, Thema, Format, sichtbare Veröffentlichungszeit und eine mögliche Empfehlungserklärung erfassen. Je Ansicht eine Aufnahme mit Zeitpunkt ablegen. Werbung, Widgets und Navigation separat vermerken. Bei fehlender Zeitangabe die Alterskennzahl nur für Beiträge mit sichtbarer Zeit berechnen und den Anteil fehlender Zeiten dazuschreiben.
+
+| Kennzahl | Berechnung je Ansicht und Zeitpunkt |
+| --- | --- |
+| Quellen und Themen | Anzahl verschiedener Quellen und Themen in den ersten zwölf Beiträgen |
+| Dominanz | Anteil der häufigsten Quelle unter den sichtbaren Beiträgen |
+| Aktualität | Median des Alters in Stunden und Anteil der Meldungen unter 24 Stunden |
+| Doppelte Geschichten | Anteil zusätzlicher Karten, die von derselben Nachricht handeln. Verwandte Artikel innerhalb einer Karte separat zählen. |
+| Personalisierung | Anteil, der zu vorher festgelegten Interessen passt. Sichtbare Empfehlungserklärungen zusätzlich zählen. |
+
+Für Vorher und Nachher denselben Feed-Datensatz und dieselbe Uhrzeit verwenden. Die personalisierte Ansicht mit einem festen lokalen Profil auswerten. Je Ansicht auch die Laufzeit der Auswahl protokollieren. Ergebnisse über die Tage zusammenfassen und Messwerte aus öffentlichen Ansichten getrennt von personalisierten Stichproben ausweisen.
