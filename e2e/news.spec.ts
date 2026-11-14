@@ -124,3 +124,28 @@ test('generates an audio briefing on demand and starts speech', async ({ page })
   await page.getByRole('button', { name: 'Wiedergabe stoppen' }).click();
   await expect(page.getByRole('button', { name: 'Tagesüberblick anhören' })).toBeVisible();
 });
+
+test('migrates old reading history and preserves it across restarts', async ({ browser, baseURL }) => {
+  const context = await browser.newContext({ baseURL });
+  try {
+    const page = await context.newPage();
+    await page.goto('/api/health');
+    const legacy = [{ id: 'legacy-article', title: 'Migrationstest' }];
+    await page.evaluate(value => localStorage.setItem('opennews_read_articles', JSON.stringify(value)), legacy);
+    await page.goto('/');
+    await expect.poll(() => page.evaluate(() => localStorage.getItem('opennews_read_articles'))).toBeNull();
+    await page.reload();
+    const history = await page.evaluate(() => new Promise<unknown>((resolve, reject) => {
+      const open = indexedDB.open('opennews', 1);
+      open.onerror = () => reject(open.error);
+      open.onsuccess = () => {
+        const request = open.result.transaction('articles').objectStore('articles').get('opennews_read_articles');
+        request.onsuccess = () => { resolve(request.result); open.result.close(); };
+        request.onerror = () => reject(request.error);
+      };
+    }));
+    expect(history).toEqual(legacy);
+  } finally {
+    await context.close();
+  }
+});
