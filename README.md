@@ -45,7 +45,7 @@ OpenNews bündelt Nachrichten aus frei zugänglichen Feeds in einer ruhigen Ober
 
 | Bereich | Umfang |
 | --- | --- |
-| **Quellen** | 38 vorkonfigurierte Feeds (Tagesschau, ZDFheute, Deutschlandfunk, FAZ, SPIEGEL, ZEIT, SZ, Handelsblatt, WELT, BILD, heise, Golem, t3n, Guardian, BBC, Hacker News, Ars Technica, NASA, n-tv, DW, taz, Standard, ORF, SRF u. a.) plus beliebig viele eigene Feeds |
+| **Quellen** | 51 vorkonfigurierte Feeds (Tagesschau, ZDFheute, Deutschlandfunk, FAZ, SPIEGEL, ZEIT, SZ, Handelsblatt, WELT, BILD, heise, Golem, t3n, Guardian, BBC, Hacker News, Ars Technica, NASA, n-tv, DW, taz, Standard, ORF, SRF u. a.) plus beliebig viele eigene Feeds |
 | **Feed-Formate** | RSS 2.0, RDF, Atom 1.0, JSON Feed, Podcast-Feeds; Domain-Erkennung über `link rel="alternate"`; OPML-Import/-Export |
 | **Startseite** | **Heute** (ab Mitternacht), **Für dich** (48 h, personalisiert), **Neueste** (streng chronologisch); Pull-to-Refresh, ähnliche Titel weiter unten |
 | **Personalisierung** | Like, Dislike, Lesezeichen, Lesezeit und Verlauf formen lokale Gewichte; Vielfalt mischt Quellen und Themen; gelernte Interessen verblassen mit der Zeit |
@@ -216,7 +216,7 @@ OpenNews/
 │   │   ├── aiClient.ts                 # BYOK-Anbieter, Prompt, Tagesüberblick
 │   │   ├── articleExtraction.ts        # Volltext mit Mozilla Readability
 │   │   ├── articleMedia.ts             # Abspielbare Medien eines Artikels
-│   │   ├── catalog.ts                  # 38 Standardquellen und Push-Auswahl
+│   │   ├── catalog.ts                  # 51 Standardquellen und Push-Auswahl
 │   │   ├── contentIdentity.ts          # Gleiche Beiträge erkennen
 │   │   ├── deviceBackup.ts             # Sicherung exportieren und lesen
 │   │   ├── diagnosticEvents.ts         # Erlaubte Fehlerarten
@@ -459,7 +459,7 @@ Für iOS liegen die Brücken- und Widget-Dateien unter `native/ios/`. Ein Build 
 
 `npm test` führt **51 Unit-Tests** aus elf Dateien aus: `rssParser.test.ts`, `personalization.test.ts`, `newsFeed.test.ts`, `opml.test.ts`, `nativeFeed.test.ts`, `aiClient.test.ts`, `articleMedia.test.ts`, `articleExtraction.test.ts`, `publicHttp.test.ts`, `storyClusters.test.ts` und `scrollNavigation.test.ts`. Abgedeckt sind Parsing und Medien, Aufbewahrung, Ranking und Vielfalt, OPML, native URL-Sicherheit, KI-Antwortparsing, Volltext, SSRF-Schutz, Themencluster und die Scroll-Navigation.
 
-`npm run test:e2e` startet den Produktionsbuild auf Port `3099` und prüft mit Playwright acht Kernabläufe gegen einen simulierten Feed: Onboarding, Artikel öffnen und speichern, eigene Quelle, OPML-Import, Clip-Ansicht, Offline-Lesen, Tagesüberblick und Migration des Leseverlaufs. Einmalig `npx playwright install chromium` ausführen.
+`npm run test:e2e` startet den Produktionsbuild auf Port `3099` und prüft mit Playwright neun Kernabläufe gegen einen simulierten Feed: Onboarding, Artikel öffnen und speichern, eigene Quelle, OPML-Import, Clip-Ansicht, Offline-Lesen, Tagesüberblick und Migration des Leseverlaufs sowie große Schrift auf schmalen Displays. Einmalig `npx playwright install chromium` ausführen.
 
 ```bash
 npm run lint
