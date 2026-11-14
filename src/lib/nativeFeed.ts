@@ -1,5 +1,5 @@
 import { CapacitorHttp } from '@capacitor/core';
-import type { NewsArticle, NewsSource } from '../types/news';
+import type { FeedResult, NewsArticle, NewsSource } from '../types/news';
 import { parseFeedPayload } from './rssParser';
 
 type FeedFormat = 'rss' | 'atom' | 'json';
@@ -40,20 +40,24 @@ export async function fetchNativeFeeds(
   onArticles: (articles: NewsArticle[]) => void,
   signal: AbortSignal,
   loadText = getNativeText,
+  onResult?: (result: FeedResult) => void,
 ): Promise<void> {
   let next = 0;
   async function worker() {
     while (!signal.aborted && next < sources.length) {
       const source = sources[next++];
       const url = publicHttpUrl(source.url);
-      if (!url) continue;
+      const failure = { sourceId: source.id, ok: false, count: 0 };
+      if (!url) { onResult?.(failure); continue; }
       try {
         const content = await loadText(url);
-        if (signal.aborted || content.length > 4_000_000) continue;
+        if (signal.aborted) continue;
+        if (content.length > 4_000_000) { onResult?.(failure); continue; }
         const articles = parseFeedPayload(content, source);
         if (articles.length) onArticles(articles);
+        onResult?.({ sourceId: source.id, ok: true, count: articles.length });
       } catch {
-        // Keep cached articles if this provider fails.
+        if (!signal.aborted) onResult?.(failure);
       }
     }
   }

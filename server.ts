@@ -78,7 +78,7 @@ app.post('/api/feeds/fetch', async (req, res) => {
         }
         const rawText = await readPublicText(response);
         const articles = parseFeedPayload(rawText, source);
-        return { sourceId: source.id, ok: articles.length > 0, count: articles.length, articles };
+        return { sourceId: source.id, ok: true, count: articles.length, articles };
       } catch {
         return { sourceId: source.id, ok: false, count: 0, articles: [] };
       } finally {

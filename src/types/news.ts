@@ -27,6 +27,16 @@ export interface NewsSource {
   isCustom?: boolean;
 }
 
+export type FeedResult = { sourceId: string; ok: boolean; count: number };
+export type FeedHealth = {
+  url: string;
+  checkedAt: number;
+  lastSuccess?: number;
+  consecutiveFailures: number;
+  count: number;
+  ok: boolean;
+};
+
 export interface MediaAttachment {
   type: 'image' | 'video' | 'audio' | 'youtube';
   url: string;

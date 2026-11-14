@@ -27,6 +27,7 @@ import {
 import type {
   AIProviderConfig,
   AIProviderId,
+  FeedHealth,
   FormatPreferences,
   NewsCategory,
   NewsSource,
@@ -42,6 +43,7 @@ import { PWAInstallButton } from './PWAInstallButton';
 export type SettingsSectionTab = 'overview' | 'feeds' | 'ai' | 'app';
 
 interface SettingsViewProps {
+  feedHealth: Record<string, FeedHealth>;
   initialSection?: SettingsSectionTab;
   sources: NewsSource[];
   formatPrefs: FormatPreferences;
@@ -77,7 +79,16 @@ const CUSTOM_CATEGORIES: Array<Exclude<NewsCategory, 'Alle' | 'Für dich'>> = [
   'Sport',
 ];
 
+function SourceHealth({ source, health }: { source: NewsSource; health?: FeedHealth }) {
+  if (!health || health.url !== source.url) return source.subscribed ? <p className="text-xs">Noch nicht geprüft</p> : null;
+  const status = !source.subscribed && health.consecutiveFailures >= 5 ? 'Nach fünf Fehlern pausiert'
+    : !health.ok ? `Abruf fehlgeschlagen (${health.consecutiveFailures} in Folge)`
+    : health.count ? `${health.count} Artikel` : 'Erreichbar · 0 Artikel';
+  return <p className="text-xs">{status}{health.lastSuccess ? ` · Letzter Erfolg: ${new Date(health.lastSuccess).toLocaleString('de-DE')}` : ''}</p>;
+}
+
 export const SettingsView: React.FC<SettingsViewProps> = ({
+  feedHealth,
   initialSection = 'overview',
   sources,
   formatPrefs,
@@ -689,6 +700,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
                               {src.category} · {src.format.toUpperCase()} · {src.language.toUpperCase()}
                             </p>
+                            <SourceHealth source={src} health={feedHealth[src.id]} />
                           </div>
                         </div>
 
@@ -804,6 +816,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
                           {src.category} · {src.format.toUpperCase()} · {src.language.toUpperCase()}
                         </p>
+                        <SourceHealth source={src} health={feedHealth[src.id]} />
                       </div>
                     </div>
                     <button
@@ -839,6 +852,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
                           {src.category} · {src.format.toUpperCase()} · {src.language.toUpperCase()}
                         </p>
+                        <SourceHealth source={src} health={feedHealth[src.id]} />
                       </div>
                     </div>
                     <button
