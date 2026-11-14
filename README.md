@@ -332,7 +332,7 @@ NODE_ENV=production npm start
 | `npm run preview` | `vite preview` | Statischen Build ansehen (ohne API) |
 | `npm run lint` | `tsc --noEmit` | TypeScript-Typprüfung |
 | `npm test` | `node --import tsx --test src/lib/*.test.ts` | 51 Unit-Tests |
-| `npm run test:e2e` | `playwright test` | 9 Browsertests gegen den Produktionsbuild |
+| `npm run test:e2e` | `playwright test` | 10 Browsertests gegen den Produktionsbuild |
 | `npm run push:worker` | `tsx scripts/push-news.ts` | Android-Push aus den Standardquellen senden |
 | `node scripts/check-web-budget.mjs` | Node | Prüft das Start-JavaScript gegen 170 KiB gzip |
 | `npm run clean` | `rm -rf dist server.js` | Build-Artefakte entfernen |
@@ -423,7 +423,7 @@ Die App ist eine Capacitor-WebView mit `CapacitorHttp` (Feed- und KI-Aufrufe dir
 
 **CI:** Zwei Workflows laufen bei Pull Requests gegen `main`:
 
-- **Web CI** (`web-ci.yml`): Typprüfung, 51 Unit-Tests, Build, JavaScript-Budget und 9 Browsertests mit Playwright.
+- **Web CI** (`web-ci.yml`): Typprüfung, 51 Unit-Tests, Build, JavaScript-Budget und 10 Browsertests mit Playwright.
 - **OpenNews Android Test APK** (`android-test-apk.yml`): bei Änderungen an `src/**`, `scripts/**`, `native/android/**`, `public/**` und Build-Dateien sowie manuell über **Actions → Run workflow**. Richtet Node 22 und JDK 21 ein, prüft Typen, führt Unit-Tests und Build aus, erzeugt das Android-Projekt, baut `assembleDebug`, lädt die APK als Artefakt (7 Tage) hoch und veröffentlicht bei manuellem Lauf ein privates Pre-Release `v0.1.0-alpha.<Run-Nummer>`.
 
 **Lokal:**
@@ -465,7 +465,7 @@ Android zeigt für OpenNews-Benachrichtigungen ein eigenes monochromes Symbol in
 
 `npm test` führt **51 Unit-Tests** aus elf Dateien aus: `rssParser.test.ts`, `personalization.test.ts`, `newsFeed.test.ts`, `opml.test.ts`, `nativeFeed.test.ts`, `aiClient.test.ts`, `articleMedia.test.ts`, `articleExtraction.test.ts`, `publicHttp.test.ts`, `storyClusters.test.ts` und `scrollNavigation.test.ts`. Abgedeckt sind Parsing und Medien, Aufbewahrung, Ranking und Vielfalt, OPML, native URL-Sicherheit, KI-Antwortparsing, Volltext, SSRF-Schutz, Themencluster und die Scroll-Navigation.
 
-`npm run test:e2e` startet den Produktionsbuild auf Port `3099` und prüft mit Playwright neun Kernabläufe gegen einen simulierten Feed: Onboarding, Artikel öffnen und speichern, eigene Quelle, OPML-Import, Clip-Ansicht, Offline-Lesen, Tagesüberblick und Migration des Leseverlaufs sowie große Schrift auf schmalen Displays. Einmalig `npx playwright install chromium` ausführen.
+`npm run test:e2e` startet den Produktionsbuild auf Port `3099` und prüft mit Playwright zehn Kernabläufe gegen einen simulierten Feed: Onboarding, Artikel öffnen und speichern, eigene Quelle, OPML-Import, Clip-Ansicht, Offline-Lesen, Tagesüberblick und Migration des Leseverlaufs sowie große Schrift auf schmalen Displays und die Anzeige des Anfragelimits. Einmalig `npx playwright install chromium` ausführen.
 
 ```bash
 npm run lint
@@ -479,6 +479,8 @@ git diff --check
 Für sichtbare Änderungen lohnt zusätzlich ein manueller Blick auf Startseite (hell/dunkel), Onboarding, Reader mit und ohne Volltext, Medienwiedergabe, Widget und die installierte PWA.
 
 ## Fehlerbehebung
+
+Meldet der Server zu viele Anfragen, warte vor der nächsten Feed-Aktualisierung. Bereits geladene Artikel und der letzte bekannte Zustand der Quellen bleiben verfügbar.
 
 | Problem | Ursache | Lösung |
 | --- | --- | --- |
@@ -548,7 +550,7 @@ Das Repository ist privat und in einer frühen Alpha. Beiträge klein und prüfb
 | BYOK-KI | Beta, abhängig von Anbieter und Schlüssel |
 | Tagesüberblick | Beta, benötigt eingerichtete KI und Systemstimme |
 | Diagnose | lokal verfügbar, Senden optional |
-| Tests | 51 Unit-Tests und 9 Playwright-Browsertests |
+| Tests | 51 Unit-Tests und 10 Playwright-Browsertests |
 | Lizenz | Apache-2.0 |
 
 ## Lizenz

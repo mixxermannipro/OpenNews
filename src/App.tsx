@@ -187,6 +187,7 @@ export default function App() {
     'opennews_cached_articles',
     []
   );
+  const [feedRateLimited, setFeedRateLimited] = useState(false);
   const [feedClock, setFeedClock] = useState(Date.now);
   useEffect(() => {
     const updateClock = () => setFeedClock(Date.now());
@@ -368,6 +369,7 @@ export default function App() {
     const controller = new AbortController();
     refresh.current = controller;
     setIsLoadingFeeds(true);
+    setFeedRateLimited(false);
 
     const applyArticles = (articles: NewsArticle[]) => {
       if (controller.signal.aborted || !articles.length) return;
@@ -411,6 +413,10 @@ export default function App() {
             body: JSON.stringify({ feeds: activeSources.slice(i, i + 6) }),
             signal: controller.signal,
           });
+          if (resp.status === 429) {
+            if (!controller.signal.aborted) setFeedRateLimited(true);
+            break;
+          }
           if (resp.ok) {
             const data = await resp.json();
             if (Array.isArray(data.articles)) applyArticles(data.articles);
@@ -697,6 +703,11 @@ export default function App() {
         {(cachedStorageFailed || savedStorageFailed || historyStorageFailed) && (
           <p className="px-5 py-3 text-sm" role="status">
             Artikel konnten nicht dauerhaft gespeichert werden. Prüfe den freien Speicher deines Geräts.
+          </p>
+        )}
+        {feedRateLimited && (
+          <p className="settings-group mb-4 px-4 py-3 text-sm" role="status">
+            Der Server erhält zu viele Anfragen. Bitte versuche die Feed-Aktualisierung später erneut.
           </p>
         )}
         {activeTab === 'home' && (
