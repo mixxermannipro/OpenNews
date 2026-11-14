@@ -36,3 +36,7 @@ Ergebnisse (standardmäßig vier Tage). Unter **Gespeichert → Gelesen** lösch
 Bei **Frag den Artikel** erhält der eingerichtete KI-Anbieter die eingegebene
 Frage und bis zu 12.000 Zeichen des ursprünglichen Artikeltexts. Antworten
 werden wie Zusammenfassungen befristet auf dem Gerät gespeichert.
+
+Beim **Perspektivenvergleich** erhält der eingerichtete KI-Anbieter
+Überschriften, Quellennamen und Kurztexte von bis zu sechs Quellen derselben
+Meldungsgruppe. Der Vergleich wird befristet auf dem Gerät gespeichert.

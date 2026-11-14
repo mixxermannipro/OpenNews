@@ -1,6 +1,6 @@
 import { withAIResult } from './aiCache';
 import { Capacitor } from '@capacitor/core';
-import { buildGroundedPrompt, parseArticleAnswer, parseBriefingText, parseSummaryBullets } from './aiResponse';
+import { buildGroundedPrompt, parseArticleAnswer, parseBriefingText, parseSourcedReport, parseSummaryBullets } from './aiResponse';
 import type { AIProviderConfig, AIProviderId, AISummaryResult, NewsArticle } from '../types/news';
 
 export interface AIProviderMeta {
@@ -252,4 +252,22 @@ export function askArticleQuestion(article: NewsArticle, config: AIProviderConfi
   const { prompt, text } = buildArticleQuestionPrompt(article, question);
   return withAIResult(config, 'question', [article.id], prompt,
     async () => parseArticleAnswer(await requestAI(config, prompt, true), text));
+}
+
+export function comparePerspectives(articles: NewsArticle[], config: AIProviderConfig) {
+  const input = articles.map((article, index) => ({
+    id: index + 1,
+    source: article.sourceName.slice(0, 160),
+    title: article.title.slice(0, 240),
+    text: (article.summary || article.paragraphs[0] || '').slice(0, 650),
+  }));
+  const prompt = buildGroundedPrompt(
+    'Vergleiche neutral die Schwerpunkte und Wortwahl der gelieferten Kurztexte auf Deutsch. ' +
+    'Beziehe Aussagen über fehlende Details nur auf die gelieferten Ausschnitte. Gib zwei bis drei kurze Abschnitte aus. ' +
+    'Belege jeden Abschnitt mit den passenden numerischen Quellen-IDs und berücksichtige alle Quellen. ' +
+    'Antworte ausschließlich als JSON: {"sections":[{"text":"Vergleich","sources":[1,2]}]}.',
+    { articles: input },
+  );
+  return withAIResult(config, 'perspectives', articles.map(article => article.id), prompt,
+    async () => parseSourcedReport(await requestAI(config, prompt, true), input.length));
 }

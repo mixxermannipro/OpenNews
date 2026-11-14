@@ -1,3 +1,4 @@
+import { ArticlePerspectives } from './ArticlePerspectives';
 import { ArticleQuestions } from './ArticleQuestions';
 import { Capacitor } from '@capacitor/core';
 import { readOfflineArticle, removeOfflineArticle, storeOfflineArticle } from '../lib/offlineArticle';
@@ -36,6 +37,7 @@ import { ArticleMedia } from './ArticleMedia';
 
 interface ArticleReaderModalProps {
   article: NewsArticle;
+  perspectiveArticles: NewsArticle[];
   translate: boolean;
   backgroundPlayback: boolean;
   isBookmarked: boolean;
@@ -56,6 +58,7 @@ interface ArticleReaderModalProps {
 
 export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
   article,
+  perspectiveArticles,
   translate,
   backgroundPlayback,
   isBookmarked,
@@ -489,6 +492,10 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
             article={{ ...article, paragraphs: originalParagraphs }}
             config={aiConfig}
             disabled={loadingFullText}
+          />}
+          {showSummary && hasBYOKKey && perspectiveArticles.length >= 2 && <ArticlePerspectives
+            key={perspectiveArticles.map(report => report.id).join(',')}
+            articles={perspectiveArticles} config={aiConfig}
           />}
         </div>
       </dialog>

@@ -1,3 +1,4 @@
+import { clusterStories } from './lib/storyClusters';
 import { clearAIResults, pruneAIResults } from './lib/aiCache';
 import React, { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { NewsPush } from './lib/newsPush';
@@ -493,6 +494,14 @@ export default function App() {
 
   const allArticles = useMemo(() => distinctArticles(activeArticles), [activeArticles]);
 
+  const perspectiveArticles = useMemo(() => {
+    if (!activeArticle) return [];
+    const cluster = clusterStories(activeArticles)
+      .find(story => story.reports.some(report => report.id === activeArticle.id));
+    if (!cluster) return [];
+    return [...new Map(cluster.reports.map(report => [report.sourceId, report])).values()].slice(0, 6);
+  }, [activeArticle, activeArticles]);
+
   const homeSections = useMemo(
     () => {
       const topicWeights = { ...normalizedProfile.topicWeights };
@@ -874,6 +883,7 @@ export default function App() {
           <ArticleReaderModal
             key={activeArticle.id}
             article={activeArticle}
+            perspectiveArticles={perspectiveArticles}
             translate={autoTranslate && Capacitor.getPlatform() === 'android' && sources.some(source => source.id === activeArticle.sourceId && source.language === 'en')}
             backgroundPlayback={backgroundPlayback}
             isBookmarked={normalizedProfile.bookmarkedIds.includes(activeArticle.id)}

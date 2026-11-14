@@ -51,3 +51,22 @@ export function parseArticleAnswer(raw: string, articleText: string): ArticleAns
     !articleText.includes(quote.trim())) throw invalidResponse();
   return { answer: answer.trim(), quote: quote.trim() };
 }
+
+export function parseSourcedReport(raw: string, sourceCount: number) {
+  const { sections } = parseModelObject(raw);
+  if (!Array.isArray(sections) || sections.length < 2 || sections.length > 3) throw invalidResponse();
+
+  const cited = new Set<number>();
+  const report = sections.map(section => {
+    if (!section || typeof section !== 'object') throw invalidResponse();
+    const { text, sources } = section as Record<string, unknown>;
+    if (typeof text !== 'string' || !text.trim() || text.length > 800 ||
+      !Array.isArray(sources) || sources.length < 1 || sources.length > sourceCount ||
+      !sources.every(id => Number.isInteger(id) && id >= 1 && id <= sourceCount)) throw invalidResponse();
+    const ids = [...new Set<number>(sources)];
+    ids.forEach(id => cited.add(id));
+    return { text: text.trim(), sources: ids };
+  });
+  if (cited.size !== sourceCount) throw invalidResponse();
+  return report;
+}
