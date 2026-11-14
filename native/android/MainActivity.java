@@ -19,6 +19,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(NewsPush.class);
         registerPlugin(NewsWidget.class);
         registerPlugin(BriefingSpeech.class);
+        registerPlugin(DailyBriefing.class);
         super.onCreate(state);
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
