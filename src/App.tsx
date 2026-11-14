@@ -491,7 +491,7 @@ export default function App() {
     [activeArticles, normalizedProfile, sources, preferences.topics, feedClock]
   );
   useEffect(() => {
-    if (Capacitor.getPlatform() !== 'android') return;
+    if (!Capacitor.isNativePlatform()) return;
     const stories = homeSections.Heute.slice(0, 2).map(article => ({
       title: article.title.slice(0, 180), source: article.sourceName.slice(0, 80), category: article.category,
     }));
