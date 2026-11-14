@@ -1,3 +1,4 @@
+import { createBrowserAISession, localAIAvailable, summarizeOnAndroid } from './localAI';
 import { resolveSummaryStyle, SUMMARY_STYLES } from './summaryStyles';
 import { withAIResult } from './aiCache';
 import { Capacitor } from '@capacitor/core';
@@ -66,7 +67,16 @@ export const AI_PROVIDERS: AIProviderMeta[] = [
       { id: 'qwen2.5:7b', label: 'Qwen 2.5 7B (Lokal / Ollama)' },
     ],
   },
+  {
+    id: 'device', name: 'Auf diesem Gerät (Gemini Nano)', keyPlaceholder: '',
+    docsHint: 'Das Modell kann beim ersten Start heruntergeladen werden.',
+    models: [{ id: 'gemini-nano', label: 'Gemini Nano' }],
+  },
 ];
+
+export function hasCloudAI(config: AIProviderConfig) {
+  return config.provider !== 'device' && (Boolean(config.apiKey.trim()) || config.provider === 'custom');
+}
 
 export const DEFAULT_AI_CONFIG: AIProviderConfig = {
   provider: 'google',
@@ -94,10 +104,37 @@ export function buildSummaryPrompt(
   );
 }
 
+async function analyzeOnDevice(article: NewsArticle, config: AIProviderConfig, language?: 'de' | 'en') {
+  const text = (article.paragraphs.join('\n\n') || article.summary).slice(0, 6000);
+  const style = resolveSummaryStyle(config.summaryStyle);
+  const native = Capacitor.getPlatform() === 'android';
+  if (native && (language !== 'en' || text.length <= 400)) {
+    throw new Error('Die Android-KI benötigt einen englischen Artikel mit mehr als 400 Zeichen.');
+  }
+  const prompt = native ? text : buildSummaryPrompt(article, style);
+  // Session creation on the web requires the user gesture for the initial model download.
+  const session = native ? undefined : createBrowserAISession();
+  try {
+    return await withAIResult(config, 'device-summary', [article.id], prompt, async () => {
+      const raw = session
+        ? await (await session).prompt(prompt)
+        : JSON.stringify({ bullets: [await summarizeOnAndroid(text)] });
+      return {
+        bullets: parseSummaryBullets(raw, SUMMARY_STYLES[style].max),
+        mode: 'ai' as const, providerLabel: 'Gemini Nano (auf diesem Gerät)', generatedAt: new Date().toISOString(),
+      };
+    });
+  } finally {
+    if (session) void session.then(model => model.destroy()).catch(() => {});
+  }
+}
+
 export async function analyzeArticleWithBYOK(
   article: NewsArticle,
-  config: AIProviderConfig
+  config: AIProviderConfig,
+  language?: 'de' | 'en',
 ): Promise<AISummaryResult> {
+  if (config.provider === 'device') return analyzeOnDevice(article, config, language);
   const providerMeta = AI_PROVIDERS.find((p) => p.id === config.provider);
   const providerLabel = `${providerMeta?.name || config.provider} · ${config.model}`;
   const style = resolveSummaryStyle(config.summaryStyle);
@@ -109,6 +146,7 @@ export async function analyzeArticleWithBYOK(
 }
 
 async function requestAI(config: AIProviderConfig, prompt: string, expectJson: boolean): Promise<string> {
+  if (config.provider === 'device') throw new Error('Diese Funktion benötigt einen eingerichteten KI-Anbieter.');
   const modelId = config.model.trim();
   const model = config.provider === 'google' ? modelId.replace(/^models\//, '') : modelId;
   if (!model) throw new Error('Bitte gib eine Modell-ID ein.');
@@ -214,6 +252,10 @@ async function requestAI(config: AIProviderConfig, prompt: string, expectJson: b
 }
 
 export async function testAIConnection(config: AIProviderConfig): Promise<{ ok: boolean; message: string }> {
+  if (config.provider === 'device') {
+    const ok = await localAIAvailable();
+    return { ok, message: ok ? 'Lokales Modell wird unterstützt.' : 'Dieses Gerät stellt kein lokales KI-Modell bereit.' };
+  }
   if (!config.apiKey.trim() && config.provider !== 'custom') {
     return { ok: false, message: 'Bitte gib zuerst einen API-Key ein.' };
   }

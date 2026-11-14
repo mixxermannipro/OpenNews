@@ -737,7 +737,7 @@ export default function App() {
         {activeTab === 'home' && (
           <HomeView
             stories={homeSections[homeCategory]}
-            briefing={homeCategory === 'Heute' && aiConfig.apiKey.trim() ? (
+            briefing={homeCategory === 'Heute' && aiConfig.provider !== 'device' && aiConfig.apiKey.trim() ? (
               <Suspense fallback={null}><AudioBriefing articles={homeSections.Heute.map(story => story.lead)} config={aiConfig} /></Suspense>
             ) : null}
             showHero={preferences.hero}
@@ -885,6 +885,7 @@ export default function App() {
             key={activeArticle.id}
             article={activeArticle}
             perspectiveArticles={perspectiveArticles}
+            sourceLanguage={sources.find(source => source.id === activeArticle.sourceId)?.language}
             translate={autoTranslate && Capacitor.getPlatform() === 'android' && sources.some(source => source.id === activeArticle.sourceId && source.language === 'en')}
             backgroundPlayback={backgroundPlayback}
             isBookmarked={normalizedProfile.bookmarkedIds.includes(activeArticle.id)}

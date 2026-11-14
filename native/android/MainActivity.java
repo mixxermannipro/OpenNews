@@ -15,6 +15,7 @@ public class MainActivity extends BridgeActivity {
     protected void onCreate(Bundle state) {
         registerPlugin(ArticleShare.class);
         registerPlugin(LocalTranslation.class);
+        registerPlugin(LocalSummary.class);
         registerPlugin(NewsPush.class);
         registerPlugin(NewsWidget.class);
         registerPlugin(BriefingSpeech.class);

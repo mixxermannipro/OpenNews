@@ -1,7 +1,8 @@
+import { localAIAvailable } from '../lib/localAI';
 import { resolveSummaryStyle, SUMMARY_STYLES } from '../lib/summaryStyles';
 import { Capacitor } from '@capacitor/core';
 import { discoverNativeFeeds, publicHttpUrl } from '../lib/nativeFeed';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Bell,
   Bot,
@@ -108,7 +109,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 }) => {
   const section = initialSection;
   const [transferStatus, setTransferStatus] = useState('');
-  const [showAISetup, setShowAISetup] = useState(Boolean(aiConfig.apiKey));
+  const [showAISetup, setShowAISetup] = useState(Boolean(aiConfig.apiKey) || aiConfig.provider === 'device');
   const [feedSearch, setFeedSearch] = useState('');
   const [website, setWebsite] = useState('');
   const [discoveryStatus, setDiscoveryStatus] = useState('');
@@ -136,6 +137,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [aiTestStatus, setAiTestStatus] = useState<{ ok: boolean; message: string } | null>(null);
   const [testingAI, setTestingAI] = useState(false);
 
+  const [deviceAvailable, setDeviceAvailable] = useState(false);
+  useEffect(() => {
+    let active = true;
+    void localAIAvailable().then(value => { if (active) setDeviceAvailable(value); });
+    return () => { active = false; };
+  }, []);
   const activeProviderMeta =
     AI_PROVIDERS.find((p) => p.id === aiConfig.provider) || AI_PROVIDERS[0];
 
@@ -840,6 +847,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               {Object.entries(SUMMARY_STYLES).map(([id, preset]) => <option key={id} value={id}>{preset.label}</option>)}
             </select>
           </label>
+          {!deviceAvailable && <p className="text-sm">Gemini Nano ist hier derzeit nicht verfügbar.</p>}
           {!showAISetup && <button className="choice-pill" type="button" onClick={() => setShowAISetup(true)}>KI-Anbieter verbinden</button>}
           {showAISetup && <>
           <div className="space-y-4">
@@ -853,7 +861,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 onChange={(e) => handleProviderChange(e.target.value as AIProviderId)}
                 className="w-full min-h-[44px] rounded-2xl border border-black/10 bg-white/80 px-3.5 text-sm font-medium text-slate-900 dark:border-white/10 dark:bg-[#151822] dark:text-white"
               >
-                {AI_PROVIDERS.map((p) => (
+                {AI_PROVIDERS.filter(provider => provider.id !== 'device' || deviceAvailable || aiConfig.provider === 'device').map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name}
                   </option>
@@ -864,6 +872,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </p>
             </div>
 
+            {aiConfig.provider !== 'device' && <>
             <div className="space-y-2">
               <label htmlFor="ai-model" className="block text-sm font-medium">Modell-ID</label>
               <input
@@ -937,6 +946,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </button>
               </div>
             </div>
+            </>}
 
             <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
               <button

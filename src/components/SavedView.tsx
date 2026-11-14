@@ -1,3 +1,4 @@
+import { hasCloudAI } from '../lib/aiClient';
 import { WeeklyReview } from './WeeklyReview';
 import { selectWeeklyArticles, reviewWeek } from '../lib/weeklyReview';
 import { ViewStatus } from './ViewStatus';
@@ -136,7 +137,7 @@ export const SavedView: React.FC<SavedViewProps> = ({
         </button>
       </div>
 
-      {(subTab === 'bookmarks' || subTab === 'likes') && (aiConfig.apiKey.trim() || aiConfig.provider === 'custom') &&
+      {(subTab === 'bookmarks' || subTab === 'likes') && hasCloudAI(aiConfig) &&
         weeklyArticles.length >= 2 && <WeeklyReview key={JSON.stringify([week, weeklyArticles.map(article => article.id), aiConfig.provider, aiConfig.model])}
           articles={weeklyArticles} config={aiConfig} week={week} />}
       {subTab === 'history' && (
