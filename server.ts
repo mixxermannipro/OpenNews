@@ -202,6 +202,28 @@ app.get('/api/feeds/discover', async (req, res) => {
   }
 });
 
+app.get('/api/media/transcript', async (req, res) => {
+  const url = typeof req.query.url === 'string' ? req.query.url : '';
+  if (!url.startsWith('https://') || !isSafeHttpUrl(url)) {
+    res.sendStatus(400);
+    return;
+  }
+  try {
+    const response = await fetchPublic(url, { signal: AbortSignal.timeout(6000) });
+    const type = response.headers.get('content-type') || '';
+    if (!response.ok || !response.url.startsWith('https://') ||
+      !/^(text\/(vtt|plain)|application\/(x-subrip|octet-stream))(;|$)/i.test(type)) {
+      await response.body?.cancel();
+      res.sendStatus(502);
+      return;
+    }
+    const text = await readPublicText(response, 512 * 1024);
+    res.set('Cache-Control', 'no-store').type('text/plain').send(text);
+  } catch {
+    res.sendStatus(502);
+  }
+});
+
 app.get('/api/article/extract', async (req, res) => {
   const url = String(req.query.url || '');
   if (!isSafeHttpUrl(url)) {

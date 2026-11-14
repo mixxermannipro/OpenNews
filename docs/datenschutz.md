@@ -27,3 +27,38 @@ Der Betreiber ergänzt hier vor Veröffentlichung einen erreichbaren Datenschutz
 Die optionale Diagnose speichert Fehlerarten und auf Stunden gerundete Zeiten lokal. Sie erfasst keine Artikel- oder Feed-Adressen, Schlüssel, Gerätekennungen oder Fehlertexte. Der Bericht bleibt auf deinem Gerät, bis du ihn selbst exportierst und weitergibst. Beim Ausschalten löscht OpenNews die gespeicherten Diagnoseeinträge.
 
 Bei selbst betriebenen Web-Installationen kann der Betreiber den Empfang mit `OPENNEWS_DIAGNOSTICS=1` aktivieren. Nutzer müssen das Senden separat einschalten. Der Browser sendet nur die Fehlerart. Der Server schreibt diese mit der auf Stunden gerundeten Empfangszeit in sein Betriebsprotokoll. Das Diagnoseprotokoll enthält keine IP-Adresse, URL, Gerätekennung oder Fehlertexte. Beim Verbindungsaufbau ist die IP-Adresse für den Betreiber technisch sichtbar. Für den Diagnosepfad sollten im vorgeschalteten Webserver keine Zugriffsprotokolle geführt werden. Der Betreiber legt die Speicherdauer fest und dokumentiert sie vor Einsatz. Die Android-App verwendet weiterhin den lokalen Export.
+
+KI-Ergebnisse aus Zusammenfassungen und Tagesüberblicken werden lokal in
+IndexedDB gespeichert. Die Feed-Aufbewahrungsdauer gilt auch für diese
+Ergebnisse (standardmäßig vier Tage). Unter **Gespeichert → Gelesen** löscht
+„Verlauf und KI-Ergebnisse löschen“ beide Datensammlungen.
+
+Bei **Frag den Artikel** erhält der eingerichtete KI-Anbieter die eingegebene
+Frage und bis zu 12.000 Zeichen des ursprünglichen Artikeltexts. Antworten
+werden wie Zusammenfassungen befristet auf dem Gerät gespeichert.
+
+Beim **Perspektivenvergleich** erhält der eingerichtete KI-Anbieter
+Überschriften, Quellennamen und Kurztexte von bis zu sechs Quellen derselben
+Meldungsgruppe. Der Vergleich wird befristet auf dem Gerät gespeichert.
+
+Beim **Wochenrückblick** wählt die App passende Lesezeichen und Likes lokal
+aus. Erst beim Erstellen gehen bis zu acht Überschriften, Quellennamen und
+Kurztexte an den eingerichteten KI-Anbieter. Das Ergebnis wird pro Woche und
+Artikelauswahl befristet auf dem Gerät gespeichert.
+
+Bei **Auf diesem Gerät** verarbeitet Gemini Nano Artikeltexte lokal. Chrome
+benötigt die Prompt API, Android die ML-Kit-Schnittstelle und einen passenden
+AICore-Dienst. Beim erstmaligen Start kann ein Modell-Download anfallen.
+Android unterstützt hier längere englische Artikel und einen Stichpunkt.
+
+Die Android-Erinnerung für den Tagesüberblick wird auf dem Gerät geplant.
+Uhrzeit, Einwilligung und die zuletzt geladene Schlagzeile bleiben lokal.
+Beim Erinnern wird keine KI-Anfrage ausgelöst. Android kann die Zustellung
+im Stromsparmodus verzögern.
+
+Bei **Transkript zusammenfassen** lädt OpenNews eine vom Feed angegebene
+Datei (VTT, SRT oder Text) über HTTPS. Im Web vermittelt der OpenNews-Server,
+auf Android ruft das Gerät die Datei direkt ab. An die eingerichtete KI gehen
+der Titel und bis zu 18.000 Zeichen des Transkripts. Das Ergebnis bleibt
+befristet im lokalen KI-Speicher. OpenNews transkribiert keine Audio- oder
+Videospuren und ruft keine im YouTube-Player eingebetteten Untertitel ab.

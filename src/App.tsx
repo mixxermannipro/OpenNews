@@ -1,4 +1,7 @@
 import type { WidgetLaunch } from './lib/newsWidget';
+import { DailyBriefing, type DailyBriefingSettings } from './lib/dailyBriefing';
+import { clusterStories } from './lib/storyClusters';
+import { clearAIResults, pruneAIResults } from './lib/aiCache';
 import React, { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { NewsPush } from './lib/newsPush';
 import { Capacitor, SystemBars, SystemBarsStyle } from '@capacitor/core';
@@ -87,8 +90,16 @@ export default function App() {
     return () => window.removeEventListener('popstate', restore);
   }, []);
   const [preferences, setPreferences] = useLocalStorage<AppPreferences>('opennews_preferences', DEFAULT_PREFERENCES);
+  const [briefingSettings, setBriefingSettings] = useLocalStorage<DailyBriefingSettings>('opennews_daily_briefing', { enabled: false, time: '07:30' });
+  const [openBriefing, setOpenBriefing] = useState(false);
   const [homeCategory, setHomeCategory] = useState<HomeTab>(() => resolveHomeTab(preferences.home));
   const retention = resolveRetention(preferences.retention);
+  useEffect(() => {
+    const prune = () => void pruneAIResults(retention).catch(() => {});
+    prune();
+    const timer = window.setInterval(prune, 60 * 60 * 1000);
+    return () => window.clearInterval(timer);
+  }, [retention]);
   const latestRetention = useRef(retention);
   useLayoutEffect(() => { latestRetention.current = retention; }, [retention]);
   const [onboarded, setOnboarded] = useLocalStorage('opennews_onboarded', false);
@@ -487,6 +498,14 @@ export default function App() {
 
   const allArticles = useMemo(() => distinctArticles(activeArticles), [activeArticles]);
 
+  const perspectiveArticles = useMemo(() => {
+    if (!activeArticle) return [];
+    const cluster = clusterStories(activeArticles)
+      .find(story => story.reports.some(report => report.id === activeArticle.id));
+    if (!cluster) return [];
+    return [...new Map(cluster.reports.map(report => [report.sourceId, report])).values()].slice(0, 6);
+  }, [activeArticle, activeArticles]);
+
   const homeSections = useMemo(
     () => {
       const topicWeights = { ...normalizedProfile.topicWeights };
@@ -495,6 +514,30 @@ export default function App() {
     },
     [activeArticles, normalizedProfile, sources, preferences.topics, feedClock]
   );
+  useEffect(() => {
+    if (Capacitor.getPlatform() !== 'android' || !briefingSettings.enabled) return;
+    const headline = homeSections.Heute[0]?.lead.title;
+    if (headline) void DailyBriefing.updateHeadline({ headline: headline.slice(0, 240) }).catch(() => {});
+  }, [homeSections, briefingSettings.enabled]);
+
+  useEffect(() => {
+    if (Capacitor.getPlatform() !== 'android' || !onboarded) return;
+    let active = true;
+    const show = () => {
+      if (!active) return;
+      setLocation(HOME_LOCATION);
+      window.history.replaceState(null, '');
+      setHomeCategory('Heute');
+      setOpenBriefing(true);
+    };
+    const listener = DailyBriefing.addListener('open', show);
+    void DailyBriefing.getLaunch().then(result => { if (result.open) show(); }).catch(() => {});
+    return () => {
+      active = false;
+      void listener.then(handle => handle.remove()).catch(() => {});
+    };
+  }, [onboarded]);
+
   useEffect(() => {
     const platform = Capacitor.getPlatform();
     if (!cachedStorageReady || isLoadingFeeds || (platform !== 'android' && platform !== 'ios')) return;
@@ -726,8 +769,8 @@ export default function App() {
         {activeTab === 'home' && (
           <HomeView
             stories={homeSections[homeCategory]}
-            briefing={homeCategory === 'Heute' && aiConfig.apiKey.trim() ? (
-              <Suspense fallback={null}><AudioBriefing articles={homeSections.Heute.map(story => story.lead)} config={aiConfig} /></Suspense>
+            briefing={homeCategory === 'Heute' ? (
+              <Suspense fallback={null}><AudioBriefing articles={homeSections.Heute.map(story => story.lead)} config={aiConfig} open={openBriefing} /></Suspense>
             ) : null}
             showHero={preferences.hero}
             selectedCategory={homeCategory}
@@ -757,6 +800,7 @@ export default function App() {
 
         {activeTab === 'saved' && (
           <SavedView
+            aiConfig={aiConfig}
             key={savedPage}
             initialPage={savedPage}
             history={distinctArticles([...readArticles, ...allArticles.filter(article => normalizedProfile.readIds.includes(article.id))])}
@@ -766,12 +810,17 @@ export default function App() {
             onOpenArticle={handleOpenArticle}
             onToggleBookmark={handleToggleBookmark}
             onToggleLike={handleToggleLike}
+            onClearHistory={async () => {
+              await clearAIResults();
+              setReadArticles([]);
+              setProfile(previous => ({ ...normalizeProfile(previous), readIds: [] }));
+            }}
             onResetAlgorithm={() => setProfile(previous => resetProfileWeights(normalizeProfile(previous)))}
           />
         )}
 
         {activeTab === 'media' && (
-          <MediaView articles={mediaArticles} loading={isLoadingFeeds} background={backgroundPlayback}
+          <MediaView aiConfig={aiConfig} articles={mediaArticles} loading={isLoadingFeeds} background={backgroundPlayback}
             liked={normalizedProfile.likedIds} saved={normalizedProfile.bookmarkedIds}
             onLike={handleToggleLike} onSave={handleToggleBookmark}
             onEngaged={(article, seconds) => setProfile(previous => {
@@ -813,6 +862,8 @@ export default function App() {
             formatPrefs={formatPrefs}
             aiConfig={aiConfig}
             notifications={notifications}
+            briefingSettings={briefingSettings}
+            onBriefingSettings={setBriefingSettings}
             autoTranslate={autoTranslate}
             onAutoTranslate={setAutoTranslate}
             onAdvancedSources={() => openSettings('overview')}
@@ -867,6 +918,8 @@ export default function App() {
           <ArticleReaderModal
             key={activeArticle.id}
             article={activeArticle}
+            perspectiveArticles={perspectiveArticles}
+            sourceLanguage={sources.find(source => source.id === activeArticle.sourceId)?.language}
             translate={autoTranslate && Capacitor.getPlatform() === 'android' && sources.some(source => source.id === activeArticle.sourceId && source.language === 'en')}
             backgroundPlayback={backgroundPlayback}
             isBookmarked={normalizedProfile.bookmarkedIds.includes(activeArticle.id)}

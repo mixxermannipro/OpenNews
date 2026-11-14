@@ -62,6 +62,7 @@ export interface NewsArticle {
   readingTimeMin: number;
   imageUrl?: string;
   media?: MediaAttachment[];
+  transcript?: { url: string; format: string };
   videoUrl?: string;
   audioUrl?: string;
   youtubeId?: string;
@@ -83,7 +84,9 @@ export interface PersonalizationProfile {
   weightsUpdatedAt?: number;
 }
 
-export type AIProviderId = 'google' | 'openai' | 'anthropic' | 'mistral' | 'custom';
+export type AIProviderId = 'google' | 'openai' | 'anthropic' | 'mistral' | 'custom' | 'device';
+
+export type SummaryStyle = 'highlights' | 'five-w' | 'plain' | 'english';
 
 export interface AIProviderConfig {
   provider: AIProviderId;
@@ -91,6 +94,7 @@ export interface AIProviderConfig {
   model: string;
   customEndpoint?: string;
   autoSummarize: boolean;
+  summaryStyle?: SummaryStyle;
 }
 
 export interface AISummaryResult {

@@ -1,3 +1,7 @@
+import { TranscriptSummary } from './TranscriptSummary';
+import { resolveSummaryStyle, SUMMARY_STYLES } from '../lib/summaryStyles';
+import { ArticlePerspectives } from './ArticlePerspectives';
+import { ArticleQuestions } from './ArticleQuestions';
 import { Capacitor } from '@capacitor/core';
 import { readOfflineArticle, removeOfflineArticle, storeOfflineArticle } from '../lib/offlineArticle';
 import { extractNativeArticle } from '../lib/nativeFeed';
@@ -25,7 +29,7 @@ import type {
   ReaderFontFamily,
   ReaderFontSize,
 } from '../types/news';
-import { analyzeArticleWithBYOK } from '../lib/aiClient';
+import { analyzeArticleWithBYOK, hasCloudAI } from '../lib/aiClient';
 import { formatRelativeTimeDe, generateLocalExtractiveSummary } from '../lib/personalization';
 import { trackNavigationScroll } from '../lib/scrollNavigation';
 import { ArticleImage } from './ArticleImage';
@@ -35,6 +39,8 @@ import { ArticleMedia } from './ArticleMedia';
 
 interface ArticleReaderModalProps {
   article: NewsArticle;
+  perspectiveArticles: NewsArticle[];
+  sourceLanguage?: 'de' | 'en';
   translate: boolean;
   backgroundPlayback: boolean;
   isBookmarked: boolean;
@@ -55,6 +61,8 @@ interface ArticleReaderModalProps {
 
 export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
   article,
+  perspectiveArticles,
+  sourceLanguage,
   translate,
   backgroundPlayback,
   isBookmarked,
@@ -145,6 +153,7 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
   const [aiResult, setAiResult] = useState<AISummaryResult | null>(() =>
     generateLocalExtractiveSummary(article)
   );
+  const [style, setStyle] = useState(() => resolveSummaryStyle(aiConfig.summaryStyle));
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
 
@@ -201,7 +210,9 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
     window.speechSynthesis.speak(utterance);
   };
 
-  const hasBYOKKey = Boolean(aiConfig.apiKey.trim()) || aiConfig.provider === 'custom';
+  const hasBYOKKey = hasCloudAI(aiConfig);
+  const deviceSummary = aiConfig.provider === 'device';
+  const canSummarize = hasBYOKKey || deviceSummary;
 
   useEffect(() => {
     setAiError(null);
@@ -211,7 +222,7 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
       if (aiResult?.mode === 'ai') return;
       let cancelled = false;
       setAiLoading(true);
-      analyzeArticleWithBYOK({ ...article, paragraphs: originalParagraphs }, aiConfig)
+      analyzeArticleWithBYOK({ ...article, paragraphs: originalParagraphs }, { ...aiConfig, summaryStyle: style })
         .then((res) => {
           if (!cancelled) setAiResult(res);
         })
@@ -227,10 +238,10 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
         cancelled = true;
       };
     }
-  }, [article, aiConfig, hasBYOKKey, showSummary, loadingFullText, originalParagraphs]);
+  }, [article, aiConfig, hasBYOKKey, showSummary, loadingFullText, originalParagraphs, style]);
 
   const handleRunBYOK = async () => {
-    if (!hasBYOKKey) {
+    if (!canSummarize) {
       onOpenAISettings();
       return;
     }
@@ -465,10 +476,20 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
               ) : (
                 <Settings className="h-3.5 w-3.5" />
               )}
-              {hasBYOKKey ? 'KI aktualisieren' : 'KI-Key verbinden'}
+              {deviceSummary ? 'Auf dem Gerät zusammenfassen' : hasBYOKKey ? 'KI aktualisieren' : 'KI-Key verbinden'}
             </button>
           </div>
 
+          {(hasBYOKKey || (deviceSummary && Capacitor.getPlatform() !== 'android')) && <label className="flex flex-wrap items-center gap-2 text-sm">
+            Zusammenfassungsstil
+            <select className="preference-input" value={style} disabled={aiLoading}
+              onChange={event => {
+                setAiResult(generateLocalExtractiveSummary({ ...article, paragraphs: originalParagraphs }));
+                setStyle(resolveSummaryStyle(event.target.value));
+              }}>
+              {Object.entries(SUMMARY_STYLES).map(([id, preset]) => <option key={id} value={id}>{preset.label}</option>)}
+            </select>
+          </label>}
           {aiError && (
             <div className="rounded-2xl bg-rose-500/10 p-3 text-xs text-rose-600 dark:text-rose-400">
               {aiError}
@@ -484,6 +505,17 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
               </ul>
             </div>
           )}
+          {showSummary && hasBYOKKey && <ArticleQuestions
+            article={{ ...article, paragraphs: originalParagraphs }}
+            config={aiConfig}
+            disabled={loadingFullText}
+          />}
+          {showSummary && hasBYOKKey && perspectiveArticles.length >= 2 && <ArticlePerspectives
+            key={perspectiveArticles.map(report => report.id).join(',')}
+            articles={perspectiveArticles} config={aiConfig}
+          />}
+          {showSummary && (article.transcript || article.audioUrl || article.videoUrl || article.youtubeId) &&
+            <TranscriptSummary article={article} config={aiConfig} />}
         </div>
       </dialog>
     </div>

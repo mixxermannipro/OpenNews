@@ -26,3 +26,9 @@ Das Widget nutzt lokale Themenillustrationen. Die Motive stehen für das Thema. 
 ## Gerätetest vom 14. November 2026
 
 Eine getrennte Debug-App lief auf einem Samsung-Handy mit Android 17 und One UI. Geprüft wurden das Hinzufügen des 4×2-Widgets, Blättern, direkter Sprung zum angezeigten Artikel mit geladenem Volltext und das Öffnen der Einstellungen. Der Test deckte einen überlagerten Titel im Einstellungsfenster auf. Nach der Korrektur waren Überschrift und Eingaben unterhalb der Statusleiste sichtbar. Die vorhandene OpenNews-Installation blieb erhalten.
+
+### Tagesagenda im 4×5-Format
+
+Am 14. November 2026 lief die GitHub-Test-APK aus PR #111 auf demselben Samsung-Gerät. Im Launcher geprüft wurden das Hinzufügen der großen Variante, die Reiter „Für dich“ und „Neueste“, der Sprung zum passenden Artikel, das Merken mit anschließendem geöffnetem Reader und der Aufruf von „Entdecken“. Die Aktualisieren-Taste holte OpenNews in den Vordergrund. Weitere Launcher, Helligkeitsmodi und Schriftgrößen wurden für diese Variante nicht am Gerät geprüft.
+
+![Großes OpenNews-Widget auf dem Android-Startbildschirm](screenshots/android-widget-tagesagenda.jpg)

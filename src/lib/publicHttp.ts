@@ -36,7 +36,7 @@ export async function fetchPublic(rawUrl: string, options: NonNullable<Parameter
   throw new Error('Too many redirects');
 }
 
-export async function readPublicText(response: Awaited<ReturnType<typeof fetchPublic>>): Promise<string> {
+export async function readPublicText(response: Awaited<ReturnType<typeof fetchPublic>>, maxBytes = 4 * 1024 * 1024): Promise<string> {
   const reader = response.body?.getReader();
   if (!reader) return '';
   const decoder = new TextDecoder();
@@ -47,7 +47,7 @@ export async function readPublicText(response: Awaited<ReturnType<typeof fetchPu
       const { done, value } = await reader.read();
       if (done) return text + decoder.decode();
       bytes += value.byteLength;
-      if (bytes > 4 * 1024 * 1024) throw new Error('Response exceeds size limit');
+      if (bytes > maxBytes) throw new Error('Response exceeds size limit');
       text += decoder.decode(value, { stream: true });
     }
   } finally {
