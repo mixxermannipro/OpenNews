@@ -1,3 +1,4 @@
+import { transcriptFormat } from './transcript';
 import { XMLParser } from 'fast-xml-parser';
 import { deduplicateAttachments } from './articleMedia';
 import { extractYouTubeId } from './contentIdentity';
@@ -270,10 +271,19 @@ function collectMedia(
     }
   }
 
+  const transcript = [...records(item['podcast:transcript']), ...records(item['media:subTitle'])]
+    .flatMap(entry => {
+      const url = mediaUrl(entry['@_url'] ?? entry['@_href'], base);
+      if (!url || url.protocol !== 'https:') return [];
+      const format = transcriptFormat(entry['@_type'], url.href);
+      return format ? [{ url: url.href, format }] : [];
+    })[0];
+
   const entries = deduplicateAttachments([...media.values()]);
   const first = (type: MediaAttachment['type']) => entries.find(entry => entry.type === type)?.url;
   return {
     media: entries.length ? entries : undefined,
+    ...(transcript && { transcript }),
     imageUrl: mediaUrl(imageUrl, base)?.href || first('image'),
     videoUrl: first('video'),
     audioUrl: first('audio'),

@@ -1,10 +1,11 @@
+import { TranscriptSummary } from './TranscriptSummary';
 import { ViewStatus } from './ViewStatus';
 import { Capacitor, SystemBars } from '@capacitor/core';
 import { ArrowLeft, Bookmark, ChevronRight, Headphones, Heart, Play, Share2, Video } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { collectDistinctMedia } from '../lib/articleMedia';
-import type { NewsArticle } from '../types/news';
+import type { AIProviderConfig, NewsArticle } from '../types/news';
 import { ArticleImage } from './ArticleImage';
 import { MediaPlayer } from './MediaPlayer';
 import { shareArticle } from '../lib/shareArticle';
@@ -13,7 +14,8 @@ import { formatRelativeTimeDe } from '../lib/personalization';
 const FILTERS = { all: 'Alle', video: 'Videos', audio: 'Audio', clips: 'Clips' } as const;
 type MediaFilter = keyof typeof FILTERS;
 
-export function MediaView({ articles, loading, background, onArticle, onSources, onLike, onSave, onEngaged, liked, saved }: {
+export function MediaView({ aiConfig, articles, loading, background, onArticle, onSources, onLike, onSave, onEngaged, liked, saved }: {
+  aiConfig: AIProviderConfig;
   articles: NewsArticle[];
   loading: boolean;
   background: boolean;
@@ -123,6 +125,7 @@ export function MediaView({ articles, loading, background, onArticle, onSources,
           )}
         </div>
         {playing && audio && <div className="media-audio-player px-4 pt-3"><MediaPlayer media={media} title={article.title} background={background} autoPlay onEngaged={seconds => onEngaged(article, seconds)} /></div>}
+        {playing && !clip && <TranscriptSummary article={article} config={aiConfig} />}
         <div className={embeddedClip ? 'absolute inset-x-0 top-[66%] bottom-0 overflow-auto px-4 pt-3 pb-safe space-y-1.5' : clip
           ? 'pointer-events-none absolute inset-x-0 bottom-0 space-y-1.5 bg-gradient-to-t from-black via-black/70 to-transparent px-4 pt-16 pb-[calc(3.5rem+env(safe-area-inset-bottom))] [&_a]:pointer-events-auto [&_button]:pointer-events-auto'
           : audio ? 'min-w-0 space-y-1.5' : 'space-y-1.5 py-3'}>

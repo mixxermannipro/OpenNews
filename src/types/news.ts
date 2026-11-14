@@ -62,6 +62,7 @@ export interface NewsArticle {
   readingTimeMin: number;
   imageUrl?: string;
   media?: MediaAttachment[];
+  transcript?: { url: string; format: string };
   videoUrl?: string;
   audioUrl?: string;
   youtubeId?: string;

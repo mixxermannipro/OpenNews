@@ -55,3 +55,10 @@ Die Android-Erinnerung für den Tagesüberblick wird auf dem Gerät geplant.
 Uhrzeit, Einwilligung und die zuletzt geladene Schlagzeile bleiben lokal.
 Beim Erinnern wird keine KI-Anfrage ausgelöst. Android kann die Zustellung
 im Stromsparmodus verzögern.
+
+Bei **Transkript zusammenfassen** lädt OpenNews eine vom Feed angegebene
+Datei (VTT, SRT oder Text) über HTTPS. Im Web vermittelt der OpenNews-Server,
+auf Android ruft das Gerät die Datei direkt ab. An die eingerichtete KI gehen
+der Titel und bis zu 18.000 Zeichen des Transkripts. Das Ergebnis bleibt
+befristet im lokalen KI-Speicher. OpenNews transkribiert keine Audio- oder
+Videospuren und ruft keine im YouTube-Player eingebetteten Untertitel ab.
