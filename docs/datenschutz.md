@@ -32,3 +32,7 @@ KI-Ergebnisse aus Zusammenfassungen und Tagesüberblicken werden lokal in
 IndexedDB gespeichert. Die Feed-Aufbewahrungsdauer gilt auch für diese
 Ergebnisse (standardmäßig vier Tage). Unter **Gespeichert → Gelesen** löscht
 „Verlauf und KI-Ergebnisse löschen“ beide Datensammlungen.
+
+Bei **Frag den Artikel** erhält der eingerichtete KI-Anbieter die eingegebene
+Frage und bis zu 12.000 Zeichen des ursprünglichen Artikeltexts. Antworten
+werden wie Zusammenfassungen befristet auf dem Gerät gespeichert.

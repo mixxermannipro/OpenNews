@@ -1,6 +1,6 @@
 import { withAIResult } from './aiCache';
 import { Capacitor } from '@capacitor/core';
-import { buildGroundedPrompt, parseBriefingText, parseSummaryBullets } from './aiResponse';
+import { buildGroundedPrompt, parseArticleAnswer, parseBriefingText, parseSummaryBullets } from './aiResponse';
 import type { AIProviderConfig, AIProviderId, AISummaryResult, NewsArticle } from '../types/news';
 
 export interface AIProviderMeta {
@@ -234,4 +234,22 @@ export async function createAudioBriefing(config: AIProviderConfig, articles: Ne
   ].join(' '), { articles: text });
   return withAIResult(config, 'briefing', articles.slice(0, 8).map(article => article.id), prompt,
     async () => parseBriefingText(await requestAI(config, prompt, true), text.map(article => article.source)));
+}
+
+export function buildArticleQuestionPrompt(article: NewsArticle, question: string) {
+  const text = (article.paragraphs.join('\n\n') || article.summary).slice(0, 12_000);
+  const prompt = buildGroundedPrompt(
+    'Beantworte die Frage in der Sprache der Frage ausschließlich anhand des Artikeltexts. ' +
+    'Gib ausschließlich JSON zurück: {"answer":"Kurze Antwort","quote":"Wörtlicher, zusammenhängender Beleg aus text"}. ' +
+    'Ist die Antwort nicht aus dem Text belegbar, verwende {"answer":null,"quote":null}.',
+    { question: question.trim().slice(0, 400), text },
+  );
+  return { prompt, text };
+}
+
+export function askArticleQuestion(article: NewsArticle, config: AIProviderConfig, question: string) {
+  if (!question.trim()) return Promise.reject(new Error('Bitte gib eine Frage ein.'));
+  const { prompt, text } = buildArticleQuestionPrompt(article, question);
+  return withAIResult(config, 'question', [article.id], prompt,
+    async () => parseArticleAnswer(await requestAI(config, prompt, true), text));
 }

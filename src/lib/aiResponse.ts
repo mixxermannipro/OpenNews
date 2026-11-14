@@ -40,3 +40,14 @@ export function parseBriefingText(raw: string, sources: string[]): string {
   }
   return text.trim();
 }
+
+export type ArticleAnswer = { answer: string; quote: string } | { answer: null; quote: null };
+
+export function parseArticleAnswer(raw: string, articleText: string): ArticleAnswer {
+  const { answer, quote } = parseModelObject(raw);
+  if (answer === null && quote === null) return { answer, quote };
+  if (typeof answer !== 'string' || !answer.trim() || answer.length > 1200 ||
+    typeof quote !== 'string' || !quote.trim() || quote.length > 450 ||
+    !articleText.includes(quote.trim())) throw invalidResponse();
+  return { answer: answer.trim(), quote: quote.trim() };
+}

@@ -1,3 +1,4 @@
+import { ArticleQuestions } from './ArticleQuestions';
 import { Capacitor } from '@capacitor/core';
 import { readOfflineArticle, removeOfflineArticle, storeOfflineArticle } from '../lib/offlineArticle';
 import { extractNativeArticle } from '../lib/nativeFeed';
@@ -484,6 +485,11 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
               </ul>
             </div>
           )}
+          {showSummary && hasBYOKKey && <ArticleQuestions
+            article={{ ...article, paragraphs: originalParagraphs }}
+            config={aiConfig}
+            disabled={loadingFullText}
+          />}
         </div>
       </dialog>
     </div>
