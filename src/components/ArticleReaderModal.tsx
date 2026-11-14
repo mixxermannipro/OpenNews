@@ -1,3 +1,4 @@
+import { resolveSummaryStyle, SUMMARY_STYLES } from '../lib/summaryStyles';
 import { ArticlePerspectives } from './ArticlePerspectives';
 import { ArticleQuestions } from './ArticleQuestions';
 import { Capacitor } from '@capacitor/core';
@@ -149,6 +150,7 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
   const [aiResult, setAiResult] = useState<AISummaryResult | null>(() =>
     generateLocalExtractiveSummary(article)
   );
+  const [style, setStyle] = useState(() => resolveSummaryStyle(aiConfig.summaryStyle));
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
 
@@ -215,7 +217,7 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
       if (aiResult?.mode === 'ai') return;
       let cancelled = false;
       setAiLoading(true);
-      analyzeArticleWithBYOK({ ...article, paragraphs: originalParagraphs }, aiConfig)
+      analyzeArticleWithBYOK({ ...article, paragraphs: originalParagraphs }, { ...aiConfig, summaryStyle: style })
         .then((res) => {
           if (!cancelled) setAiResult(res);
         })
@@ -231,7 +233,7 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
         cancelled = true;
       };
     }
-  }, [article, aiConfig, hasBYOKKey, showSummary, loadingFullText, originalParagraphs]);
+  }, [article, aiConfig, hasBYOKKey, showSummary, loadingFullText, originalParagraphs, style]);
 
   const handleRunBYOK = async () => {
     if (!hasBYOKKey) {
@@ -473,6 +475,16 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
             </button>
           </div>
 
+          {hasBYOKKey && <label className="flex flex-wrap items-center gap-2 text-sm">
+            Zusammenfassungsstil
+            <select className="preference-input" value={style} disabled={aiLoading}
+              onChange={event => {
+                setAiResult(generateLocalExtractiveSummary({ ...article, paragraphs: originalParagraphs }));
+                setStyle(resolveSummaryStyle(event.target.value));
+              }}>
+              {Object.entries(SUMMARY_STYLES).map(([id, preset]) => <option key={id} value={id}>{preset.label}</option>)}
+            </select>
+          </label>}
           {aiError && (
             <div className="rounded-2xl bg-rose-500/10 p-3 text-xs text-rose-600 dark:text-rose-400">
               {aiError}

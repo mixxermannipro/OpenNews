@@ -1,3 +1,4 @@
+import { resolveSummaryStyle, SUMMARY_STYLES } from '../lib/summaryStyles';
 import { Capacitor } from '@capacitor/core';
 import { discoverNativeFeeds, publicHttpUrl } from '../lib/nativeFeed';
 import React, { useState } from 'react';
@@ -832,6 +833,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
 
           <p className="text-sm text-slate-600 dark:text-slate-300">Empfohlen: lokale Zusammenfassungen ohne API-Schlüssel.</p>
+          <label className="flex flex-wrap items-center gap-2 text-sm">
+            Standardstil für KI-Zusammenfassungen
+            <select className="preference-input" value={resolveSummaryStyle(aiConfig.summaryStyle)}
+              onChange={event => onUpdateAIConfig({ ...aiConfig, summaryStyle: resolveSummaryStyle(event.target.value) })}>
+              {Object.entries(SUMMARY_STYLES).map(([id, preset]) => <option key={id} value={id}>{preset.label}</option>)}
+            </select>
+          </label>
           {!showAISetup && <button className="choice-pill" type="button" onClick={() => setShowAISetup(true)}>KI-Anbieter verbinden</button>}
           {showAISetup && <>
           <div className="space-y-4">

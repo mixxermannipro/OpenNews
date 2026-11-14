@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { AI_PROVIDERS, DEFAULT_AI_CONFIG, migrateAIConfig } from './aiClient';
+import { AI_PROVIDERS, buildSummaryPrompt, DEFAULT_AI_CONFIG, migrateAIConfig } from './aiClient';
 
 import { buildGroundedPrompt, parseArticleAnswer, parseBriefingText, parseSourcedReport, parseSummaryBullets } from './aiResponse';
 test('Google offers moving aliases and migrates the previous Flash defaults', () => {
@@ -46,4 +46,14 @@ test('comparison requires valid source references and covers each submitted sour
   assert.equal(parseSourcedReport(report(2), 2).length, 2);
   assert.throws(() => parseSourcedReport(report(1), 2));
   assert.throws(() => parseSourcedReport(report(3), 2));
+});
+
+test('summary styles select distinct instructions and allow five answers for the five Ws', () => {
+  const article = { title: 'Nachrichten', sourceName: 'Quelle', summary: 'Kurztext', paragraphs: [], category: 'Politik' } as const;
+  const input = { ...article, paragraphs: [] };
+  assert.match(buildSummaryPrompt(input, 'plain'), /B1/);
+  assert.match(buildSummaryPrompt(input, 'english'), /Englisch/);
+  assert.match(buildSummaryPrompt(input, 'five-w'), /Wer, Was, Wann, Wo und Warum/);
+  assert.notEqual(buildSummaryPrompt(input, 'highlights'), buildSummaryPrompt(input, 'plain'));
+  assert.equal(parseSummaryBullets(JSON.stringify({ bullets: ['1','2','3','4','5'] }), 5).length, 5);
 });
