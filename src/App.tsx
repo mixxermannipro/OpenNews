@@ -492,14 +492,14 @@ export default function App() {
     [activeArticles, normalizedProfile, sources, preferences.topics, feedClock]
   );
   useEffect(() => {
-    if (!Capacitor.isNativePlatform()) return;
-    const stories = homeSections.Heute.slice(0, 2).map(({ lead: article }) => ({
-      title: article.title.slice(0, 180), source: article.sourceName.slice(0, 80), category: article.category,
+    if (Capacitor.getPlatform() !== 'android' || !cachedStorageReady || isLoadingFeeds) return;
+    const snapshot = (tab: HomeTab) => homeSections[tab].slice(0, 24).map(({ lead }) => ({
+      ...lead, contentHtml: undefined, paragraphs: [], summary: lead.summary.slice(0, 400),
     }));
-    if (!stories.length && isLoadingFeeds) return;
-    void import('./lib/newsWidget').then(({ NewsWidget }) => NewsWidget.update({ stories })).catch(() => {});
-  }, [homeSections.Heute, isLoadingFeeds]);
-
+    void import('./lib/newsWidget').then(({ NewsWidget }) => NewsWidget.update({
+      today: snapshot('Heute'), personal: snapshot('Für dich'), latest: snapshot('Neueste'),
+    })).catch(() => {});
+  }, [cachedStorageReady, homeSections, isLoadingFeeds]);
 
   const openSettings = (sec: SettingsSectionTab = 'overview') => {
     navigate({ tab: 'settings', settings: sec });
@@ -516,6 +516,30 @@ export default function App() {
     setReadArticles(previous => [historyEntry, ...previous.filter(item => articleIdentity(item) !== articleIdentity(article))].slice(0, 60));
     setProfile((prev) => recordArticleRead(normalizeProfile(prev), article));
   };
+
+  const openWidgetArticle = useRef(handleOpenArticle);
+  useLayoutEffect(() => { openWidgetArticle.current = handleOpenArticle; });
+  useEffect(() => {
+    if (!onboarded || Capacitor.getPlatform() !== 'android') return;
+    let active = true;
+    let dispose: (() => void) | undefined;
+    const handle = ({ article, refresh }: { article?: NewsArticle; refresh?: boolean }) => {
+      if (!active) return;
+      if (article) openWidgetArticle.current(article);
+      if (refresh) void fetchLatest.current();
+    };
+    void import('./lib/newsWidget').then(async ({ NewsWidget }) => {
+      if (!active) return;
+      const listener = await NewsWidget.addListener('openStory', handle);
+      if (!active) {
+        await listener.remove();
+        return;
+      }
+      dispose = () => { void listener.remove(); };
+      handle(await NewsWidget.getLaunchArticle());
+    }).catch(() => {});
+    return () => { active = false; dispose?.(); };
+  }, [onboarded]);
 
   const handleToggleBookmark = (article: NewsArticle) => {
     if (!normalizedProfile.bookmarkedIds.includes(article.id)) {

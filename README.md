@@ -330,8 +330,8 @@ NODE_ENV=production npm start
 | `npm start` | `tsx server.ts` | Express starten; mit `NODE_ENV=production` aus `dist/` |
 | `npm run preview` | `vite preview` | Statischen Build ansehen (ohne API) |
 | `npm run lint` | `tsc --noEmit` | TypeScript-Typprüfung |
-| `npm test` | `node --import tsx --test src/lib/*.test.ts` | 48 Unit-Tests |
-| `npm run test:e2e` | `playwright test` | 8 Browsertests gegen den Produktionsbuild |
+| `npm test` | `node --import tsx --test src/lib/*.test.ts` | 50 Unit-Tests |
+| `npm run test:e2e` | `playwright test` | 9 Browsertests gegen den Produktionsbuild |
 | `npm run push:worker` | `tsx scripts/push-news.ts` | Android-Push aus den Standardquellen senden |
 | `node scripts/check-web-budget.mjs` | Node | Prüft das Start-JavaScript gegen 170 KiB gzip |
 | `npm run clean` | `rm -rf dist server.js` | Build-Artefakte entfernen |
@@ -416,7 +416,7 @@ Die App ist eine Capacitor-WebView mit `CapacitorHttp` (Feed- und KI-Aufrufe dir
 
 **CI:** Zwei Workflows laufen bei Pull Requests gegen `main`:
 
-- **Web CI** (`web-ci.yml`): Typprüfung, 48 Unit-Tests, Build, JavaScript-Budget und 8 Browsertests mit Playwright.
+- **Web CI** (`web-ci.yml`): Typprüfung, 50 Unit-Tests, Build, JavaScript-Budget und 9 Browsertests mit Playwright.
 - **OpenNews Android Test APK** (`android-test-apk.yml`): bei Änderungen an `src/**`, `scripts/**`, `native/android/**`, `public/**` und Build-Dateien sowie manuell über **Actions → Run workflow**. Richtet Node 22 und JDK 21 ein, prüft Typen, führt Unit-Tests und Build aus, erzeugt das Android-Projekt, baut `assembleDebug`, lädt die APK als Artefakt (7 Tage) hoch und veröffentlicht bei manuellem Lauf ein privates Pre-Release `v0.1.0-alpha.<Run-Nummer>`.
 
 **Lokal:**
@@ -454,7 +454,7 @@ Für iOS liegen die Brücken- und Widget-Dateien unter `native/ios/`. Ein Build 
 
 ## Tests und Qualität
 
-`npm test` führt **48 Unit-Tests** aus elf Dateien aus: `rssParser.test.ts`, `personalization.test.ts`, `newsFeed.test.ts`, `opml.test.ts`, `nativeFeed.test.ts`, `aiClient.test.ts`, `articleMedia.test.ts`, `articleExtraction.test.ts`, `publicHttp.test.ts`, `storyClusters.test.ts` und `scrollNavigation.test.ts`. Abgedeckt sind Parsing und Medien, Aufbewahrung, Ranking und Vielfalt, OPML, native URL-Sicherheit, KI-Antwortparsing, Volltext, SSRF-Schutz, Themencluster und die Scroll-Navigation.
+`npm test` führt **50 Unit-Tests** aus elf Dateien aus: `rssParser.test.ts`, `personalization.test.ts`, `newsFeed.test.ts`, `opml.test.ts`, `nativeFeed.test.ts`, `aiClient.test.ts`, `articleMedia.test.ts`, `articleExtraction.test.ts`, `publicHttp.test.ts`, `storyClusters.test.ts` und `scrollNavigation.test.ts`. Abgedeckt sind Parsing und Medien, Aufbewahrung, Ranking und Vielfalt, OPML, native URL-Sicherheit, KI-Antwortparsing, Volltext, SSRF-Schutz, Themencluster und die Scroll-Navigation.
 
 `npm run test:e2e` startet den Produktionsbuild auf Port `3099` und prüft mit Playwright acht Kernabläufe gegen einen simulierten Feed: Onboarding, Artikel öffnen und speichern, eigene Quelle, OPML-Import, Clip-Ansicht, Offline-Lesen, Tagesüberblick und Migration des Leseverlaufs. Einmalig `npx playwright install chromium` ausführen.
 
@@ -498,6 +498,7 @@ Für sichtbare Änderungen lohnt zusätzlich ein manueller Blick auf Startseite 
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Ablauf für Beiträge |
 | [DESIGN.md](DESIGN.md) | Verbindliche Gestaltung für Navigation, Karten, Leseflächen und Zustände |
 | [Auswahl der Nachrichten](docs/content-ranking.md) | Lokale Regeln für Heute, Für dich und Neueste |
+| [Android-Nachrichtenwidget](docs/android-widget.md) | Einrichtung, Größen und Aktualisierung |
 | [PRODUCT.md](PRODUCT.md) | Produktbeschreibung |
 | [SECURITY.md](SECURITY.md) | Sicherheitslücken melden |
 | [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | Verhaltensregeln |
@@ -531,14 +532,14 @@ Das Repository ist privat und in einer frühen Alpha. Beiträge klein und prüfb
 | PWA | nutzbar (Installation, Offline-Hinweis) |
 | Android | Alpha, Debug-APK |
 | iOS | vorbereitet (Brücken und WidgetKit), Build nur mit Xcode/macOS |
-| Android-Widget | verfügbar (Top-Themen) |
+| Android-Widget | Lokale Schlagzeilen mit Quellenfilter und Reader-Verknüpfung |
 | iOS-Widget | vorbereitet, nicht geprüft |
 | Native Push | Android mit Firebase und laufendem Feed-Dienst |
 | Artikelvolltext | Beta, abhängig von der Quelle |
 | BYOK-KI | Beta, abhängig von Anbieter und Schlüssel |
 | Tagesüberblick | Beta, benötigt eingerichtete KI und Systemstimme |
 | Diagnose | lokal verfügbar, Senden optional |
-| Tests | 48 Unit-Tests und 8 Playwright-Browsertests |
+| Tests | 50 Unit-Tests und 9 Playwright-Browsertests |
 | Lizenz | Apache-2.0 |
 
 ## Lizenz

@@ -3,4 +3,8 @@
     <color name="widget_ink">#181A20</color>
     <color name="widget_muted">#535A67</color>
     <color name="widget_divider">#DDDCD8</color>
+    <style name="OpenNewsWidgetSettings" parent="android:style/Theme.DeviceDefault.DayNight">
+        <item name="android:windowActionBar">false</item>
+        <item name="android:windowNoTitle">true</item>
+    </style>
 </resources>
