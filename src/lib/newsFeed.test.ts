@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { NewsArticle } from '../types/news';
 import { buildHomeSections, DAY_MS, distinctArticles, mergeFeedArticles } from './newsFeed';
+import { featuredStoryIds } from './featuredStories';
 import { createDefaultProfile } from './personalization';
 
 const article: NewsArticle = {
@@ -71,4 +72,18 @@ test('keeps the newest version of a story on Neueste and omits unusable timestam
   assert.deepEqual(sections.Neueste.map(story => story.lead.id), ['a', 'c']);
   assert.deepEqual(sections.Neueste[0].reports, [recent, related]);
   assert.equal(sections['Für dich'].length, 1);
+});
+
+test('uses larger cards sparingly and only when a story merits emphasis', () => {
+  const stories = Array.from({ length: 15 }, (_, index) => {
+    const lead = { ...article, id: String(index), isBreaking: [1, 7, 8].includes(index) };
+    const reports = index === 12 ? [lead, { ...lead, sourceId: 'another-source' }] : [lead];
+    return { lead, reports };
+  });
+  assert.deepEqual([...featuredStoryIds(stories, { featureLead: true })], ['0', '7', '12']);
+  assert.deepEqual([...featuredStoryIds(stories, { ranked: false })], ['1', '7', '12']);
+  const ordinary = stories.slice(2, 6);
+  ordinary[0].lead.imageUrl = 'https://example.org/photo.jpg';
+  assert.deepEqual([...featuredStoryIds(ordinary)], ['2']);
+  assert.equal(featuredStoryIds(ordinary, { ranked: false }).size, 0);
 });

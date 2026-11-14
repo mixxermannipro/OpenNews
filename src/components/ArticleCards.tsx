@@ -125,14 +125,14 @@ export function HeadlineArticleCard({ article, lead = false, onOpen, ...actions 
   const hasVideo = Boolean(article.videoUrl || article.youtubeId);
 
   return (
-    <article className="settings-group min-w-0 overflow-hidden">
+    <article className="settings-group article-card min-w-0 overflow-hidden">
       <button
         type="button"
         onClick={() => onOpen(article)}
         className="group block w-full text-left focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-red-700"
       >
         {article.imageUrl && (
-          <div className={`relative overflow-hidden bg-slate-200 dark:bg-slate-800 ${lead ? 'aspect-[2.1] rounded-b-[var(--card-radius)]' : 'aspect-[4/3] sm:aspect-[16/9]'}`}>
+          <div className="article-thumbnail relative aspect-[2.1] max-h-[24rem] overflow-hidden rounded-b-[var(--card-radius)] bg-slate-200 dark:bg-slate-800">
             <ArticleImage
               key={article.imageUrl}
               src={article.imageUrl}
@@ -153,10 +153,10 @@ export function HeadlineArticleCard({ article, lead = false, onOpen, ...actions 
           <p className="text-xs font-bold tracking-wide text-red-800 dark:text-red-400">
             {article.isBreaking ? `Eilmeldung · ${article.category}` : article.category}
           </p>
-          <Heading className={`mt-1 font-extrabold leading-[1.1] tracking-tight text-slate-950 [overflow-wrap:anywhere] group-hover:underline group-hover:decoration-2 group-hover:underline-offset-4 dark:text-white ${lead ? 'text-[clamp(1.4rem,5.8vw,2.75rem)]' : 'text-[clamp(1.05rem,4.5vw,1.5rem)]'}`}>
+          <Heading className={`mt-1 font-extrabold leading-[1.1] tracking-tight text-slate-950 [overflow-wrap:anywhere] group-hover:underline group-hover:decoration-2 group-hover:underline-offset-4 dark:text-white text-[clamp(1.4rem,5.8vw,2.75rem)]`}>
             {article.title}
           </Heading>
-          {lead && article.summary && (
+          {article.summary && (
             <p className="mt-2 line-clamp-3 max-w-[65ch] text-sm leading-snug text-slate-700 sm:text-base dark:text-slate-300">
               {article.summary}
             </p>

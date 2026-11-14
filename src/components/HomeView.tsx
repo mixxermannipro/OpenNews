@@ -3,6 +3,7 @@ import { ArrowDown, LoaderCircle } from 'lucide-react';
 import type { NewsArticle, PersonalizationProfile } from '../types/news';
 import type { HomeStory } from '../lib/newsFeed';
 import { HOME_TABS, type HomeTab } from '../lib/preferences';
+import { featuredStoryIds } from '../lib/featuredStories';
 import { ViewStatus } from './ViewStatus';
 import { CompactArticleCard, HeadlineArticleCard } from './ArticleCards';
 
@@ -49,7 +50,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const isToday = selectedCategory === 'Heute';
   const lead = isToday && showHero ? visibleArticles[0] : undefined;
   const headlines = visibleArticles.slice(lead ? 1 : 0);
-  const overviewCount = 4;
+  const overviewCount = 5;
+  const featured = showHero ? featuredStoryIds(isToday ? headlines : visibleArticles, {
+    featureLead: selectedCategory === 'Für dich',
+    ranked: selectedCategory !== 'Neueste',
+  }) : new Set<string>();
   const viewDescription = isToday ? 'Die Tagesagenda aus deinen Quellen.'
     : selectedCategory === 'Für dich' ? 'Aktuelle Vorschläge anhand deiner Interessen auf diesem Gerät.'
     : 'Nach Veröffentlichungszeit, neueste zuerst.';
@@ -80,6 +85,18 @@ export const HomeView: React.FC<HomeViewProps> = ({
       </details>
     );
   };
+
+  const renderStories = (items: HomeStory[]) => items.map(story => {
+    const large = featured.has(story.lead.id);
+    const Card = large ? HeadlineArticleCard : CompactArticleCard;
+    return (
+      <div key={story.lead.id} className={large ? 'md:col-span-2' : undefined}>
+        <Card {...cardProps(story)} />
+        {story.reason && <p className="px-2 pt-1 text-sm text-[var(--muted)]">{story.reason}</p>}
+        {related(story)}
+      </div>
+    );
+  });
 
   return (
     <section aria-label="Startseite Nachrichten" className="space-y-5"
@@ -155,9 +172,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 <section aria-labelledby="today-headlines">
                   <h2 id="today-headlines" className="mb-3 text-xl font-bold tracking-tight">Schlagzeilen</h2>
                   <div className="grid gap-3.5 md:grid-cols-2">
-                    {headlines.slice(0, overviewCount).map(article => (
-                      <div key={article.lead.id}><CompactArticleCard {...cardProps(article)} />{related(article)}</div>
-                    ))}
+                    {renderStories(headlines.slice(0, overviewCount))}
                   </div>
                 </section>
               )}
@@ -165,22 +180,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 <section aria-labelledby="today-more">
                   <h2 id="today-more" className="mb-3 text-xl font-bold tracking-tight">Weitere Meldungen</h2>
                   <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
-                    {headlines.slice(overviewCount).map(article => (
-                      <div key={article.lead.id}><CompactArticleCard {...cardProps(article)} />{related(article)}</div>
-                    ))}
+                    {renderStories(headlines.slice(overviewCount))}
                   </div>
                 </section>
               )}
             </>
           ) : (
             <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
-              {visibleArticles.map(story => (
-                <div key={story.lead.id}>
-                  <CompactArticleCard {...cardProps(story)} />
-                  {story.reason && <p className="px-2 pt-1 text-sm text-[var(--muted)]">{story.reason}</p>}
-                  {related(story)}
-                </div>
-              ))}
+              {renderStories(visibleArticles)}
             </div>
           )}
           {stories.length > visibleLimit && <button type="button" className="choice-pill" onClick={() =>
