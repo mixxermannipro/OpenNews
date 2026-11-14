@@ -200,7 +200,8 @@ export function scoreArticle(
   article: NewsArticle,
   profile: PersonalizationProfile,
   subscribedSourceIds: Set<string>,
-  nowMs: number = Date.now()
+  nowMs: number = Date.now(),
+  interestDecayHours = 72,
 ): ScoredArticle {
   if (profile.dislikedIds.includes(article.id)) {
     return { article, score: -100, reason: 'Weniger davon' };
@@ -218,7 +219,7 @@ export function scoreArticle(
   const specificInterest = Math.min(3, keywordMatches.size * 0.9);
   const breakingBonus = article.isBreaking ? 14 * Math.exp(-ageHours / 12) : 0;
   const totalScore = freshness + breakingBonus
-    + (interest + specificInterest) * Math.exp(-ageHours / 72)
+    + (interest + specificInterest) * Math.exp(-ageHours / interestDecayHours)
     + (subscribedSourceIds.has(article.sourceId) ? 0.5 : 0)
     - (profile.readIds.includes(article.id) ? 3 : 0);
 
@@ -240,10 +241,11 @@ export function rankArticlesForYou(
   sources: NewsSource[],
   nowMs: number = Date.now(),
   diversify = true,
+  interestDecayHours = 72,
 ): ScoredArticle[] {
   const subscribedIds = new Set(sources.filter((s) => s.subscribed).map((s) => s.id));
   const ranked = articles
-    .map((a) => scoreArticle(a, profile, subscribedIds, nowMs))
+    .map((a) => scoreArticle(a, profile, subscribedIds, nowMs, interestDecayHours))
     .filter((entry) => entry.score > -50)
     .sort((a, b) => b.score - a.score || b.article.publishedAt.localeCompare(a.article.publishedAt)
       || a.article.id.localeCompare(b.article.id));
@@ -251,7 +253,10 @@ export function rankArticlesForYou(
   return diversify ? diversifyArticles(ranked) : ranked;
 }
 
-export function diversifyArticles(ranked: ScoredArticle[], capSources = false): ScoredArticle[] {
+export function diversifyArticles(
+  ranked: ScoredArticle[], capSources = false,
+  fourthSlot?: (entry: ScoredArticle) => boolean,
+): ScoredArticle[] {
   const selected: ScoredArticle[] = [];
   // Mix each page of recommendations. Consider other topics even if one source
   // supplies most of the initial candidates.
@@ -259,22 +264,26 @@ export function diversifyArticles(ranked: ScoredArticle[], capSources = false): 
     const bySource = new Map<string, number>();
     const byTopic = new Map<string, number>();
     const adjustedScore = ({ article, score }: ScoredArticle) =>
-      score - 2 * (bySource.get(article.sourceId) ?? 0) - 3 * (byTopic.get(article.category) ?? 0);
+      score - (capSources ? 4 : 2) * (bySource.get(article.sourceId) ?? 0) - 3 * (byTopic.get(article.category) ?? 0);
     for (let slot = 0; slot < 12 && ranked.length; slot++) {
       let best = -1;
       let bestScore = -Infinity;
-      for (let i = 0; i < ranked.length; i++) {
-        if (ranked[i].score < bestScore && !capSources) break;
-        if (capSources && (bySource.get(ranked[i].article.sourceId) ?? 0) >= 2) continue;
+      const eligible = (entry: ScoredArticle) => !capSources || (bySource.get(entry.article.sourceId) ?? 0) < 2;
+      const reserve = selected.length === 3 && fourthSlot && !selected.some(fourthSlot)
+        ? ranked.findIndex(entry => eligible(entry) && fourthSlot(entry)) : -1;
+      for (let i = 0; i < ranked.length && reserve < 0; i++) {
+        if (ranked[i].score < bestScore) break;
+        if (!eligible(ranked[i])) continue;
         const score = adjustedScore(ranked[i]);
         if (score > bestScore) {
           best = i;
           bestScore = score;
         }
       }
+      if (reserve >= 0) best = reserve;
       if (best < 0) break;
       const [entry] = ranked.splice(best, 1);
-      selected.push(entry);
+      selected.push(reserve >= 0 ? { ...entry, reason: 'Wichtiges Thema außerhalb deiner Interessen' } : entry);
       const { sourceId, category } = entry.article;
       bySource.set(sourceId, (bySource.get(sourceId) ?? 0) + 1);
       byTopic.set(category, (byTopic.get(category) ?? 0) + 1);
