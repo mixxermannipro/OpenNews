@@ -15,6 +15,7 @@ interface SavedViewProps {
   onToggleBookmark: (article: NewsArticle) => void;
   onToggleLike: (article: NewsArticle) => void;
   onResetAlgorithm: () => void;
+  onClearHistory: () => Promise<void>;
 }
 
 export const SavedView: React.FC<SavedViewProps> = ({
@@ -27,8 +28,20 @@ export const SavedView: React.FC<SavedViewProps> = ({
   onToggleBookmark,
   onToggleLike,
   onResetAlgorithm,
+  onClearHistory,
 }) => {
   const [subTab, setSubTab] = useState<'bookmarks' | 'likes' | 'history' | 'algorithm'>(initialPage);
+
+  const [clearStatus, setClearStatus] = useState('');
+  const clearHistory = async () => {
+    if (!window.confirm('Leseverlauf und gespeicherte KI-Ergebnisse löschen?')) return;
+    try {
+      await onClearHistory();
+      setClearStatus('Leseverlauf und KI-Ergebnisse gelöscht.');
+    } catch {
+      setClearStatus('Die KI-Ergebnisse konnten nicht gelöscht werden.');
+    }
+  };
 
   const bookmarkedArticles = useMemo(
     () => distinctArticles(articles.filter((a) => profile.bookmarkedIds.includes(a.id))),
@@ -115,6 +128,14 @@ export const SavedView: React.FC<SavedViewProps> = ({
         </button>
       </div>
 
+      {subTab === 'history' && (
+        <div className="space-y-2">
+          <button type="button" className="choice-pill" onClick={() => void clearHistory()}>
+            Verlauf und KI-Ergebnisse löschen
+          </button>
+          <p role="status" className="text-sm">{clearStatus}</p>
+        </div>
+      )}
       {subTab === 'algorithm' ? (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div className="liquid-glass rounded-3xl p-5 space-y-4">
