@@ -30,13 +30,40 @@ export function normalizeProfile(raw: Partial<PersonalizationProfile> | null | u
   };
 }
 
+const WEIGHT_HALF_LIFE_MS = 21 * 24 * 60 * 60 * 1000;
+
+function weightUpdateTime() {
+  const hour = 60 * 60 * 1000;
+  return Math.floor(Date.now() / hour) * hour;
+}
+
+export function decayProfileWeights(profile: PersonalizationProfile, now = Date.now()): PersonalizationProfile {
+  if (profile.weightsUpdatedAt === undefined) return { ...profile, weightsUpdatedAt: now };
+  if (now <= profile.weightsUpdatedAt) return profile;
+  const factor = 2 ** (-(now - profile.weightsUpdatedAt) / WEIGHT_HALF_LIFE_MS);
+  const decay = (weights: Record<string, number>) => Object.fromEntries(
+    Object.entries(weights).map(([key, value]) => [key, value * factor]).filter(([, value]) => Math.abs(Number(value)) >= 0.01)
+  );
+  return {
+    ...profile,
+    weightsUpdatedAt: now,
+    topicWeights: decay(profile.topicWeights),
+    sourceWeights: decay(profile.sourceWeights),
+    keywordWeights: decay(profile.keywordWeights),
+  };
+}
+
+export function resetProfileWeights(profile: PersonalizationProfile): PersonalizationProfile {
+  return { ...profile, topicWeights: {}, sourceWeights: {}, keywordWeights: {}, weightsUpdatedAt: weightUpdateTime() };
+}
+
 function adjustWeight(map: Record<string, number>, key: string, delta: number): Record<string, number> {
   const next = { ...map };
   const val = (next[key] ?? 0) + delta;
   if (Math.abs(val) < 0.05) {
     delete next[key];
   } else {
-    next[key] = Math.max(-15, Math.min(30, Number(val.toFixed(2))));
+    next[key] = Math.max(-15, Math.min(30, val));
   }
   return next;
 }
@@ -45,6 +72,7 @@ export function toggleArticleLike(
   profile: PersonalizationProfile,
   article: NewsArticle
 ): PersonalizationProfile {
+  profile = decayProfileWeights(profile, weightUpdateTime());
   const alreadyLiked = profile.likedIds.includes(article.id);
   const delta = alreadyLiked ? -3 : profile.dislikedIds.includes(article.id) ? 5.5 : 3;
 
@@ -73,6 +101,7 @@ export function toggleArticleDislike(
   profile: PersonalizationProfile,
   article: NewsArticle
 ): PersonalizationProfile {
+  profile = decayProfileWeights(profile, weightUpdateTime());
   const alreadyDisliked = profile.dislikedIds.includes(article.id);
   const wasLiked = profile.likedIds.includes(article.id);
   const delta = alreadyDisliked ? 2.5 : wasLiked ? -5.5 : -2.5;
@@ -104,6 +133,7 @@ export function toggleArticleBookmark(
   profile: PersonalizationProfile,
   article: NewsArticle
 ): PersonalizationProfile {
+  profile = decayProfileWeights(profile, weightUpdateTime());
   const alreadySaved = profile.bookmarkedIds.includes(article.id);
   const delta = alreadySaved ? -1.5 : 1.5;
 
@@ -135,6 +165,8 @@ export function recordReadingDuration(
 ): PersonalizationProfile {
   const clamped = Math.max(0, Math.min(600, Math.round(seconds)));
   if (!Number.isFinite(clamped) || clamped < 3) return profile;
+
+  profile = decayProfileWeights(profile, weightUpdateTime());
 
   // Passive reading is a small signal, even when a reader stays open for minutes.
   const expectedSeconds = Math.max(20, article.readingTimeMin * 60);
