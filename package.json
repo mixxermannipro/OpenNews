@@ -1,5 +1,5 @@
 {
-  "name": "react-example",
+  "name": "opennews",
   "private": true,
   "version": "0.1.0-alpha.1",
   "type": "module",
@@ -15,23 +15,25 @@
     "push:worker": "tsx scripts/push-news.ts"
   },
   "dependencies": {
+    "@capacitor/android": "8.6.0",
+    "@capacitor/core": "8.6.0",
     "@google/genai": "^2.4.0",
     "@tailwindcss/vite": "^4.3.3",
     "@vitejs/plugin-react": "^6.1.1",
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
     "fast-xml-parser": "^5.12.0",
+    "google-auth-library": "^10.9.1",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
     "vite": "^8.3.0",
-    "vite-plugin-pwa": "^2.0.0",
-    "@capacitor/core": "8.6.0",
-    "@capacitor/android": "8.6.0",
-    "google-auth-library": "^10.9.1"
+    "vite-plugin-pwa": "^2.0.0"
   },
   "devDependencies": {
+    "@capacitor/cli": "8.6.0",
+    "@types/express": "^4.17.21",
     "@types/node": "^22.14.0",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
@@ -39,8 +41,13 @@
     "esbuild": "^0.28.0",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.21.0",
-    "typescript": "^7.0.2",
-    "@types/express": "^4.17.21",
-    "@capacitor/cli": "8.6.0"
-  }
+    "typescript": "^7.0.2"
+  },
+  "description": "Datenschutzfreundliche Nachrichten-App für Web und Android",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mixxermannipro/OpenNews.git"
+  },
+  "author": "mixxermannipro",
+  "license": "UNLICENSED"
 }

@@ -212,10 +212,9 @@ OpenNews/
 ├── DESIGN.md                           # Gestaltungsleitlinien
 ├── PRODUCT.md                          # Produktbeschreibung
 ├── README.md                           # Diese Datei
-├── bun.lock                            # Lockfile (Bun); die CI nutzt npm
+├── package-lock.json                   # Festgeschriebene npm-Abhängigkeiten
 ├── capacitor.config.ts                 # App-ID, WebView, CapacitorHttp
 ├── index.html                          # HTML-Shell, Theme-Bootstrap, Meta-Tags
-├── metadata.json                       # Metadaten der AI-Studio-Vorlage
 ├── package.json                        # Abhängigkeiten und Skripte
 ├── server.ts                           # Express-API und Vite-/Produktions-Server
 ├── tsconfig.json                       # TypeScript-Konfiguration
@@ -226,7 +225,7 @@ OpenNews/
 
 | Ordner | Entstehung | Hinweis |
 | --- | --- | --- |
-| `node_modules/` | `npm install` | Abhängigkeiten |
+| `node_modules/` | `npm ci` | Abhängigkeiten |
 | `dist/` | `npm run build` | Produktionsbuild inkl. Service Worker |
 | `dev-dist/` | Vite-PWA im Dev-Modus | Wird derzeit mitversioniert |
 | `android/` | `npx cap add android` | Nicht versioniert; CI erzeugt es bei jedem Lauf |
@@ -255,7 +254,7 @@ Für Web und PWA genügen Node.js und npm.
 ```bash
 git clone https://github.com/mixxermannipro/OpenNews.git
 cd OpenNews
-npm install
+npm ci
 npm run dev          # http://localhost:3000
 ```
 
@@ -360,7 +359,7 @@ Die App ist eine Capacitor-WebView mit `CapacitorHttp` (Feed- und KI-Aufrufe dir
 **Lokal:**
 
 ```bash
-npm install
+npm ci
 npm run build
 npx cap add android        # nur, wenn android/ noch nicht existiert
 npm run android:sync

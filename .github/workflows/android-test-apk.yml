@@ -10,6 +10,7 @@ on:
       - 'native/android/**'
       - 'public/**'
       - 'package.json'
+      - 'package-lock.json'
       - 'capacitor.config.ts'
       - 'vite.config.ts'
       - 'index.html'
@@ -44,7 +45,7 @@ jobs:
         run: test -d "$ANDROID_HOME"
 
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
 
       - name: Typecheck
         run: npm run lint
