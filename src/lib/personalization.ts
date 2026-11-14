@@ -264,7 +264,7 @@ export function diversifyArticles(
     const bySource = new Map<string, number>();
     const byTopic = new Map<string, number>();
     const adjustedScore = ({ article, score }: ScoredArticle) =>
-      score - 2 * (bySource.get(article.sourceId) ?? 0) - 3 * (byTopic.get(article.category) ?? 0);
+      score - (capSources ? 4 : 2) * (bySource.get(article.sourceId) ?? 0) - 3 * (byTopic.get(article.category) ?? 0);
     for (let slot = 0; slot < 12 && ranked.length; slot++) {
       let best = -1;
       let bestScore = -Infinity;

@@ -31,10 +31,10 @@ Am 14. November 2026 um 18:47 Uhr (Berlin) lieferte der OpenNews-Server 300 Arti
 
 | Ansicht | Quellen | Größte Quelle | Themen | Median Alter | Unter 24 Stunden | Weitere Berichte in Gruppen | Auswahlgründe |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Heute | 9 → 8 | 2/12 → 2/12 | 8 → 8 | 0,6 → 0,6 h | 12 → 12 | 0 → 3 | 0 → 3 |
-| Für dich | 9 → 9 | 2/12 → 2/12 | 8 → 8 | 0,4 → 0,5 h | 12 → 12 | 0 → 2 | 4 → 6 |
+| Heute | 9 → 10 | 2/12 → 2/12 | 8 → 8 | 0,6 → 0,6 h | 12 → 12 | 0 → 2 | 0 → 2 |
+| Für dich | 9 → 10 | 2/12 → 2/12 | 8 → 8 | 0,4 → 0,5 h | 12 → 12 | 0 → 2 | 4 → 6 |
 | Neueste | 4 → 4 | 5/12 → 5/12 | 6 → 6 | 0,4 → 0,4 h | 12 → 12 | 0 → 0 | 0 → 0 |
 
-„Heute“ führte zuvor mit dem Preis einer Pokémon-Karte. Danach stand die Bahn-Meldung zum Alkoholverbot oben, zu der zwei Quellen berichteten. Diese Platzierung zeigt die Wirkung des Quellenbonus. In der Stichprobe sank die Zahl der sichtbaren Quellen um eins. Vier der zwölf Empfehlungen passten in beiden Fassungen zu den voreingestellten Themen. In „Neueste“ gehörten fünf der zwölf jüngsten Beiträge derselben Quelle. Das ergibt sich aus den Veröffentlichungszeiten. Hier hilft die Gruppierung nach Kalendertag beim Überfliegen. Die algorithmische Gruppierung fasst Formulierungsvarianten zusammen, soweit die Regeln greifen. Eine manuelle Dublettenquote wurde noch nicht erhoben.
+„Heute“ führte zuvor mit dem Preis einer Pokémon-Karte. Danach stand die Bahn-Meldung zum Alkoholverbot oben, zu der zwei Quellen berichteten. Diese Platzierung zeigt die Wirkung des Quellenbonus. Die sichtbare Quellenzahl stieg in beiden gewichteten Ansichten von neun auf zehn. Vier der zwölf Empfehlungen passten in beiden Fassungen zu den voreingestellten Themen. In „Neueste“ gehörten fünf der zwölf jüngsten Beiträge derselben Quelle. Das ergibt sich aus den Veröffentlichungszeiten. Hier hilft die Gruppierung nach Kalendertag beim Überfliegen. Die algorithmische Gruppierung fasst Formulierungsvarianten zusammen, soweit die Regeln greifen. Eine manuelle Dublettenquote wurde noch nicht erhoben.
 
 Ein lokaler Laufzeitvergleich mit jeweils 100 Wiederholungen für den gesamten Auswahlaufruf ergab Medianwerte von rund 8–9 ms vorher und 8 ms nachher. Das misst die Auswahl im Node-Prozess ohne Netz oder Darstellung. Der gespeicherte Datensatz enthält die damals eingelesenen Kategorien. Eine spätere Korrektur der Themenzuordnung wird mit dem nächsten Feed-Abruf wirksam. Weitere Erhebungstage und personalisierte Stichproben der Wettbewerber sind für die Abnahme noch offen.

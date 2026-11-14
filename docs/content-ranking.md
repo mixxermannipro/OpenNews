@@ -14,7 +14,7 @@ In beiden gewichteten Ansichten kosten eindeutige Teaser-Anfänge wie „Das gla
 
 Bei neu eingelesenen Meldungen bestimmt eine bekannte Ressortangabe des Feeds zuerst das Thema. Wenn sie fehlt, wertet OpenNews Titel und Beschreibung aus. Ein Artikel zur Bundespräsidentenwahl zählt auch dann zu Politik, wenn er einen Sportler erwähnt.
 
-Die gewichteten Ansichten bilden Blöcke mit bis zu zwölf Plätzen. Jede bereits verwendete Quelle kostet innerhalb des Blocks zwei Punkte, jedes bereits verwendete Thema drei. Eine Quelle erhält höchstens zwei Plätze pro Block. Sind die übrigen Quellen erschöpft, beginnt ein neuer Block. So bleiben sämtliche Geschichten erreichbar, auch wenn nur eine Quelle abonniert ist. Die Oberfläche zeigt einen Grund, sobald ein starkes Interesse, eine Eilmeldung übergreifende Berichterstattung oder eine reservierte öffentliche Meldung erkannt wurde.
+Die gewichteten Ansichten bilden Blöcke mit bis zu zwölf Plätzen. Jede bereits verwendete Quelle kostet innerhalb des Blocks vier Punkte, jedes bereits verwendete Thema drei. Eine Quelle erhält höchstens zwei Plätze pro Block. Sind die übrigen Quellen erschöpft, beginnt ein neuer Block. So bleiben sämtliche Geschichten erreichbar, auch wenn nur eine Quelle abonniert ist. Die Oberfläche zeigt einen Grund, sobald ein starkes Interesse, eine Eilmeldung übergreifende Berichterstattung oder eine reservierte öffentliche Meldung erkannt wurde.
 
 ## Ausgangslage und Nachweis
 
