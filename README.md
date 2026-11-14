@@ -54,6 +54,7 @@ OpenNews bündelt Nachrichten aus frei zugänglichen Feeds in einer ruhigen Ober
 | **KI-Zusammenfassungsstile** | Kernaussagen, 5 W-Fragen, Einfach erklärt (B1) und Auf Englisch. Standard in den KI-Einstellungen, Auswahl auch am Artikel. |
 | **Frag den Artikel** | Fragen in der KI-Zusammenfassung stellen. Antworten zeigen ein wörtliches Zitat aus dem Artikel, wenn ein Beleg vorliegt. |
 | **Perspektiven vergleichen** | Bei Meldungsgruppen mit mindestens zwei Quellen vergleicht die eingerichtete KI die Kurztexte und zeigt die Quellennamen an. |
+| **Wochenrückblick** | Die eingerichtete KI fasst bis zu acht der zuletzt veröffentlichten Beiträge aus Lesezeichen und Likes thematisch zusammen. |
 | **Tagesüberblick** | Optionaler gesprochener Überblick über bis zu acht Schlagzeilen; die Texte erzeugt die eingerichtete KI, vorgelesen wird mit der Systemstimme (Android) oder im Browser |
 | **Entdecken** | Themenraster, Quellen- und Volltextsuche, letzte sechs Suchbegriffe lokal gespeichert |
 | **Darstellung** | System/Hell/Dunkel, Akzentfarbe, Transparenz, Ecken, Kartendichte, Textgröße, reduzierte Bewegung |

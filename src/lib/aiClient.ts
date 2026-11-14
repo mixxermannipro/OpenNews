@@ -276,3 +276,18 @@ export function comparePerspectives(articles: NewsArticle[], config: AIProviderC
   return withAIResult(config, 'perspectives', articles.map(article => article.id), prompt,
     async () => parseSourcedReport(await requestAI(config, prompt, true), input.length));
 }
+
+export function createWeeklyReview(articles: NewsArticle[], config: AIProviderConfig, week: string) {
+  const input = articles.map((article, index) => ({
+    id: index + 1, title: article.title.slice(0, 240), source: article.sourceName.slice(0, 160),
+    text: (article.summary || article.paragraphs[0] || '').slice(0, 450),
+  }));
+  const prompt = buildGroundedPrompt(
+    'Erstelle einen neutralen Wochenrückblick auf Deutsch. Gruppiere die Meldungen nach Themen und beschreibe erkennbare Entwicklungen. ' +
+    'Schreibe zwei bis drei kurze Abschnitte und verweise in jedem Abschnitt auf die passenden Artikel-IDs. ' +
+    'Berücksichtige alle Artikel. Antworte ausschließlich als JSON: {"sections":[{"text":"Thema","sources":[1,2]}]}.',
+    { week, articles: input },
+  );
+  return withAIResult(config, 'weekly', articles.map(article => article.id), prompt,
+    async () => parseSourcedReport(await requestAI(config, prompt, true), input.length));
+}

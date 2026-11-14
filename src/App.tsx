@@ -768,6 +768,7 @@ export default function App() {
 
         {activeTab === 'saved' && (
           <SavedView
+            aiConfig={aiConfig}
             key={savedPage}
             initialPage={savedPage}
             history={distinctArticles([...readArticles, ...allArticles.filter(article => normalizedProfile.readIds.includes(article.id))])}

@@ -1,11 +1,14 @@
+import { WeeklyReview } from './WeeklyReview';
+import { selectWeeklyArticles, reviewWeek } from '../lib/weeklyReview';
 import { ViewStatus } from './ViewStatus';
 import { distinctArticles } from '../lib/newsFeed';
 import React, { useMemo, useState } from 'react';
 import { Bookmark, Heart, RotateCcw, SlidersHorizontal, Sparkles } from 'lucide-react';
-import type { NewsArticle, NewsSource, PersonalizationProfile } from '../types/news';
+import type { AIProviderConfig, NewsArticle, NewsSource, PersonalizationProfile } from '../types/news';
 import { CompactArticleCard } from './ArticleCards';
 
 interface SavedViewProps {
+  aiConfig: AIProviderConfig;
   initialPage: 'bookmarks' | 'history';
   history: NewsArticle[];
   articles: NewsArticle[];
@@ -19,6 +22,7 @@ interface SavedViewProps {
 }
 
 export const SavedView: React.FC<SavedViewProps> = ({
+  aiConfig,
   initialPage,
   history,
   articles,
@@ -42,6 +46,10 @@ export const SavedView: React.FC<SavedViewProps> = ({
       setClearStatus('Die KI-Ergebnisse konnten nicht gelöscht werden.');
     }
   };
+
+  const now = new Date();
+  const week = reviewWeek(now);
+  const weeklyArticles = selectWeeklyArticles(articles, profile, now.getTime());
 
   const bookmarkedArticles = useMemo(
     () => distinctArticles(articles.filter((a) => profile.bookmarkedIds.includes(a.id))),
@@ -128,6 +136,9 @@ export const SavedView: React.FC<SavedViewProps> = ({
         </button>
       </div>
 
+      {(subTab === 'bookmarks' || subTab === 'likes') && (aiConfig.apiKey.trim() || aiConfig.provider === 'custom') &&
+        weeklyArticles.length >= 2 && <WeeklyReview key={JSON.stringify([week, weeklyArticles.map(article => article.id), aiConfig.provider, aiConfig.model])}
+          articles={weeklyArticles} config={aiConfig} week={week} />}
       {subTab === 'history' && (
         <div className="space-y-2">
           <button type="button" className="choice-pill" onClick={() => void clearHistory()}>

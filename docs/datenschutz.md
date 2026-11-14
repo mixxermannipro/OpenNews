@@ -40,3 +40,8 @@ werden wie Zusammenfassungen befristet auf dem Gerät gespeichert.
 Beim **Perspektivenvergleich** erhält der eingerichtete KI-Anbieter
 Überschriften, Quellennamen und Kurztexte von bis zu sechs Quellen derselben
 Meldungsgruppe. Der Vergleich wird befristet auf dem Gerät gespeichert.
+
+Beim **Wochenrückblick** wählt die App passende Lesezeichen und Likes lokal
+aus. Erst beim Erstellen gehen bis zu acht Überschriften, Quellennamen und
+Kurztexte an den eingerichteten KI-Anbieter. Das Ergebnis wird pro Woche und
+Artikelauswahl befristet auf dem Gerät gespeichert.
