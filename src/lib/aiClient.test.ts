@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { AI_PROVIDERS, DEFAULT_AI_CONFIG, migrateAIConfig } from './aiClient';
 
-import { buildGroundedPrompt, parseBriefingText, parseSummaryBullets } from './aiResponse';
+import { buildGroundedPrompt, parseArticleAnswer, parseBriefingText, parseSummaryBullets } from './aiResponse';
 test('Google offers moving aliases and migrates the previous Flash defaults', () => {
   assert.deepEqual(AI_PROVIDERS.find(provider => provider.id === 'google')?.models.map(model => model.id), [
     'gemini-flash-latest', 'gemini-flash-lite-latest',
@@ -28,4 +28,12 @@ test('rejects overlong, malformed, and unsupported model output', () => {
   assert.throws(() => parseBriefingText('{"text":"Eine Meldung von erfundenen Quellen."}', ['Tagesschau']));
   assert.equal(parseBriefingText('{"text":"Laut Tagesschau ist der Bericht erschienen."}', ['Tagesschau']),
     'Laut Tagesschau ist der Bericht erschienen.');
+});
+
+test('article answers require a verbatim citation or an explicit no-answer result', () => {
+  const text = 'Der Bericht erschien am Mittwoch.';
+  assert.deepEqual(parseArticleAnswer('{"answer":"Mittwoch.","quote":"erschien am Mittwoch"}', text),
+    { answer: 'Mittwoch.', quote: 'erschien am Mittwoch' });
+  assert.deepEqual(parseArticleAnswer('{"answer":null,"quote":null}', text), { answer: null, quote: null });
+  assert.throws(() => parseArticleAnswer('{"answer":"Donnerstag.","quote":"erschien am Donnerstag"}', text));
 });
