@@ -4,18 +4,22 @@ const stopWords = new Set(['aber', 'auch', 'eine', 'einer', 'einen', 'einem', 'n
 const maxDistance = 36 * 60 * 60_000;
 
 export function clusterStories(articles: NewsArticle[]) {
-  const clusters: { lead: NewsArticle; timestamp: number; words: Set<string>; reports: NewsArticle[] }[] = [];
+  const clusters: { lead: NewsArticle; timestamp: number; headline: string; words: Set<string>; reports: NewsArticle[] }[] = [];
   for (const article of articles) {
-    const words = new Set((article.title.toLowerCase().match(/[\p{L}\p{N}]{4,}/gu) ?? [])
-      .filter(word => !stopWords.has(word)));
+    const tokens = article.title.normalize('NFKC').toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
+    const headline = tokens.length >= 2 ? tokens.join(' ') : '';
+    const words = new Set(tokens.filter(word => word.length >= 4 && !stopWords.has(word)));
     const timestamp = Date.parse(article.publishedAt);
-    const match = words.size >= 4 && clusters.find(cluster => {
-      if (cluster.lead.category !== article.category || Math.abs(timestamp - cluster.timestamp) > maxDistance) return false;
-      const overlap = [...words].filter(word => cluster.words.has(word)).length;
+    const match = clusters.find(cluster => {
+      if (!Number.isFinite(timestamp - cluster.timestamp) || Math.abs(timestamp - cluster.timestamp) > maxDistance) return false;
+      if (headline && headline === cluster.headline) return true;
+      if (words.size < 4 || cluster.lead.category !== article.category) return false;
+      let overlap = 0;
+      for (const word of words) if (cluster.words.has(word)) overlap++;
       return overlap >= 4 && overlap / Math.max(words.size, cluster.words.size) >= 0.65;
     });
     if (match) match.reports.push(article);
-    else clusters.push({ lead: article, words, timestamp, reports: [article] });
+    else clusters.push({ lead: article, headline, words, timestamp, reports: [article] });
   }
   return clusters.map(({ lead, reports }) => ({ lead, reports }));
 }
