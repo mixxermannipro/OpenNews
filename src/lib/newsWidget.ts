@@ -8,7 +8,7 @@ export interface WidgetSnapshot {
 }
 
 export const NewsWidget = registerPlugin<{
-  update(options: WidgetSnapshot): Promise<void>;
+  update(options: WidgetSnapshot | { stories: { title: string; source: string }[] }): Promise<void>;
   getLaunchArticle(): Promise<{ article?: NewsArticle; refresh?: boolean }>;
   addListener(event: 'openStory', listener: (event: { article?: NewsArticle; refresh?: boolean }) => void): Promise<PluginListenerHandle>;
 }>('NewsWidget');
