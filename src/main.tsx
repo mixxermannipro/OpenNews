@@ -3,6 +3,9 @@ import { Capacitor } from '@capacitor/core';
 import { registerSW } from 'virtual:pwa-register';
 import App from './App.tsx';
 import './index.css';
+import { installDiagnostics } from './lib/diagnostics';
+
+installDiagnostics();
 
 async function start() {
   if (Capacitor.isNativePlatform()) {

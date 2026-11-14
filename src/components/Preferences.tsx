@@ -1,7 +1,9 @@
 import { ArrowLeft, ArrowRight, Bell, Bookmark, BookOpen, ChevronRight, Clapperboard, Compass, History, Layers, Palette, ShieldCheck, SlidersHorizontal, Sparkles } from 'lucide-react';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
 import { DEFAULT_PREFERENCES, EDITIONS, HOME_TAB_LABELS, RETENTION_OPTIONS, TOPICS, resolveHomeTab, resolveRetention, type AppPreferences, type Edition } from '../lib/preferences';
 import type { NewsCategory, ReaderFontFamily, ReaderFontSize, ThemeMode } from '../types/news';
+
+const DiagnosticsSettings = lazy(() => import('./DiagnosticsSettings').then(module => ({ default: module.DiagnosticsSettings })));
 
 interface AppearanceProps {
   theme: ThemeMode;
@@ -186,6 +188,7 @@ export function ProfileView({ page, onPage, onBack, onSaved, onHistory, onSource
       {page === 'privacy' && <div className="settings-group p-5 space-y-3 leading-relaxed">
         <p>Deine Einstellungen, Interessen und Leseliste werden auf diesem Gerät gespeichert.</p>
         {backupControls}
+        <Suspense fallback={null}><DiagnosticsSettings /></Suspense>
         <p>Beim Abrufen von Nachrichten verbindet sich OpenNews mit den ausgewählten Quellen. Wenn du eine externe KI verwendest, erhält der Anbieter den Artikeltext für die Analyse.</p>
       </div>}
       {page === 'topics' && <TopicChoices topics={preferences.topics} onChange={topics => onPreferences({ ...preferences, topics })} />}

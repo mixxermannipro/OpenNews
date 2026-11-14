@@ -41,6 +41,7 @@ import { useLocalStorage } from './hooks/useLocalStorage';
 import { HomeView } from './components/HomeView';
 import type { SettingsSectionTab } from './components/SettingsView';
 
+import { recordDiagnostic } from './lib/diagnostics';
 import { OfflineIndicator } from './components/PWAInstallButton';
 
 import { DEFAULT_PREFERENCES, applyEditionSources, resolveHomeTab, resolveRetention, type AppPreferences, type HomeTab } from './lib/preferences';
@@ -206,6 +207,9 @@ export default function App() {
   const refresh = useRef<AbortController | null>(null);
   const [isLoadingFeeds, setIsLoadingFeeds] = useState(false);
   const [readArticles, setReadArticles, historyStorageFailed] = useArticleStorage<NewsArticle[]>('opennews_read_articles', []);
+  useEffect(() => {
+    if (cachedStorageFailed || savedStorageFailed || historyStorageFailed) recordDiagnostic('storage-failed');
+  }, [cachedStorageFailed, savedStorageFailed, historyStorageFailed]);
   const [alertBanner, setAlertBanner] = useState<{ title: string; source: string } | null>(null);
 
   // Sync theme class with <html>, including live prefers-color-scheme listener for 'system'
@@ -378,6 +382,7 @@ export default function App() {
 
     const recordResults = (results: FeedResult[]) => {
       if (controller.signal.aborted || !results.length) return;
+      if (results.some(result => !result.ok)) recordDiagnostic('feed-failed');
       const checkedAt = Date.now();
       setFeedHealth(previous => {
         const next = { ...previous };
