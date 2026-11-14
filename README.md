@@ -457,7 +457,7 @@ OpenNews nutzt die öffentlichen YouTube-Kanalfeeds unter anderem von tagesschau
 
 ### iOS (in Vorbereitung)
 
-Für iOS liegen die Brücken- und Widget-Dateien unter `native/ios/`. Ein Build benötigt macOS mit Xcode und die zum Projekt passende Capacitor-Version: `npm ci`, `npm run build`, `npx cap add ios`, `npx cap sync ios`. App und Widget-Erweiterung teilen sich die App Group `group.io.opennews.app`; das Schema `opennews` öffnet die App aus dem Widget. Die Einrichtung ist unter Linux **nicht geprüft**. Details stehen in [docs/ios-widget.md](docs/ios-widget.md).
+Für iOS liegen die Brücken- und Widget-Dateien unter `native/ios/`. Ein Build benötigt macOS mit Xcode und die zum Projekt passende Capacitor-Version: `npm ci`, `npm run build`, `npx cap add ios`, `npx cap sync ios`. Die App übergibt bis zu zwei Schlagzeilen aus „Heute“. App und Widget-Erweiterung teilen sich die App Group `group.io.opennews.app`; das Schema `opennews` öffnet die App aus dem Widget. Die Einrichtung ist unter Linux **nicht geprüft**. Details stehen in [docs/ios-widget.md](docs/ios-widget.md).
 
 Android zeigt für OpenNews-Benachrichtigungen ein eigenes monochromes Symbol in der Statusleiste.
 

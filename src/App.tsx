@@ -495,7 +495,15 @@ export default function App() {
     [activeArticles, normalizedProfile, sources, preferences.topics, feedClock]
   );
   useEffect(() => {
-    if (Capacitor.getPlatform() !== 'android' || !cachedStorageReady || isLoadingFeeds) return;
+    const platform = Capacitor.getPlatform();
+    if (!cachedStorageReady || isLoadingFeeds || (platform !== 'android' && platform !== 'ios')) return;
+    if (platform === 'ios') {
+      const stories = homeSections.Heute.slice(0, 2).map(({ lead }) => ({
+        title: lead.title, source: lead.sourceName,
+      }));
+      void import('./lib/newsWidget').then(({ NewsWidget }) => NewsWidget.update({ stories })).catch(() => {});
+      return;
+    }
     const snapshot = (tab: HomeTab) => homeSections[tab].slice(0, 24).map(({ lead }) => ({
       ...lead, contentHtml: undefined, paragraphs: [], summary: lead.summary.slice(0, 400),
     }));

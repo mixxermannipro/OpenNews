@@ -12,3 +12,5 @@ Das Android-Widget übernimmt dieselben redaktionellen Themenbilder wie die App.
 2. Ein Widget Extension-Ziel ohne Live Activity mit iOS 17 oder neuer anlegen. Die generierte Widget-Implementierung durch `native/ios/OpenNewsWidget.swift` ersetzen. Die Datei gehört nur zur Erweiterung.
 3. Für beide Ziele die App Group `group.io.opennews.app` aktivieren. Im App-Ziel unter URL Types das Schema `opennews` für den Widget-Tipp eintragen. Die Widget-Erweiterung mit der App bündeln.
 4. Auf einem iPhone App starten, Nachrichten laden, Widget hinzufügen und den Inhalt in kleiner und mittlerer Größe prüfen. Das Widget liest die lokal geteilten Überschriften. Zielregistrierung und Signierung wurden unter Linux nicht geprüft.
+
+Die Web-Oberfläche übergibt dem iOS-Plugin die ersten zwei Titel und Quellnamen aus „Heute“. Android übergibt weiterhin seinen vollständigen lokalen Widget-Datensatz. iOS zeigt anfangs einen Hinweis, auch wenn keine Meldungen vorliegen. Auf einem iPhone noch prüfen, dass die App Group Daten teilt, das Widget nach dem Abruf aktualisiert wird und der Tipp die App öffnet.
