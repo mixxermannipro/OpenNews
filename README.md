@@ -453,3 +453,5 @@ Für dieses Repository ist **keine Lizenzdatei** hinterlegt. Ohne ausdrückliche
 <sub>Version 0.1.0-alpha.1 · November 2026</sub>
 
 </div>
+
+Der [Android-Release-Leitfaden](docs/android-release.md) enthält Store-Checkliste und Signierschritte.
