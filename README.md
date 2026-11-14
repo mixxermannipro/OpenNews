@@ -417,6 +417,8 @@ Im statischen Browserbetrieb kann Anthropic direkt mit dem in der App hinterlegt
 
 ## Android
 
+Der [Android-Veröffentlichungspfad](docs/android-release.md) enthält die Abnahme für signiertes Paket, Versionierung, Datenschutzseite und Play-Testkanal.
+
 Die App ist eine Capacitor-WebView mit `CapacitorHttp` (Feed- und KI-Aufrufe direkt auf dem Gerät), nativem Zurück-Knopf, `ArticleShare`-Plugin, Systemstimme für den Tagesüberblick, lokaler Übersetzung über ML Kit, Firebase-Nachrichten und synchronisierten Systemleisten. Das Widget „OpenNews Top-Themen“ zeigt bis zu zwei Überschriften aus **Heute**.
 
 **CI:** Zwei Workflows laufen bei Pull Requests gegen `main`:
