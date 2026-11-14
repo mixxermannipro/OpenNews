@@ -488,6 +488,13 @@ export default function App() {
     },
     [activeArticles, normalizedProfile, sources, preferences.topics, feedClock]
   );
+  useEffect(() => {
+    if (Capacitor.getPlatform() !== 'android') return;
+    const headlines = homeSections.Heute.slice(0, 3).map(article => article.title);
+    if (!headlines.length && isLoadingFeeds) return;
+    void import('./lib/newsWidget').then(({ NewsWidget }) => NewsWidget.update({ headlines })).catch(() => {});
+  }, [homeSections.Heute, isLoadingFeeds]);
+
 
   const openSettings = (sec: SettingsSectionTab = 'overview') => {
     navigate({ tab: 'settings', settings: sec });
