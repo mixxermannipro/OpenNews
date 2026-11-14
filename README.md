@@ -453,6 +453,8 @@ OpenNews nutzt die öffentlichen YouTube-Kanalfeeds unter anderem von tagesschau
 
 Für iOS liegen die Brücken- und Widget-Dateien unter `native/ios/`. Ein Build benötigt macOS mit Xcode und die zum Projekt passende Capacitor-Version: `npm ci`, `npm run build`, `npx cap add ios`, `npx cap sync ios`. App und Widget-Erweiterung teilen sich die App Group `group.io.opennews.app`; das Schema `opennews` öffnet die App aus dem Widget. Die Einrichtung ist unter Linux **nicht geprüft**. Details stehen in [docs/ios-widget.md](docs/ios-widget.md).
 
+Android zeigt für OpenNews-Benachrichtigungen ein eigenes monochromes Symbol in der Statusleiste.
+
 ## Tests und Qualität
 
 `npm test` führt **50 Unit-Tests** aus elf Dateien aus: `rssParser.test.ts`, `personalization.test.ts`, `newsFeed.test.ts`, `opml.test.ts`, `nativeFeed.test.ts`, `aiClient.test.ts`, `articleMedia.test.ts`, `articleExtraction.test.ts`, `publicHttp.test.ts`, `storyClusters.test.ts` und `scrollNavigation.test.ts`. Abgedeckt sind Parsing und Medien, Aufbewahrung, Ranking und Vielfalt, OPML, native URL-Sicherheit, KI-Antwortparsing, Volltext, SSRF-Schutz, Themencluster und die Scroll-Navigation.
