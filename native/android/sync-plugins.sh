@@ -18,3 +18,7 @@ cp -r native/android/widget/. android/app/src/main/res/
 if ! grep -q 'OpenNewsWidget' "$manifest"; then
   sed -i '/<\/application>/e cat native/android/widget-manifest.xml' "$manifest"
 fi
+
+if ! grep -q 'android.intent.action.TTS_SERVICE' "$manifest"; then
+  sed -i '/<\/manifest>/e cat native/android/tts-manifest.xml' "$manifest"
+fi
