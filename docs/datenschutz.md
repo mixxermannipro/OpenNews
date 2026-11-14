@@ -45,3 +45,8 @@ Beim **Wochenrückblick** wählt die App passende Lesezeichen und Likes lokal
 aus. Erst beim Erstellen gehen bis zu acht Überschriften, Quellennamen und
 Kurztexte an den eingerichteten KI-Anbieter. Das Ergebnis wird pro Woche und
 Artikelauswahl befristet auf dem Gerät gespeichert.
+
+Bei **Auf diesem Gerät** verarbeitet Gemini Nano Artikeltexte lokal. Chrome
+benötigt die Prompt API, Android die ML-Kit-Schnittstelle und einen passenden
+AICore-Dienst. Beim erstmaligen Start kann ein Modell-Download anfallen.
+Android unterstützt hier längere englische Artikel und einen Stichpunkt.

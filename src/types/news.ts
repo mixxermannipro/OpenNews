@@ -83,7 +83,7 @@ export interface PersonalizationProfile {
   weightsUpdatedAt?: number;
 }
 
-export type AIProviderId = 'google' | 'openai' | 'anthropic' | 'mistral' | 'custom';
+export type AIProviderId = 'google' | 'openai' | 'anthropic' | 'mistral' | 'custom' | 'device';
 
 export type SummaryStyle = 'highlights' | 'five-w' | 'plain' | 'english';
 
