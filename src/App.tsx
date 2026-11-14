@@ -1,3 +1,4 @@
+import { clearAIResults, pruneAIResults } from './lib/aiCache';
 import React, { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { NewsPush } from './lib/newsPush';
 import { Capacitor, SystemBars, SystemBarsStyle } from '@capacitor/core';
@@ -88,6 +89,12 @@ export default function App() {
   const [preferences, setPreferences] = useLocalStorage<AppPreferences>('opennews_preferences', DEFAULT_PREFERENCES);
   const [homeCategory, setHomeCategory] = useState<HomeTab>(() => resolveHomeTab(preferences.home));
   const retention = resolveRetention(preferences.retention);
+  useEffect(() => {
+    const prune = () => void pruneAIResults(retention).catch(() => {});
+    prune();
+    const timer = window.setInterval(prune, 60 * 60 * 1000);
+    return () => window.clearInterval(timer);
+  }, [retention]);
   const latestRetention = useRef(retention);
   useLayoutEffect(() => { latestRetention.current = retention; }, [retention]);
   const [onboarded, setOnboarded] = useLocalStorage('opennews_onboarded', false);
@@ -761,6 +768,11 @@ export default function App() {
             onOpenArticle={handleOpenArticle}
             onToggleBookmark={handleToggleBookmark}
             onToggleLike={handleToggleLike}
+            onClearHistory={async () => {
+              await clearAIResults();
+              setReadArticles([]);
+              setProfile(previous => ({ ...normalizeProfile(previous), readIds: [] }));
+            }}
             onResetAlgorithm={() => setProfile(previous => resetProfileWeights(normalizeProfile(previous)))}
           />
         )}

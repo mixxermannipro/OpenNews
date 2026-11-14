@@ -1,3 +1,4 @@
+import { withAIResult } from './aiCache';
 import { Capacitor } from '@capacitor/core';
 import { buildGroundedPrompt, parseBriefingText, parseSummaryBullets } from './aiResponse';
 import type { AIProviderConfig, AIProviderId, AISummaryResult, NewsArticle } from '../types/news';
@@ -95,8 +96,11 @@ export async function analyzeArticleWithBYOK(
 ): Promise<AISummaryResult> {
   const providerMeta = AI_PROVIDERS.find((p) => p.id === config.provider);
   const providerLabel = `${providerMeta?.name || config.provider} · ${config.model}`;
-  const text = await requestAI(config, buildPrompt(article), true);
-  return { bullets: parseSummaryBullets(text), mode: 'ai', providerLabel, generatedAt: new Date().toISOString() };
+  const prompt = buildPrompt(article);
+  return withAIResult(config, 'summary', [article.id], prompt, async () => ({
+    bullets: parseSummaryBullets(await requestAI(config, prompt, true)),
+    mode: 'ai', providerLabel, generatedAt: new Date().toISOString(),
+  }));
 }
 
 async function requestAI(config: AIProviderConfig, prompt: string, expectJson: boolean): Promise<string> {
@@ -228,5 +232,6 @@ export async function createAudioBriefing(config: AIProviderConfig, articles: Ne
     'Nenne die Quellen im Text exakt wie angegeben. Verwende weder Markdown noch persönliche Empfehlungen.',
     'Antworte ausschließlich als JSON: {"text":"Nachrichtenüberblick"}.',
   ].join(' '), { articles: text });
-  return parseBriefingText(await requestAI(config, prompt, true), text.map(article => article.source));
+  return withAIResult(config, 'briefing', articles.slice(0, 8).map(article => article.id), prompt,
+    async () => parseBriefingText(await requestAI(config, prompt, true), text.map(article => article.source)));
 }
