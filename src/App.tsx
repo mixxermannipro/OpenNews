@@ -1,3 +1,4 @@
+import type { WidgetLaunch } from './lib/newsWidget';
 import { DailyBriefing, type DailyBriefingSettings } from './lib/dailyBriefing';
 import { clusterStories } from './lib/storyClusters';
 import { clearAIResults, pruneAIResults } from './lib/aiCache';
@@ -571,17 +572,22 @@ export default function App() {
     setProfile((prev) => recordArticleRead(normalizeProfile(prev), article));
   };
 
-  const openWidgetArticle = useRef(handleOpenArticle);
-  useLayoutEffect(() => { openWidgetArticle.current = handleOpenArticle; });
+  const handleWidgetLaunch = useRef<(event: WidgetLaunch) => void>(() => {});
+  useLayoutEffect(() => {
+    handleWidgetLaunch.current = ({ article, refresh, discover, save }) => {
+      if (discover) navigate({ tab: 'discover' });
+      if (article) {
+        if (save && !normalizedProfile.bookmarkedIds.includes(article.id)) handleToggleBookmark(article);
+        handleOpenArticle(article);
+      }
+      if (refresh) void fetchLatest.current();
+    };
+  });
   useEffect(() => {
     if (!onboarded || Capacitor.getPlatform() !== 'android') return;
     let active = true;
     let dispose: (() => void) | undefined;
-    const handle = ({ article, refresh }: { article?: NewsArticle; refresh?: boolean }) => {
-      if (!active) return;
-      if (article) openWidgetArticle.current(article);
-      if (refresh) void fetchLatest.current();
-    };
+    const handle = (event: WidgetLaunch) => { if (active) handleWidgetLaunch.current(event); };
     void import('./lib/newsWidget').then(async ({ NewsWidget }) => {
       if (!active) return;
       const listener = await NewsWidget.addListener('openStory', handle);

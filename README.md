@@ -62,7 +62,7 @@ OpenNews bündelt Nachrichten aus frei zugänglichen Feeds in einer ruhigen Ober
 | **Darstellung** | System/Hell/Dunkel, Akzentfarbe, Transparenz, Ecken, Kartendichte, Textgröße, reduzierte Bewegung |
 | **Sicherung** | Export und Import von Abos, Reaktionen und Lesezeichen als JSON-Datei bis 5 MB; bleibt auf dem Gerät |
 | **Diagnose** | Freiwillige lokale Fehleraufzeichnung ohne Fehlertexte, Adressen oder Gerätekennungen; Export als JSON, optionales Senden der Fehlerart an den eigenen Server |
-| **Widget** | Android-Widget „Top-Themen“ mit zwei Überschriften; iOS-WidgetKit-Dateien liegen bereit, benötigen aber Xcode |
+| **Widget** | Android-Widget „Top-Themen“ mit drei Ansichten, Bildaufmacher und Merken; iOS-WidgetKit-Dateien liegen bereit, benötigen aber Xcode |
 | **PWA** | Installierbar, Service Worker mit Auto-Update, Offline-Hinweis, maskierbares Icon |
 | **Android** | Capacitor-WebView, direkte HTTP-Aufrufe, nativer Zurück-Knopf, Share-Dialog, Systemstimme und lokale Übersetzung |
 | **Benachrichtigungen** | Android-Push für unterstützte abonnierte Quellen mit eingerichtetem Firebase. Im Web erscheinen Hinweise in der geöffneten App. |
@@ -431,7 +431,7 @@ Im statischen Browserbetrieb kann Anthropic direkt mit dem in der App hinterlegt
 
 Der [Android-Veröffentlichungspfad](docs/android-release.md) enthält die Abnahme für signiertes Paket, Versionierung, Datenschutzseite und Play-Testkanal.
 
-Die App ist eine Capacitor-WebView mit `CapacitorHttp` (Feed- und KI-Aufrufe direkt auf dem Gerät), nativem Zurück-Knopf, `ArticleShare`-Plugin, Systemstimme für den Tagesüberblick, lokaler Übersetzung über ML Kit, Firebase-Nachrichten und synchronisierten Systemleisten. Das Widget „OpenNews Top-Themen“ zeigt bis zu zwei Überschriften aus **Heute**.
+Die App ist eine Capacitor-WebView mit `CapacitorHttp` (Feed- und KI-Aufrufe direkt auf dem Gerät), nativem Zurück-Knopf, `ArticleShare`-Plugin, Systemstimme für den Tagesüberblick, lokaler Übersetzung über ML Kit, Firebase-Nachrichten und synchronisierten Systemleisten. Das Widget „OpenNews Top-Themen“ zeigt je nach Größe bis zu drei Meldungen. Die große Ansicht bietet einen Bildaufmacher und Reiter für **Heute**, **Für dich** und **Neueste**. [Bedienung und Größen](docs/android-widget.md)
 
 **CI:** Zwei Workflows laufen bei Pull Requests gegen `main`:
 
