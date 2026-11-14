@@ -19,3 +19,7 @@ Die Android-App ruft Feeds und Artikel direkt ab. Beim Abruf können Quellen und
 ## Datenschutzkontakt und Betroffenenrechte
 
 Der Betreiber ergänzt hier vor Veröffentlichung einen erreichbaren Datenschutzkontakt und die für den Betrieb geltenden Angaben zu Auskunft, Berichtigung, Löschung und Beschwerde.
+
+## Freiwillige Fehlerdiagnose
+
+Die optionale Diagnose speichert Fehlerarten und auf Stunden gerundete Zeiten lokal. Sie erfasst keine Artikel- oder Feed-Adressen, Schlüssel, Gerätekennungen oder Fehlertexte. Der Bericht bleibt auf deinem Gerät, bis du ihn selbst exportierst und weitergibst. Beim Ausschalten löscht OpenNews die gespeicherten Diagnoseeinträge.
