@@ -22,3 +22,7 @@ Die Android-App übergibt bis zu 24 bereits gruppierte Meldungen je Reiter an de
 - Android stellt Widgets mit `RemoteViews` in einem separaten Launcher-Prozess dar. Die vorhandene Java-Implementierung braucht keine neue Jetpack-Abhängigkeit. Die Plattform stellt die Konfiguration, Größenänderungen und sichere Klickaktionen bereit. [Android Developers – App-Widgets](https://developer.android.com/develop/ui/views/appwidgets)
 
 Das Widget nutzt lokale Themenillustrationen. Artikelbilder, weitere Widget-Referenzen und Belege für alle Launcher-Größen stehen aus. Der Google-Discover-Bildschirm eines Launchers lässt sich über diese Android-Schnittstelle nicht austauschen.
+
+## Gerätetest vom 14. November 2026
+
+Eine getrennte Debug-App lief auf einem Samsung-Handy mit Android 17 und One UI. Geprüft wurden das Hinzufügen des 4×2-Widgets, Blättern, direkter Sprung zum angezeigten Artikel mit geladenem Volltext und das Öffnen der Einstellungen. Der Test deckte einen überlagerten Titel im Einstellungsfenster auf. Nach der Korrektur waren Überschrift und Eingaben unterhalb der Statusleiste sichtbar. Die vorhandene OpenNews-Installation blieb erhalten.

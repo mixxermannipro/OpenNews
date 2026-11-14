@@ -7,6 +7,8 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.widget.ArrayAdapter;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -59,9 +61,19 @@ public class WidgetSettingsActivity extends Activity {
         content.setOrientation(LinearLayout.VERTICAL);
         int inset = Math.round(20 * getResources().getDisplayMetrics().density);
         content.setPadding(inset, inset, inset, inset);
+        ViewCompat.setOnApplyWindowInsetsListener(scroll, (view, insets) -> {
+            var bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
+            view.setPadding(bars.left, bars.top, bars.right, bars.bottom);
+            return insets;
+        });
         scroll.addView(content);
         setContentView(scroll);
-        setTitle("OpenNews-Widget");
+        TextView heading = new TextView(this);
+        heading.setText("OpenNews-Widget");
+        heading.setTextSize(22);
+        ViewCompat.setAccessibilityHeading(heading, true);
+        heading.setPadding(0, 0, 0, inset);
+        content.addView(heading);
 
         Spinner section = option(content, "Ansicht", OpenNewsWidget.LABELS, store.getInt("section-" + id, 0));
         List<String> topicKeys = new ArrayList<>(topics.keySet());
