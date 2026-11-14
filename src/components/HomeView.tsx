@@ -7,6 +7,8 @@ import { featuredStoryIds } from '../lib/featuredStories';
 import { ViewStatus } from './ViewStatus';
 import { CompactArticleCard, HeadlineArticleCard } from './ArticleCards';
 
+const timelineDate = new Intl.DateTimeFormat('de-DE', { dateStyle: 'full' });
+
 interface HomeViewProps {
   stories: HomeStory[];
   showHero: boolean;
@@ -48,12 +50,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const visibleLimit = batch.category === selectedCategory ? batch.limit : 30;
   const visibleArticles = stories.slice(0, visibleLimit);
   const isToday = selectedCategory === 'Heute';
+  const isLatest = selectedCategory === 'Neueste';
   const lead = isToday && showHero ? visibleArticles[0] : undefined;
   const headlines = visibleArticles.slice(lead ? 1 : 0);
   const overviewCount = 5;
-  const featured = showHero ? featuredStoryIds(isToday ? headlines : visibleArticles, {
+  const featured = showHero && !isLatest ? featuredStoryIds(isToday ? headlines : visibleArticles, {
     featureLead: selectedCategory === 'Für dich',
-    ranked: selectedCategory !== 'Neueste',
   }) : new Set<string>();
   const viewDescription = isToday ? 'Die Tagesagenda aus deinen Quellen.'
     : selectedCategory === 'Für dich' ? 'Aktuelle Vorschläge anhand deiner Interessen auf diesem Gerät.'
@@ -86,17 +88,30 @@ export const HomeView: React.FC<HomeViewProps> = ({
     );
   };
 
+  const storyDetails = (story: HomeStory) => <>
+    {story.reason && <p className="px-2 pt-1 text-sm text-[var(--muted)]">{story.reason}</p>}
+    {related(story)}
+  </>;
+
   const renderStories = (items: HomeStory[]) => items.map(story => {
     const large = featured.has(story.lead.id);
     const Card = large ? HeadlineArticleCard : CompactArticleCard;
     return (
       <div key={story.lead.id} className={large ? 'md:col-span-2' : undefined}>
         <Card {...cardProps(story)} />
-        {story.reason && <p className="px-2 pt-1 text-sm text-[var(--muted)]">{story.reason}</p>}
-        {related(story)}
+        {storyDetails(story)}
       </div>
     );
   });
+  const days = new Map<string, HomeStory[]>();
+  if (isLatest) {
+    for (const story of visibleArticles) {
+      const day = timelineDate.format(new Date(story.lead.publishedAt));
+      const storiesOnDay = days.get(day);
+      if (storiesOnDay) storiesOnDay.push(story);
+      else days.set(day, [story]);
+    }
+  }
 
   return (
     <section aria-label="Startseite Nachrichten" className="space-y-5"
@@ -167,7 +182,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         <div className="space-y-5">
           {isToday ? (
             <>
-              {lead && <div><HeadlineArticleCard {...cardProps(lead)} lead />{related(lead)}</div>}
+              {lead && <div><HeadlineArticleCard {...cardProps(lead)} lead />{storyDetails(lead)}</div>}
               {headlines.length > 0 && (
                 <section aria-labelledby="today-headlines">
                   <h2 id="today-headlines" className="mb-3 text-xl font-bold tracking-tight">Schlagzeilen</h2>
@@ -185,6 +200,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 </section>
               )}
             </>
+          ) : isLatest ? (
+            [...days].map(([day, items]) => (
+              <section key={day} aria-label={day}>
+                <h2 className="mb-3 text-base font-semibold text-[var(--muted)]">{day}</h2>
+                <div className="grid gap-3.5 md:grid-cols-2">{renderStories(items)}</div>
+              </section>
+            ))
           ) : (
             <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
               {renderStories(visibleArticles)}
