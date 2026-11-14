@@ -56,7 +56,7 @@ OpenNews bündelt Nachrichten aus frei zugänglichen Feeds in einer ruhigen Ober
 | **Darstellung** | System/Hell/Dunkel, Akzentfarbe, Transparenz, Ecken, Kartendichte, Textgröße, reduzierte Bewegung |
 | **Sicherung** | Export und Import von Abos, Reaktionen und Lesezeichen als JSON-Datei bis 5 MB; bleibt auf dem Gerät |
 | **Diagnose** | Freiwillige lokale Fehleraufzeichnung ohne Fehlertexte, Adressen oder Gerätekennungen; Export als JSON, optionales Senden der Fehlerart an den eigenen Server |
-| **Widget** | Android-Widget „Top-Themen“ mit drei Ansichten, Bildaufmacher und Merken; iOS-WidgetKit-Dateien liegen bereit, benötigen aber Xcode |
+| **Widget** | Android-Widget „Top-Themen“ mit drei Ansichten, Bildaufmacher und Merken; iOS-WidgetKit für drei Größen mit Reitern, benötigt Xcode |
 | **PWA** | Installierbar, Service Worker mit Auto-Update, Offline-Hinweis, maskierbares Icon |
 | **Android** | Capacitor-WebView, direkte HTTP-Aufrufe, nativer Zurück-Knopf, Share-Dialog, Systemstimme und lokale Übersetzung |
 | **Benachrichtigungen** | Android-Push für unterstützte abonnierte Quellen mit eingerichtetem Firebase. Im Web erscheinen Hinweise in der geöffneten App. |
@@ -462,7 +462,7 @@ OpenNews nutzt die öffentlichen YouTube-Kanalfeeds unter anderem von tagesschau
 
 ### iOS (in Vorbereitung)
 
-Für iOS liegen die Brücken- und Widget-Dateien unter `native/ios/`. Ein Build benötigt macOS mit Xcode und die zum Projekt passende Capacitor-Version: `npm ci`, `npm run build`, `npx cap add ios`, `npx cap sync ios`. Die App übergibt bis zu zwei Schlagzeilen aus „Heute“. App und Widget-Erweiterung teilen sich die App Group `group.io.opennews.app`; das Schema `opennews` öffnet die App aus dem Widget. Die Einrichtung ist unter Linux **nicht geprüft**. Details stehen in [docs/ios-widget.md](docs/ios-widget.md).
+Für iOS liegen die Brücken- und Widget-Dateien unter `native/ios/`. Die kleine Widget-Ansicht zeigt eine Meldung, die mittlere und große bieten drei Reiter. Die App stellt bis zu drei lokale Meldungen je Ansicht bereit. Das Widget braucht iOS 17 oder neuer. Build, Signierung und Gerätetest benötigen einen Mac mit Xcode 26 oder neuer. Die [Einrichtung](docs/ios-widget.md) beschreibt die Zielkonfiguration und die verfügbaren Aktionen.
 
 Android zeigt für OpenNews-Benachrichtigungen ein eigenes monochromes Symbol in der Statusleiste.
 

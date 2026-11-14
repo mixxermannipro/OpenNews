@@ -1,16 +1,15 @@
-# Widgets und iOS
+# OpenNews-Widget auf iOS
 
-Das Android-Widget „OpenNews Top-Themen“ zeigt bis zu zwei Überschriften aus der Ansicht „Heute“. Es übernimmt sie beim Aktualisieren der App. Ein Tippen öffnet OpenNews. Auf dem Startbildschirm lässt sich das Widget über die Widget-Auswahl des Android-Launchers hinzufügen. Die Überschriften werden lokal gespeichert.
+Das Widget „OpenNews Top-Themen“ gibt es in drei Größen. Klein zeigt es eine Schlagzeile und öffnet deren Reader beim Tippen. Mittel bietet die Reiter „Heute“, „Für dich“ und „Neueste“. Groß zeigt Datum, Bildaufmacher, bis zu zwei kompakte Meldungen und „Weitere Themen entdecken“. Das Lesezeichen speichert den Artikel in OpenNews und öffnet den Reader. Der Aktualisieren-Knopf öffnet den gewählten Reiter und startet den Feed-Abruf der App.
 
-Für iOS ist macOS mit Xcode nötig. Das Capacitor-Ziel muss zur verwendeten Capacitor-Version passen. Auf einem Mac `npm ci`, `npm run build`, `npx cap add ios` und `npx cap sync ios` ausführen, mit der im Projekt festgeschriebenen Capacitor-Version. Vor Übernahme das Fetch-Verhalten, native Gesten, Audio und die plattformspezifischen Funktionsprüfungen auf einem iPhone testen. Für ein WidgetKit-Ziel müssen die App und die Widget-Erweiterung dieselbe App Group nutzen. Signierung und Zielkonfiguration auf dem Mac prüfen.
+Die Themenbilder liegen lokal in der Widget-Erweiterung. Die App teilt bis zu drei gekürzte Artikel je Reiter über die gemeinsame App Group. Die Widget-Erweiterung ruft keine Feeds selbst ab. iOS entscheidet, wann es die Darstellung im Hintergrund neu aufbaut. Die Reiterwahl gilt für Widgets dieser App auf demselben Gerät.
 
-Das Android-Widget übernimmt dieselben redaktionellen Themenbilder wie die App. Die kompakte Ansicht zeigt den Aufmacher und seine Quelle. Mit mehr Platz kommen das Themenbild und eine zweite Meldung hinzu. Die Oberfläche folgt dem Hell-Dunkel-Modus des Systems.
+## Einrichtung in Xcode
 
-## WidgetKit in Xcode einbinden
+1. Auf macOS mit Xcode 26 oder neuer `npm ci`, `npm run build`, `npx cap add ios` und `npx cap sync ios` ausführen. Falls das iOS-Projekt schon besteht, genügt statt `cap add` der Sync. Mit `npx cap open ios` öffnen.
+2. Im App-Ziel die von Capacitor 8 erzeugte `SceneDelegate.swift` durch `native/ios/SceneDelegate.swift` ersetzen. `NewsWidgetPlugin.swift` und `OpenNewsBridgeViewController.swift` dem App-Ziel hinzufügen. Bei einem bestehenden Projekt prüfen, dass das App-Ziel den SceneDelegate lädt.
+3. Ein Ziel vom Typ „Widget Extension“ ohne Live Activity anlegen. Die generierten Widget- und Intent-Dateien durch `native/ios/OpenNewsWidget.swift` ersetzen. Die Datei gehört nur zur Erweiterung. Das Widget-Ziel braucht iOS 17 oder neuer. Für die Ton- und Widget-Funktionsprüfungen ein iPhone mit dem gleichen oder einem neueren iOS verwenden.
+4. Die fünf Dateien `native/android/widget/drawable-nodpi/widget_*.jpg` als Bildsets ohne Dateiendung im Asset-Katalog der Erweiterung anlegen. Die Namen entsprechen den Widget-Themen. Die App Group `group.io.opennews.app` in beiden Zielen aktivieren. Das URL-Schema `opennews` im App-Ziel unter URL Types eintragen. Die Erweiterung muss mit der App gebündelt sein.
+5. Auf einem iPhone die App öffnen und Feeds laden. Das Widget in allen drei Größen hinzufügen. Beim großen Widget alle Reiter antippen und den Sprung zum Artikel, zur Merkliste, zu „Entdecken“ und zum Feed-Abruf prüfen. Die Links bei offener und geschlossener App testen. Hell/Dunkel, größere Schrift, leere Auswahl und Flugmodus prüfen.
 
-1. Das Capacitor-App-Ziel in Xcode öffnen. Die Dateien `native/ios/NewsWidgetPlugin.swift` und `native/ios/OpenNewsBridgeViewController.swift` dem App-Ziel hinzufügen. Im Main-Storyboard die Controller-Klasse auf `OpenNewsBridgeViewController` im App-Modul setzen.
-2. Ein Widget Extension-Ziel ohne Live Activity mit iOS 17 oder neuer anlegen. Die generierte Widget-Implementierung durch `native/ios/OpenNewsWidget.swift` ersetzen. Die Datei gehört nur zur Erweiterung.
-3. Für beide Ziele die App Group `group.io.opennews.app` aktivieren. Im App-Ziel unter URL Types das Schema `opennews` für den Widget-Tipp eintragen. Die Widget-Erweiterung mit der App bündeln.
-4. Auf einem iPhone App starten, Nachrichten laden, Widget hinzufügen und den Inhalt in kleiner und mittlerer Größe prüfen. Das Widget liest die lokal geteilten Überschriften. Zielregistrierung und Signierung wurden unter Linux nicht geprüft.
-
-Die Web-Oberfläche übergibt dem iOS-Plugin die ersten zwei Titel und Quellnamen aus „Heute“. Android übergibt weiterhin seinen vollständigen lokalen Widget-Datensatz. iOS zeigt anfangs einen Hinweis, auch wenn keine Meldungen vorliegen. Auf einem iPhone noch prüfen, dass die App Group Daten teilt, das Widget nach dem Abruf aktualisiert wird und der Tipp die App öffnet.
+Die Einrichtung, die Signierung und die Darstellung in WidgetKit wurden unter Linux nicht geprüft. Ein Xcode-Build und ein Gerätetest stehen aus. [Capacitor – iOS](https://capacitorjs.com/docs/ios) · [Apple – interaktive Widgets](https://developer.apple.com/documentation/widgetkit/adding-interactivity-to-widgets-and-live-activities)
