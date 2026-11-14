@@ -1,3 +1,4 @@
+import { hasCloudAI } from '../lib/aiClient';
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import { useEffect, useRef, useState } from 'react';
 import type { AIProviderConfig, NewsArticle } from '../types/news';
@@ -5,7 +6,11 @@ import type { AIProviderConfig, NewsArticle } from '../types/news';
 const AndroidSpeech = registerPlugin<{ speak(options: { text: string }): Promise<void>; stop(): Promise<void> }>('BriefingSpeech');
 const android = Capacitor.getPlatform() === 'android';
 
-export function AudioBriefing({ articles, config }: { articles: NewsArticle[]; config: AIProviderConfig }) {
+export function AudioBriefing({ articles, config, open }: { articles: NewsArticle[]; config: AIProviderConfig; open: boolean }) {
+  const [expanded, setExpanded] = useState(open);
+  const [briefing, setBriefing] = useState('');
+  const cloud = hasCloudAI(config);
+  useEffect(() => { if (open) setExpanded(true); }, [open]);
   const [state, setState] = useState<'idle' | 'loading' | 'playing'>('idle');
   const [status, setStatus] = useState('');
   const request = useRef(0);
@@ -33,7 +38,10 @@ export function AudioBriefing({ articles, config }: { articles: NewsArticle[]; c
     setStatus('Tagesüberblick wird erstellt …');
     try {
       const { createAudioBriefing } = await import('../lib/aiClient');
-      const text = await createAudioBriefing(config, articles);
+      let text = articles.slice(0, 8).map(article => `${article.sourceName}. ${article.title}`).join('\n');
+      if (cloud) {
+        try { text = await createAudioBriefing(config, articles); } catch { /* Keep the headlines usable offline. */ }
+      }
       if (current !== request.current) return;
       if (!text.trim()) throw new Error('Leere Antwort');
       const finish = (message: string) => {
@@ -42,6 +50,7 @@ export function AudioBriefing({ articles, config }: { articles: NewsArticle[]; c
         setState('idle');
         setStatus(message);
       };
+      setBriefing(text);
       setState('playing');
       setStatus('Tagesüberblick läuft.');
       if (android) {
@@ -64,13 +73,22 @@ export function AudioBriefing({ articles, config }: { articles: NewsArticle[]; c
     }
   };
 
-  if ((!android && !('speechSynthesis' in window)) || !config.apiKey.trim() || !articles.length) return null;
+  const canSpeak = android || 'speechSynthesis' in window;
   return (
     <div className="space-y-2">
-      <button className="choice-pill" type="button" onClick={() => void play()}>
-        {state === 'idle' ? 'Tagesüberblick anhören' : state === 'loading' ? 'Erstellung abbrechen' : 'Wiedergabe stoppen'}
+      <button className="choice-pill" type="button" aria-expanded={expanded} onClick={() => setExpanded(value => !value)}>
+        Tagesüberblick
       </button>
-      <p className="text-sm">Die eingestellte KI erhält bis zu acht Überschriften und Kurztexte. Dein Gerät liest den Überblick vor.</p>
+      {canSpeak && articles.length > 0 && (cloud || expanded) && <button className="choice-pill" type="button" onClick={() => void play()}>
+        {state === 'idle' ? 'Tagesüberblick anhören' : state === 'loading' ? 'Erstellung abbrechen' : 'Wiedergabe stoppen'}
+      </button>}
+      {expanded && <section className="settings-group space-y-2 px-4 py-3" aria-label="Tagesüberblick">
+        <h2 className="font-semibold">Dein Tagesüberblick</h2>
+        {briefing ? <p className="whitespace-pre-line text-sm">{briefing}</p> : articles.length ? <ul className="list-disc space-y-1 ps-5 text-sm">
+          {articles.slice(0, 8).map(article => <li key={article.id}>{article.title} · {article.sourceName}</li>)}
+        </ul> : <p className="text-sm">Sobald deine Meldungen geladen sind, erscheinen hier die Schlagzeilen.</p>}
+      </section>}
+      {cloud && <p className="text-sm">Beim Anhören erhält die eingestellte KI bis zu acht Überschriften und Kurztexte.</p>}
       <p className="text-sm" role="status">{status}</p>
     </div>
   );

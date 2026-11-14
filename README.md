@@ -38,7 +38,7 @@ OpenNews bündelt Nachrichten aus frei zugänglichen Feeds in einer ruhigen Ober
 - **Kein Konto, keine Cloud-Pflicht.** Abos, Likes, Lesezeichen und Einstellungen liegen im lokalen Speicher.
 - **Freie Quellen.** RSS 2.0, RSS 1.0/RDF, Atom 1.0 und JSON Feed 1.0/1.1.
 - **Nachvollziehbare Empfehlungen.** Sichtbare Gewichte für Thema, Quelle, Schlagwörter und Aktualität.
-- **KI nur auf Wunsch.** Lokale Zusammenfassung ist immer da; ein eigenes Sprachmodell ist optional (BYOK).
+- **KI nur auf Wunsch.** Quelleninhalte werden getrennt von den KI-Anweisungen übergeben. Die App prüft das Format der Antwort. Lokale Zusammenfassung ist immer da; ein eigenes Sprachmodell ist optional (BYOK).
 - **Eine Codebasis.** React im Browser, dieselbe Oberfläche als PWA und als Capacitor-App auf Android; iOS ist mit WidgetKit-Dateien vorbereitet.
 
 ## Funktionen
@@ -51,7 +51,13 @@ OpenNews bündelt Nachrichten aus frei zugänglichen Feeds in einer ruhigen Ober
 | **Personalisierung** | Like, Dislike, Lesezeichen, Lesezeit und Verlauf formen lokale Gewichte; Vielfalt mischt Quellen und Themen; gelernte Interessen verblassen mit der Zeit |
 | **Reader** | Volltext-Extraktion mit Feed-Fallback, Zusammenfassung, drei Schriftgrößen, Serif/Sans, Vorlesen, Teilen |
 | **Video & Audio** | Große Vorschauen für Videos und Audio, Hochformat-Clips zum Wischen mit automatischer Wiedergabe, Likes, Merkliste und Teilen. YouTube über den offiziellen Player. |
-| **Tagesüberblick** | Optionaler gesprochener Überblick über bis zu acht Schlagzeilen; die Texte erzeugt die eingerichtete KI, vorgelesen wird mit der Systemstimme (Android) oder im Browser |
+| **Medientranskripte** | Verlinkte VTT-, SRT- und Text-Transkripte von Podcast- oder Video-Feeds auf Wunsch per KI zusammenfassen. |
+| **KI auf dem Gerät** | Gemini Nano auf unterstützten Chrome- und Android-Geräten. Android fasst längere englische Artikel als einen Punkt zusammen. Der erste Modell-Download benötigt Internet. |
+| **KI-Zusammenfassungsstile** | Kernaussagen, 5 W-Fragen, Einfach erklärt (B1) und Auf Englisch. Standard in den KI-Einstellungen, Auswahl auch am Artikel. |
+| **Frag den Artikel** | Fragen in der KI-Zusammenfassung stellen. Antworten zeigen ein wörtliches Zitat aus dem Artikel, wenn ein Beleg vorliegt. |
+| **Perspektiven vergleichen** | Bei Meldungsgruppen mit mindestens zwei Quellen vergleicht die eingerichtete KI die Kurztexte und zeigt die Quellennamen an. |
+| **Wochenrückblick** | Die eingerichtete KI fasst bis zu acht der zuletzt veröffentlichten Beiträge aus Lesezeichen und Likes thematisch zusammen. |
+| **Tagesüberblick** | Schlagzeilen als Karte und optional zum Anhören. Android kann zur gewünschten Ortszeit lokal daran erinnern. Mit eingerichteter Anbieter-KI kann die App beim Anhören einen gesprochenen Überblick erstellen. |
 | **Entdecken** | Themenraster, Quellen- und Volltextsuche, letzte sechs Suchbegriffe lokal gespeichert |
 | **Darstellung** | System/Hell/Dunkel, Akzentfarbe, Transparenz, Ecken, Kartendichte, Textgröße, reduzierte Bewegung |
 | **Sicherung** | Export und Import von Abos, Reaktionen und Lesezeichen als JSON-Datei bis 5 MB; bleibt auf dem Gerät |
@@ -77,7 +83,7 @@ Aufnahmen der laufenden App vom 14. November 2026 im dunklen Modus, mit echten M
 | :---: | :---: | :---: |
 | <img src="docs/screenshots/medien.jpeg" width="240" alt="Video & Audio im dunklen Modus" /> | <img src="docs/screenshots/profil.jpeg" width="240" alt="Profil im dunklen Modus" /> | <img src="docs/screenshots/artikel.jpeg" width="240" alt="Artikel-Reader im dunklen Modus" /> |
 
-Die [Regeln für die Inhaltsauswahl](docs/content-ranking.md) und die [erste mobile Vergleichsstichprobe](docs/benchmark-72.md) dokumentieren Auswahl und Messstand.
+Die [Regeln für die Inhaltsauswahl](docs/content-ranking.md) und die [mobile Vergleichsstichprobe](docs/benchmark-72.md) dokumentieren die Auswahl.
 
 ## Architektur
 
@@ -336,7 +342,7 @@ NODE_ENV=production npm start
 | `npm start` | `tsx server.ts` | Express starten; mit `NODE_ENV=production` aus `dist/` |
 | `npm run preview` | `vite preview` | Statischen Build ansehen (ohne API) |
 | `npm run lint` | `tsc --noEmit` | TypeScript-Typprüfung |
-| `npm test` | `node --import tsx --test src/lib/*.test.ts` | 57 Unit-Tests |
+| `npm test` | `node --import tsx --test src/lib/*.test.ts` | 66 Unit-Tests |
 | `npm run test:e2e` | `playwright test` | 10 Browsertests gegen den Produktionsbuild |
 | `npm run push:worker` | `tsx scripts/push-news.ts` | Android-Push aus den Standardquellen senden |
 | `node scripts/check-web-budget.mjs` | Node | Prüft das Start-JavaScript gegen 170 KiB gzip |
@@ -373,6 +379,7 @@ OpenNews nutzt ausschließlich `localStorage` (JSON). Die wichtigsten Schlüssel
 | `opennews_sources` | Quellen, Abos und eigene Feeds |
 | `opennews_profile` | Likes, Dislikes, Lesezeichen, Verlauf, Gewichte |
 | `opennews_ai_config` | BYOK-Anbieter, Schlüssel, Modell, Endpunkt |
+| IndexedDB `opennews-ai` | Lokale KI-Ergebnisse, befristet wie der Feed (standardmäßig vier Tage) |
 | `opennews_cached_articles` | Zuletzt geladene Beiträge (max. 600) |
 | `opennews_saved_articles` | Offline-Kopien von Lesezeichen und Likes |
 | `opennews_read_articles` | Leseverlauf (max. 60) |
@@ -428,7 +435,7 @@ Die App ist eine Capacitor-WebView mit `CapacitorHttp` (Feed- und KI-Aufrufe dir
 
 **CI:** Zwei Workflows laufen bei Pull Requests gegen `main`:
 
-- **Web CI** (`web-ci.yml`): Typprüfung, 57 Unit-Tests, Build, JavaScript-Budget und 10 Browsertests mit Playwright.
+- **Web CI** (`web-ci.yml`): Typprüfung, 66 Unit-Tests, Build, JavaScript-Budget und 10 Browsertests mit Playwright.
 - **OpenNews Android Test APK** (`android-test-apk.yml`): bei Änderungen an `src/**`, `scripts/**`, `native/android/**`, `public/**` und Build-Dateien sowie manuell über **Actions → Run workflow**. Richtet Node 22 und JDK 21 ein, prüft Typen, führt Unit-Tests und Build aus, erzeugt das Android-Projekt, baut `assembleDebug`, lädt die APK als Artefakt (7 Tage) hoch und veröffentlicht bei manuellem Lauf ein privates Pre-Release `v0.1.0-alpha.<Run-Nummer>`.
 
 **Lokal:**
@@ -468,7 +475,7 @@ Android zeigt für OpenNews-Benachrichtigungen ein eigenes monochromes Symbol in
 
 ## Tests und Qualität
 
-`npm test` führt **57 Unit-Tests** aus elf Dateien aus: `rssParser.test.ts`, `personalization.test.ts`, `newsFeed.test.ts`, `opml.test.ts`, `nativeFeed.test.ts`, `aiClient.test.ts`, `articleMedia.test.ts`, `articleExtraction.test.ts`, `publicHttp.test.ts`, `storyClusters.test.ts` und `scrollNavigation.test.ts`. Abgedeckt sind Parsing und Medien, Aufbewahrung, Ranking und Vielfalt, OPML, native URL-Sicherheit, KI-Antwortparsing, Volltext, SSRF-Schutz, Themencluster und die Scroll-Navigation.
+`npm test` führt **66 Unit-Tests** aus dreizehn Dateien aus: `rssParser.test.ts`, `personalization.test.ts`, `newsFeed.test.ts`, `opml.test.ts`, `nativeFeed.test.ts`, `aiClient.test.ts`, `aiCache.test.ts`, `transcript.test.ts`, `articleMedia.test.ts`, `articleExtraction.test.ts`, `publicHttp.test.ts`, `storyClusters.test.ts` und `scrollNavigation.test.ts`. Abgedeckt sind Parsing und Medien, Aufbewahrung, Ranking und Vielfalt, OPML, native URL-Sicherheit, KI-Antwortparsing, Volltext, SSRF-Schutz, Themencluster und die Scroll-Navigation.
 
 `npm run test:e2e` startet den Produktionsbuild auf Port `3099` und prüft mit Playwright zehn Kernabläufe gegen einen simulierten Feed: Onboarding, Artikel öffnen und speichern, eigene Quelle, OPML-Import, Clip-Ansicht, Offline-Lesen, Tagesüberblick und Migration des Leseverlaufs sowie große Schrift auf schmalen Displays und die Anzeige des Anfragelimits. Einmalig `npx playwright install chromium` ausführen.
 
@@ -553,9 +560,9 @@ Das Repository ist privat und in einer frühen Alpha. Beiträge klein und prüfb
 | Native Push | Android mit Firebase und laufendem Feed-Dienst |
 | Artikelvolltext | Beta, abhängig von der Quelle |
 | BYOK-KI | Beta, abhängig von Anbieter und Schlüssel |
-| Tagesüberblick | Beta, benötigt eingerichtete KI und Systemstimme |
+| Tagesüberblick | Schlagzeilen ohne Schlüssel, optional mit Anbieter-KI und Systemstimme |
 | Diagnose | lokal verfügbar, Senden optional |
-| Tests | 57 Unit-Tests und 10 Playwright-Browsertests |
+| Tests | 66 Unit-Tests und 10 Playwright-Browsertests |
 | Lizenz | Apache-2.0 |
 
 ## Lizenz
