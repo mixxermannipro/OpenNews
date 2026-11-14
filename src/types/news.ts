@@ -100,13 +100,6 @@ export interface AISummaryResult {
   generatedAt: string;
 }
 
-export interface SourceApiKeys {
-  guardian?: string;
-  nasa?: string;
-  youtube?: string;
-  bundestag?: string;
-}
-
 export interface FormatPreferences {
   rssAtom: boolean;
   jsonFeed: boolean;

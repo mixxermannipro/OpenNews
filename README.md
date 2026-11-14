@@ -355,6 +355,8 @@ NODE_ENV=production npm start
 > [!WARNING]
 > `.env.example` enthält weiterhin Platzhalter aus der ursprünglichen AI-Studio-Vorlage (`GEMINI_API_KEY`, `APP_URL`). Der Server liest sie **nicht**. API-Schlüssel gehören in die App unter **Profil → KI & Personalisierung**. Die `OPENNEWS_*`-Zeilen sind auskommentiert und müssen im Server-Prozess gesetzt werden.
 
+Die Quellenverwaltung nutzt öffentliche Feeds. Eigene Zugangsschlüssel lassen sich für die optionalen KI-Anbieter hinterlegen.
+
 ### Lokaler Speicher
 
 OpenNews nutzt ausschließlich `localStorage` (JSON). Die wichtigsten Schlüssel:
@@ -372,7 +374,6 @@ OpenNews nutzt ausschließlich `localStorage` (JSON). Die wichtigsten Schlüssel
 | `opennews_recent_searches` | Letzte sechs Suchbegriffe |
 | `opennews_feed_health` | Letzter Abrufstatus je Quelle |
 | `opennews_formats` | Bevorzugte Medienformate |
-| `opennews_source_keys` | Zugangsschlüssel für einzelne Quellen |
 | `opennews_auto_translate` | Lokale Übersetzung englischer Quellen auf Android |
 | `opennews_background_playback` | Weiterhören im Hintergrund |
 | `opennews_diagnostics`, `opennews_diagnostics_enabled`, `opennews_diagnostics_reports` | Lokale Diagnose, Einwilligung und Versandfreigabe |
