@@ -333,3 +333,13 @@ export function createWeeklyReview(articles: NewsArticle[], config: AIProviderCo
   return withAIResult(config, 'weekly', articles.map(article => article.id), prompt,
     async () => parseSourcedReport(await requestAI(config, prompt, true), input.length));
 }
+
+export function summarizeMediaTranscript(article: NewsArticle, text: string, config: AIProviderConfig) {
+  const prompt = buildGroundedPrompt(
+    'Fasse den gesprochenen Inhalt des Transkripts neutral auf Deutsch in bis zu vier kurzen Punkten zusammen. ' +
+    'Antworte ausschließlich als JSON: {"bullets":["Kernaussage"]}.',
+    { title: article.title.slice(0, 240), text },
+  );
+  return withAIResult(config, 'transcript', [article.id], prompt,
+    async () => parseSummaryBullets(await requestAI(config, prompt, true)));
+}

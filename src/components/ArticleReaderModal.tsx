@@ -1,3 +1,4 @@
+import { TranscriptSummary } from './TranscriptSummary';
 import { resolveSummaryStyle, SUMMARY_STYLES } from '../lib/summaryStyles';
 import { ArticlePerspectives } from './ArticlePerspectives';
 import { ArticleQuestions } from './ArticleQuestions';
@@ -513,6 +514,8 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
             key={perspectiveArticles.map(report => report.id).join(',')}
             articles={perspectiveArticles} config={aiConfig}
           />}
+          {showSummary && (article.transcript || article.audioUrl || article.videoUrl || article.youtubeId) &&
+            <TranscriptSummary article={article} config={aiConfig} />}
         </div>
       </dialog>
     </div>

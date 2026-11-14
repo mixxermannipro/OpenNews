@@ -815,7 +815,7 @@ export default function App() {
         )}
 
         {activeTab === 'media' && (
-          <MediaView articles={mediaArticles} loading={isLoadingFeeds} background={backgroundPlayback}
+          <MediaView aiConfig={aiConfig} articles={mediaArticles} loading={isLoadingFeeds} background={backgroundPlayback}
             liked={normalizedProfile.likedIds} saved={normalizedProfile.bookmarkedIds}
             onLike={handleToggleLike} onSave={handleToggleBookmark}
             onEngaged={(article, seconds) => setProfile(previous => {
