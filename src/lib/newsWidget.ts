@@ -12,10 +12,11 @@ export interface WidgetLaunch {
   refresh?: boolean;
   discover?: boolean;
   save?: boolean;
+  section?: string;
 }
 
 export const NewsWidget = registerPlugin<{
-  update(options: WidgetSnapshot | { stories: { title: string; source: string }[] }): Promise<void>;
+  update(options: WidgetSnapshot): Promise<void>;
   getLaunchArticle(): Promise<WidgetLaunch>;
   addListener(event: 'openStory', listener: (event: WidgetLaunch) => void): Promise<PluginListenerHandle>;
 }>('NewsWidget');

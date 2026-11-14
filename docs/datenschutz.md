@@ -5,7 +5,7 @@
 ## Daten auf dem Gerät
 
 OpenNews speichert Quellen, Lesezeichen, Reaktionen, Leseverlauf, Interessen und Einstellungen auf dem Gerät. Die App nutzt diese Daten für die Anzeige und Empfehlungen. Du kannst die gelernten Gewichte in der App zurücksetzen. Die Android-Einstellungen können die lokalen App-Daten löschen. Im Browser kannst du die Website-Daten löschen.
-Das Android-Widget speichert je Ansicht einen begrenzten Vorrat an Artikeldaten und seine Auswahl für Thema und Quelle im lokalen App-Speicher. Die periodische Darstellung des Widgets lädt keine Daten aus dem Internet.
+Das Android-Widget speichert je Ansicht einen begrenzten Vorrat an Artikeldaten und seine Auswahl für Thema und Quelle im lokalen App-Speicher. Die periodische Darstellung des Widgets lädt keine Daten aus dem Internet. Das iOS-Widget erhält bis zu drei gekürzte Artikel pro Ansicht über einen gemeinsamen lokalen App-Speicher. Es ruft selbst keine Feeds ab.
 
 
 ## Abruf von Nachrichten und Medien

@@ -541,14 +541,7 @@ export default function App() {
   useEffect(() => {
     const platform = Capacitor.getPlatform();
     if (!cachedStorageReady || isLoadingFeeds || (platform !== 'android' && platform !== 'ios')) return;
-    if (platform === 'ios') {
-      const stories = homeSections.Heute.slice(0, 2).map(({ lead }) => ({
-        title: lead.title, source: lead.sourceName,
-      }));
-      void import('./lib/newsWidget').then(({ NewsWidget }) => NewsWidget.update({ stories })).catch(() => {});
-      return;
-    }
-    const snapshot = (tab: HomeTab) => homeSections[tab].slice(0, 24).map(({ lead }) => ({
+    const snapshot = (tab: HomeTab) => homeSections[tab].slice(0, platform === 'ios' ? 3 : 24).map(({ lead }) => ({
       ...lead, contentHtml: undefined, paragraphs: [], summary: lead.summary.slice(0, 400),
     }));
     void import('./lib/newsWidget').then(({ NewsWidget }) => NewsWidget.update({
@@ -574,7 +567,12 @@ export default function App() {
 
   const handleWidgetLaunch = useRef<(event: WidgetLaunch) => void>(() => {});
   useLayoutEffect(() => {
-    handleWidgetLaunch.current = ({ article, refresh, discover, save }) => {
+    handleWidgetLaunch.current = ({ article, refresh, discover, save, section }) => {
+      const tab = section === 'today' ? 'Heute' : section === 'personal' ? 'Für dich' : section === 'latest' ? 'Neueste' : null;
+      if (tab) {
+        setHomeCategory(tab);
+        navigate({ tab: 'home' });
+      }
       if (discover) navigate({ tab: 'discover' });
       if (article) {
         if (save && !normalizedProfile.bookmarkedIds.includes(article.id)) handleToggleBookmark(article);
@@ -584,7 +582,8 @@ export default function App() {
     };
   });
   useEffect(() => {
-    if (!onboarded || Capacitor.getPlatform() !== 'android') return;
+    const platform = Capacitor.getPlatform();
+    if (!onboarded || (platform !== 'android' && platform !== 'ios')) return;
     let active = true;
     let dispose: (() => void) | undefined;
     const handle = (event: WidgetLaunch) => { if (active) handleWidgetLaunch.current(event); };
@@ -596,7 +595,7 @@ export default function App() {
         return;
       }
       dispose = () => { void listener.remove(); };
-      handle(await NewsWidget.getLaunchArticle());
+      if (platform === 'android') handle(await NewsWidget.getLaunchArticle());
     }).catch(() => {});
     return () => { active = false; dispose?.(); };
   }, [onboarded]);
