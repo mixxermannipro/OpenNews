@@ -29,7 +29,7 @@ Datenschutzfreundliche, Apple-inspirierte Nachrichten-App für freie RSS-, Atom-
 ---
 
 > [!NOTE]
-> **Alpha:** OpenNews steht bei `0.1.0-alpha.1`. Web und PWA sind nutzbar, Android ist ein privater Debug-Build. Artikelvolltext und BYOK-KI sind Beta. Es gibt noch kein Play-Store-Release, keine hinterlegte Open-Source-Lizenz.
+> **Alpha:** OpenNews steht bei `0.1.0-alpha.1`. Web und PWA sind nutzbar, Android ist ein privater Debug-Build. Artikelvolltext und BYOK-KI sind Beta. Ein Play-Store-Release steht noch aus.
 
 ## Was ist OpenNews?
 
@@ -438,11 +438,11 @@ Das Repository ist privat und in einer frühen Alpha. Beiträge klein und prüfb
 | Artikelvolltext | Beta, abhängig von der Quelle |
 | BYOK-KI | Beta, abhängig von Anbieter und Schlüssel |
 | Tests | 34 Unit-Tests, keine E2E-Tests |
-| Lizenz | nicht hinterlegt |
+| Lizenz | Apache-2.0 |
 
 ## Lizenz
 
-Für dieses Repository ist **keine Lizenzdatei** hinterlegt. Ohne ausdrückliche Lizenz gilt das Urheberrecht; freie Nutzung, Weitergabe oder Veränderung ist damit nicht automatisch erlaubt. Soll OpenNews als Open-Source-Projekt veröffentlicht werden, empfiehlt sich vorher eine passende Lizenz — etwa MIT, Apache-2.0 oder AGPL-3.0.
+Der OpenNews-Quellcode steht unter der [Apache License 2.0](LICENSE). Nachrichten, Bilder und Marken Dritter unterliegen den jeweiligen Rechten. Abhängigkeiten behalten ihre eigenen Lizenzen.
 
 ---
 
