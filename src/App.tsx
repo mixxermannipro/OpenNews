@@ -8,6 +8,8 @@ import type {
   AIProviderConfig,
   AppTab,
   FormatPreferences,
+  FeedHealth,
+  FeedResult,
   NewsArticle,
   NewsSource,
   NotificationSettings,
@@ -252,6 +254,8 @@ export default function App() {
     ]);
   }, [formatPrefs]);
 
+  const [feedHealth, setFeedHealth] = useLocalStorage<Record<string, FeedHealth>>('opennews_feed_health', {});
+
   const activeSources = useMemo(
     () => sources.filter((s) => s.subscribed && (enabledFormats.has(s.format) || s.isCustom || clipSourceIds.has(s.id))),
     [sources, enabledFormats]
@@ -350,6 +354,12 @@ export default function App() {
     }
   }, [notifications, showAlert]);
 
+  useEffect(() => {
+    if (!sources.some(source => source.subscribed && feedHealth[source.id]?.url === source.url && feedHealth[source.id].consecutiveFailures >= 5)) return;
+    setSources(previous => previous.map(source => source.subscribed && feedHealth[source.id]?.url === source.url
+      && feedHealth[source.id].consecutiveFailures >= 5 ? { ...source, subscribed: false } : source));
+  }, [sources, feedHealth, setSources]);
+
   const fetchLiveFeeds = useCallback(async () => {
     if (!cachedStorageReady || refresh.current || !activeSources.length || !navigator.onLine) return;
     const controller = new AbortController();
@@ -364,9 +374,28 @@ export default function App() {
         : mergeFeedArticles(previous, articles, latestRetention.current, Date.now()));
     };
 
+    const recordResults = (results: FeedResult[]) => {
+      if (controller.signal.aborted || !results.length) return;
+      const checkedAt = Date.now();
+      setFeedHealth(previous => {
+        const next = { ...previous };
+        for (const result of results) {
+          const source = activeSources.find(item => item.id === result.sourceId);
+          if (!source) continue;
+          const last = previous[source.id]?.url === source.url ? previous[source.id] : undefined;
+          next[source.id] = {
+            url: source.url, checkedAt, ok: result.ok, count: result.count,
+            lastSuccess: result.ok ? checkedAt : last?.lastSuccess,
+            consecutiveFailures: result.ok ? 0 : (last?.consecutiveFailures ?? 0) + 1,
+          };
+        }
+        return next;
+      });
+    };
+
     try {
       if (Capacitor.isNativePlatform()) {
-        await fetchNativeFeeds(activeSources, applyArticles, controller.signal);
+        await fetchNativeFeeds(activeSources, applyArticles, controller.signal, undefined, result => recordResults([result]));
       } else {
         for (let i = 0; i < activeSources.length && !controller.signal.aborted; i += 6) {
           const resp = await fetch('/api/feeds/fetch', {
@@ -378,6 +407,7 @@ export default function App() {
           if (resp.ok) {
             const data = await resp.json();
             if (Array.isArray(data.articles)) applyArticles(data.articles);
+            if (Array.isArray(data.feedStatuses)) recordResults(data.feedStatuses);
           }
         }
       }
@@ -390,7 +420,7 @@ export default function App() {
         setIsLoadingFeeds(false);
       }
     }
-  }, [activeSources, cachedStorageReady, checkForAlert, setCachedLiveArticles]);
+  }, [activeSources, cachedStorageReady, checkForAlert, setCachedLiveArticles, setFeedHealth]);
 
   const fetchLatest = useRef(fetchLiveFeeds);
   useEffect(() => { fetchLatest.current = fetchLiveFeeds; }, [fetchLiveFeeds]);
@@ -506,6 +536,14 @@ export default function App() {
     setSources(() =>
       sources.map((s) => (s.id === sourceId ? { ...s, subscribed: !s.subscribed } : s))
     );
+    if (source && !source.subscribed) {
+      setFeedHealth(previous => {
+        if (!previous[sourceId]) return previous;
+        const next = { ...previous };
+        delete next[sourceId];
+        return next;
+      });
+    }
   };
 
   const handleSendTestNotification = () => {
@@ -652,6 +690,7 @@ export default function App() {
         {activeTab === 'settings' && (
           <SettingsView
             key={settingsSection}
+            feedHealth={feedHealth}
             initialSection={settingsSection}
             sources={sources}
             formatPrefs={formatPrefs}
