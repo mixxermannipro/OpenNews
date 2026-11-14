@@ -14,17 +14,10 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 public class NewsWidget extends Plugin {
     @PluginMethod
     public void update(PluginCall call) {
-        JSArray headlines = call.getArray("headlines", new JSArray());
-        StringBuilder text = new StringBuilder();
-        for (int index = 0; index < Math.min(3, headlines.length()); index++) {
-            String headline = headlines.optString(index, "").replaceAll("\\s+", " ").trim();
-            if (headline.isEmpty()) continue;
-            if (text.length() > 0) text.append('\n');
-            text.append("• ").append(headline.substring(0, Math.min(120, headline.length())));
-        }
+        JSArray stories = call.getArray("stories", new JSArray());
         Context context = getContext();
         context.getSharedPreferences("opennews-widget", Context.MODE_PRIVATE)
-            .edit().putString("headlines", text.toString()).apply();
+            .edit().putString("stories", stories.toString()).apply();
         AppWidgetManager manager = AppWidgetManager.getInstance(context);
         int[] ids = manager.getAppWidgetIds(new ComponentName(context, OpenNewsWidget.class));
         new OpenNewsWidget().onUpdate(context, manager, ids);

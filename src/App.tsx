@@ -492,9 +492,11 @@ export default function App() {
   );
   useEffect(() => {
     if (Capacitor.getPlatform() !== 'android') return;
-    const headlines = homeSections.Heute.slice(0, 3).map(article => article.title);
-    if (!headlines.length && isLoadingFeeds) return;
-    void import('./lib/newsWidget').then(({ NewsWidget }) => NewsWidget.update({ headlines })).catch(() => {});
+    const stories = homeSections.Heute.slice(0, 2).map(article => ({
+      title: article.title.slice(0, 180), source: article.sourceName.slice(0, 80), category: article.category,
+    }));
+    if (!stories.length && isLoadingFeeds) return;
+    void import('./lib/newsWidget').then(({ NewsWidget }) => NewsWidget.update({ stories })).catch(() => {});
   }, [homeSections.Heute, isLoadingFeeds]);
 
 
