@@ -21,6 +21,8 @@ import { DEFAULT_AI_CONFIG, migrateAIConfig } from './lib/aiClient';
 import { clipSourceIds, DEFAULT_SOURCES, legacyCatalogUrls, pushSources } from './lib/catalog';
 import {
   createDefaultProfile,
+  decayProfileWeights,
+  resetProfileWeights,
   normalizeProfile,
   recordArticleRead,
   recordReadingDuration,
@@ -281,7 +283,11 @@ export default function App() {
     };
   }, [configurePush, notifications]);
 
-  const normalizedProfile = useMemo(() => normalizeProfile(profile), [profile]);
+  useEffect(() => {
+    if (profile.weightsUpdatedAt === undefined) setProfile(previous => decayProfileWeights(normalizeProfile(previous)));
+  }, [profile.weightsUpdatedAt, setProfile]);
+
+  const normalizedProfile = useMemo(() => decayProfileWeights(normalizeProfile(profile), feedClock), [profile, feedClock]);
 
   // Keep a copy of saved articles even when they leave the feed or it is paused.
   const savedIds = useMemo(
@@ -609,7 +615,7 @@ export default function App() {
             onOpenArticle={handleOpenArticle}
             onToggleBookmark={handleToggleBookmark}
             onToggleLike={handleToggleLike}
-            onResetAlgorithm={() => setProfile(createDefaultProfile())}
+            onResetAlgorithm={() => setProfile(previous => resetProfileWeights(normalizeProfile(previous)))}
           />
         )}
 
@@ -667,7 +673,7 @@ export default function App() {
               setNotifications(next);
             }}
             onSendTestNotification={handleSendTestNotification}
-            onResetAlgorithm={() => setProfile(createDefaultProfile())}
+            onResetAlgorithm={() => setProfile(previous => resetProfileWeights(normalizeProfile(previous)))}
             onBackHome={goBack}
           />
         )}

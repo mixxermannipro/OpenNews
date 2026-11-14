@@ -106,7 +106,7 @@ test('switching reactions replaces their contribution to the profile', () => {
   const disliked = toggleArticleDislike(liked, article);
   assert.deepEqual(disliked, toggleArticleDislike(empty, article));
   assert.deepEqual(toggleArticleLike(disliked, article), liked);
-  assert.deepEqual(toggleArticleDislike(disliked, article), empty);
+  assert.deepEqual(toggleArticleDislike(disliked, article), { ...empty, weightsUpdatedAt: liked.weightsUpdatedAt });
 });
 
 test('Für dich mixes similarly scored providers in the first recommendations', () => {
@@ -212,4 +212,14 @@ test('Heute can lead with an important public story ahead of a newer leisure ite
   const publicStory = { ...sampleArticles[0], category: 'Politik' as const, publishedAt: new Date(now - 3_600_000).toISOString() };
   const leisure = { ...sampleArticles[1], category: 'Kultur' as const, publishedAt: new Date(now - 60_000).toISOString() };
   assert.deepEqual(buildHomeSections([publicStory, leisure], createDefaultProfile(), DEFAULT_SOURCES, now).Heute.map(a => a.id), ['a-pol', 'a-tech']);
+});
+
+test('interest weights halve after 21 days and reset preserves saved articles', async () => {
+  const { decayProfileWeights, resetProfileWeights } = await import('./personalization');
+  const profile = { ...createDefaultProfile(), topicWeights: { Technologie: 8 }, weightsUpdatedAt: 1000, bookmarkedIds: ['saved'] };
+  const later = decayProfileWeights(profile, 1000 + 21 * 24 * 60 * 60 * 1000);
+  assert.equal(later.topicWeights.Technologie, 4);
+  const reset = resetProfileWeights(later);
+  assert.deepEqual(reset.topicWeights, {});
+  assert.deepEqual(reset.bookmarkedIds, ['saved']);
 });

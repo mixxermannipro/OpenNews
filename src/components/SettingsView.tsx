@@ -1160,7 +1160,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 Lokaler Empfehlungs-Algorithmus
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Gelernte Themen- und Quellen-Gewichte aus Likes &amp; Lesezeit löschen.
+                Gelernte Gewichte halbieren sich alle 21 Tage. Beim Zurücksetzen bleiben Lesezeichen, Reaktionen und Verlauf erhalten.
               </p>
             </div>
             <button
