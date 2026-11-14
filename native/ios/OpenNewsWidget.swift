@@ -41,6 +41,7 @@ struct OpenNewsEntry: TimelineEntry {
     let date: Date
     let section: WidgetSection
     let stories: [Story]
+    var launchToken: String? = nil
 
     struct Story: Decodable {
         let id: String
@@ -68,11 +69,12 @@ struct OpenNewsEntry: TimelineEntry {
             }
         }
 
-        func url(_ action: String = "article") -> URL {
+        func url(_ action: String = "article", token: String? = nil) -> URL {
             var route = URLComponents()
             route.scheme = "opennews"
             route.host = action
             route.queryItems = [URLQueryItem(name: "id", value: id)]
+            if let token { route.queryItems?.append(URLQueryItem(name: "token", value: token)) }
             return route.url ?? WidgetSection.today.url
         }
     }
@@ -98,7 +100,8 @@ struct OpenNewsTimeline: TimelineProvider {
         let section = shared?.string(forKey: "widgetSection").flatMap(WidgetSection.init(rawValue:)) ?? .today
         let data = shared?.data(forKey: "widgetSnapshot")
         let snapshot = data.flatMap { try? JSONDecoder().decode([String: [OpenNewsEntry.Story]].self, from: $0) }
-        return OpenNewsEntry(date: .now, section: section, stories: snapshot?[section.rawValue] ?? [])
+        return OpenNewsEntry(date: .now, section: section, stories: snapshot?[section.rawValue] ?? [],
+                             launchToken: shared?.string(forKey: "widgetLaunchToken"))
     }
 }
 
@@ -255,7 +258,7 @@ struct OpenNewsWidgetView: View {
     }
 
     private func save(_ story: OpenNewsEntry.Story) -> some View {
-        Link(destination: story.url("save")) {
+        Link(destination: story.url("save", token: entry.launchToken)) {
             Image(systemName: "bookmark").frame(width: 44, height: 44)
         }.accessibilityLabel("Artikel in OpenNews merken")
     }

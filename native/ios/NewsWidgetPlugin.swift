@@ -15,6 +15,9 @@ public class NewsWidgetPlugin: CAPPlugin, CAPBridgedPlugin {
             call.reject("Widget-Daten konnten nicht gespeichert werden.")
             return
         }
+        if shared.string(forKey: "widgetLaunchToken") == nil {
+            shared.set(UUID().uuidString, forKey: "widgetLaunchToken")
+        }
         let snapshot = Dictionary(uniqueKeysWithValues: sections.map { ($0, call.getArray($0) ?? []) })
         guard let data = try? JSONSerialization.data(withJSONObject: snapshot, options: .sortedKeys) else {
             call.reject("Widget-Daten konnten nicht gelesen werden.")
@@ -31,8 +34,12 @@ public class NewsWidgetPlugin: CAPPlugin, CAPBridgedPlugin {
         guard url.scheme == "opennews" else { return }
         switch url.host {
         case "article", "save":
-            guard let id = URLComponents(url: url, resolvingAgainstBaseURL: false)?
-                    .queryItems?.first(where: { $0.name == "id" })?.value,
+            let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems
+            if url.host == "save" {
+                guard let token = shared?.string(forKey: "widgetLaunchToken"),
+                      query?.first(where: { $0.name == "token" })?.value == token else { return }
+            }
+            guard let id = query?.first(where: { $0.name == "id" })?.value,
                   let data = shared?.data(forKey: "widgetSnapshot"),
                   let snapshot = (try? JSONSerialization.jsonObject(with: data)) as? [String: [[String: Any]]],
                   let article = sections.lazy.compactMap({ snapshot[$0]?.first(where: { $0["id"] as? String == id }) }).first
