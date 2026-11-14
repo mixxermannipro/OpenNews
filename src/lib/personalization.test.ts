@@ -160,15 +160,15 @@ test('Heute favors important stories and mixes sources independently of personal
   const breaking = { ...politics, id: 'breaking', link: 'https://example.com/breaking', isBreaking: true, publishedAt: technology.publishedAt };
   const profile = { ...createDefaultProfile(), dislikedIds: ['breaking'] };
   const sections = buildHomeSections([politics, breaking, technology], profile, DEFAULT_SOURCES, localNoon);
-  assert.deepEqual(sections.Heute.map(article => article.id), ['breaking', 'a-tech', 'a-pol']);
-  assert.deepEqual(sections.Neueste.map(article => article.id), ['a-pol', 'a-tech', 'breaking']);
-  assert.ok(!sections['Für dich'].some(article => article.id === 'breaking'));
+  assert.deepEqual(sections.Heute.map(story => story.lead.id), ['breaking', 'a-tech', 'a-pol']);
+  assert.deepEqual(sections.Neueste.map(story => story.lead.id), ['a-pol', 'a-tech', 'breaking']);
+  assert.ok(!sections['Für dich'].some(story => story.lead.id === 'breaking'));
 });
 
 test('older stories stay available in Neueste without filling Heute or Für dich', () => {
   const older = { ...sampleArticles[0], publishedAt: new Date(nowMs - 3 * DAY_MS).toISOString() };
   const sections = buildHomeSections([older], createDefaultProfile(), DEFAULT_SOURCES, nowMs);
-  assert.deepEqual(sections, { Heute: [], 'Für dich': [], Neueste: [older] });
+  assert.deepEqual(sections, { Heute: [], 'Für dich': [], Neueste: [{ lead: older, reports: [older] }] });
 });
 
 test('feed retention expires at the chosen cutoff and falls back to four days', () => {
@@ -195,8 +195,8 @@ test('Heute gives different stories room before near-identical headlines', () =>
   const different = { ...sampleArticles[1], id: 'three', title: 'Forschende entdecken neuen Exoplaneten', publishedAt };
 
   const sections = buildHomeSections([first, repeated, different], createDefaultProfile(), DEFAULT_SOURCES, now);
-  assert.deepEqual(sections.Heute.map(article => article.id), ['one', 'three', 'two']);
-  assert.deepEqual(sections['Für dich'].map(article => article.id), ['one', 'three', 'two']);
+  assert.deepEqual(sections.Heute.map(story => story.lead.id), ['one', 'three']);
+  assert.deepEqual(sections['Für dich'].map(story => story.lead.id), ['one', 'three']);
 });
 
 test('dedicated podcast sources stay available to media without filling text feeds', () => {
@@ -211,7 +211,7 @@ test('Heute can lead with an important public story ahead of a newer leisure ite
   const now = new Date(2026, 10, 12, 12).getTime();
   const publicStory = { ...sampleArticles[0], category: 'Politik' as const, publishedAt: new Date(now - 3_600_000).toISOString() };
   const leisure = { ...sampleArticles[1], category: 'Kultur' as const, publishedAt: new Date(now - 60_000).toISOString() };
-  assert.deepEqual(buildHomeSections([publicStory, leisure], createDefaultProfile(), DEFAULT_SOURCES, now).Heute.map(a => a.id), ['a-pol', 'a-tech']);
+  assert.deepEqual(buildHomeSections([publicStory, leisure], createDefaultProfile(), DEFAULT_SOURCES, now).Heute.map(story => story.lead.id), ['a-pol', 'a-tech']);
 });
 
 test('interest weights halve after 21 days and reset preserves saved articles', async () => {
