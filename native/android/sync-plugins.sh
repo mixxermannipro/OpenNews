@@ -13,3 +13,8 @@ manifest=android/app/src/main/AndroidManifest.xml
 if ! grep -q 'NewsMessagingService' "$manifest"; then
   sed -i '/<\/application>/e cat native/android/push-manifest.xml' "$manifest"
 fi
+
+cp -r native/android/widget/. android/app/src/main/res/
+if ! grep -q 'OpenNewsWidget' "$manifest"; then
+  sed -i '/<\/application>/e cat native/android/widget-manifest.xml' "$manifest"
+fi

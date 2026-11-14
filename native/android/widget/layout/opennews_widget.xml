@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/opennews_widget_root"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical" android:padding="16dp" android:background="#F6F5F2">
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:text="OpenNews · Top-Themen" android:textColor="#18212D" android:textSize="15sp"
+        android:textStyle="bold" />
+    <TextView android:id="@+id/opennews_widget_headlines"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginTop="6dp" android:ellipsize="end" android:maxLines="5"
+        android:textColor="#18212D" android:textSize="14sp" />
+</LinearLayout>
