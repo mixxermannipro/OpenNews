@@ -370,10 +370,12 @@ export default function App() {
 
     const applyArticles = (articles: NewsArticle[]) => {
       if (controller.signal.aborted || !articles.length) return;
+      const now = Date.now();
+      setFeedClock(now);
       checkForAlert(articles);
       setCachedLiveArticles(previous => controller.signal.aborted
         ? previous
-        : mergeFeedArticles(previous, articles, latestRetention.current, Date.now()));
+        : mergeFeedArticles(previous, articles, latestRetention.current, now));
     };
 
     const recordResults = (results: FeedResult[]) => {
