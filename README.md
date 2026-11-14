@@ -63,6 +63,8 @@ OpenNews bündelt Nachrichten aus frei zugänglichen Feeds in einer ruhigen Ober
 
 **Aufbewahrung:** 2, 4, 7, 14, 30 oder 90 Tage (Standard **4**), maximal **600** Beiträge im Speicher. Beim Aktualisieren werden neue Artikel zusammengeführt; Abos, Lesezeichen, Likes und Verlauf bleiben erhalten.
 
+Die App zeigt die Hauptmeldung auf einer großen Bildkarte. Weitere Meldungen stehen in kompakten Karten darunter. „Entdecken“ kombiniert Bildkacheln und Suche, „Video & Audio“ zeigt Video, Podcast und Hochformat-Clip in eigenen Vorschauen. Im Profil sind persönliche Inhalte und Einstellungen in zwei Gruppen erreichbar.
+
 ## Screenshots
 
 > [!NOTE]

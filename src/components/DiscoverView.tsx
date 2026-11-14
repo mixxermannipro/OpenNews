@@ -85,7 +85,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
 
       {/* Topic Filter Chips */}
       <div
-        role="tablist"
+        role="group"
         aria-label="Themenfilter"
         className="no-scrollbar flex items-center gap-2 overflow-x-auto pb-1"
       >
@@ -94,15 +94,10 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
           return (
             <button
               key={cat}
-              role="tab"
               type="button"
-              aria-selected={active}
+              aria-pressed={active}
               onClick={() => setCategory(cat)}
-              className={`min-h-[40px] shrink-0 rounded-full px-4 py-2 text-xs font-semibold whitespace-nowrap transition active:scale-95 ${
-                active
-                  ? 'bg-[#2C2F36] text-white shadow-sm dark:bg-white dark:text-slate-950'
-                  : 'liquid-glass-subtle text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'
-              }`}
+              className="choice-pill shrink-0 whitespace-nowrap"
             >
               {cat}
             </button>
