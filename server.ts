@@ -1,4 +1,7 @@
 import express from 'express';
+import helmet from 'helmet';
+import { rateLimit } from 'express-rate-limit';
+import { fetchPublic, isSafeHttpUrl, readPublicText } from './src/lib/publicHttp.ts';
 import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -10,29 +13,37 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 3000);
 
 const app = express();
-app.use(express.json({ limit: '1mb' }));
-
-function isSafeHttpUrl(rawUrl: string): boolean {
-  try {
-    const u = new URL(rawUrl);
-    if (u.protocol !== 'http:' && u.protocol !== 'https:') return false;
-    const host = u.hostname.toLowerCase();
-    if (
-      host === 'localhost' ||
-      host === '127.0.0.1' ||
-      host === '0.0.0.0' ||
-      host === '::1' ||
-      host.startsWith('10.') ||
-      host.startsWith('192.168.') ||
-      host.startsWith('169.254.')
-    ) {
-      return false;
-    }
-    return true;
-  } catch {
-    return false;
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false,
+  strictTransportSecurity: process.env.NODE_ENV === 'production',
+  referrerPolicy: { policy: 'no-referrer' },
+}));
+app.use('/api', (req, res, next) => {
+  const origin = req.get('origin');
+  const site = req.get('sec-fetch-site');
+  const expected = process.env.OPENNEWS_ORIGIN || `${req.protocol}://${req.get('host')}`;
+  if (origin && origin !== expected && (process.env.OPENNEWS_ORIGIN || site !== 'same-origin')) {
+    res.status(403).json({ error: 'Diese Herkunft ist nicht erlaubt.' });
+    return;
   }
-}
+  next();
+});
+app.use('/api', rateLimit({
+  windowMs: 60_000,
+  limit: 45,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: { error: 'Zu viele Anfragen. Bitte versuche es gleich erneut.' },
+}));
+app.use('/api/ai/proxy', rateLimit({
+  windowMs: 60_000,
+  limit: 10,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: { error: 'Zu viele KI-Anfragen. Bitte versuche es gleich erneut.' },
+}));
+app.use(express.json({ limit: '128kb' }));
 
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true, service: 'OpenNews' });
@@ -54,7 +65,7 @@ app.post('/api/feeds/fetch', async (req, res) => {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 5500);
       try {
-        const response = await fetch(source.url, {
+        const response = await fetchPublic(source.url, {
           signal: controller.signal,
           headers: {
             'User-Agent': 'OpenNews/1.0 (+https://opennews.local; RSS Reader)',
@@ -62,9 +73,10 @@ app.post('/api/feeds/fetch', async (req, res) => {
           },
         });
         if (!response.ok) {
+          await response.body?.cancel();
           return { sourceId: source.id, ok: false, count: 0, status: response.status, articles: [] };
         }
-        const rawText = await response.text();
+        const rawText = await readPublicText(response);
         const articles = parseFeedPayload(rawText, source);
         return { sourceId: source.id, ok: articles.length > 0, count: articles.length, articles };
       } catch {
@@ -103,7 +115,7 @@ app.get('/api/feeds/discover', async (req, res) => {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 5000);
   try {
-    const resp = await fetch(normalizedUrl, {
+    const resp = await fetchPublic(normalizedUrl, {
       signal: controller.signal,
       headers: {
         'User-Agent': 'OpenNews/1.0 (+https://opennews.local)',
@@ -111,12 +123,13 @@ app.get('/api/feeds/discover', async (req, res) => {
       },
     });
     if (!resp.ok) {
+      await resp.body?.cancel();
       res.json({ discovered: [] });
       return;
     }
 
     const contentType = resp.headers.get('content-type') || '';
-    const body = await resp.text();
+    const body = await readPublicText(resp);
     const discovered: Array<{ name: string; url: string; format: 'rss' | 'atom' | 'json' }> = [];
 
     if (/xml|rss|atom|json/i.test(contentType) || body.trim().startsWith('<rss') || body.trim().startsWith('<feed')) {
@@ -165,7 +178,7 @@ app.get('/api/article/extract', async (req, res) => {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 6000);
   try {
-    const resp = await fetch(url, {
+    const resp = await fetchPublic(url, {
       signal: controller.signal,
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; OpenNewsReader/1.0)',
@@ -173,10 +186,11 @@ app.get('/api/article/extract', async (req, res) => {
       },
     });
     if (!resp.ok) {
+      await resp.body?.cancel();
       res.status(502).json({ error: 'Artikel konnte nicht geladen werden' });
       return;
     }
-    const html = await resp.text();
+    const html = await readPublicText(resp);
     const ogImageMatch =
       html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ||
       html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
@@ -207,15 +221,24 @@ app.post('/api/ai/proxy', async (req, res) => {
     res.status(400).json({ error: 'Modell oder Prompt fehlt.' });
     return;
   }
-  if (!apiKey && provider !== 'custom') {
+  if (!apiKey) {
     res.status(400).json({ error: 'Bitte hinterlege deinen API-Key in den Einstellungen.' });
+    return;
+  }
+
+  if (!['google', 'anthropic', 'openai', 'mistral', 'custom'].includes(provider)) {
+    res.status(400).json({ error: 'Unbekannter KI-Anbieter.' });
+    return;
+  }
+  if (provider === 'custom' && (!isSafeHttpUrl(customEndpoint) || new URL(customEndpoint).protocol !== 'https:')) {
+    res.status(400).json({ error: 'Der eigene KI-Endpunkt benötigt eine öffentliche HTTPS-Adresse.' });
     return;
   }
 
   try {
     if (provider === 'google') {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
-      const resp = await fetch(url, {
+      const resp = await fetchPublic(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
         body: JSON.stringify({
@@ -223,7 +246,7 @@ app.post('/api/ai/proxy', async (req, res) => {
           generationConfig: { temperature: 0.3 },
         }),
       });
-      const json = (await resp.json()) as {
+      const json = (JSON.parse(await readPublicText(resp))) as {
         error?: { message?: string };
         candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
       };
@@ -237,7 +260,7 @@ app.post('/api/ai/proxy', async (req, res) => {
     }
 
     if (provider === 'anthropic') {
-      const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      const resp = await fetchPublic('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -250,7 +273,7 @@ app.post('/api/ai/proxy', async (req, res) => {
           messages: [{ role: 'user', content: prompt }],
         }),
       });
-      const json = (await resp.json()) as {
+      const json = (JSON.parse(await readPublicText(resp))) as {
         error?: { message?: string };
         content?: Array<{ text?: string }>;
       };
@@ -268,9 +291,9 @@ app.post('/api/ai/proxy', async (req, res) => {
         ? 'https://api.openai.com/v1/chat/completions'
         : provider === 'mistral'
           ? 'https://api.mistral.ai/v1/chat/completions'
-          : customEndpoint || 'https://openrouter.ai/api/v1/chat/completions';
+          : customEndpoint;
 
-    const resp = await fetch(endpoint, {
+    const resp = await fetchPublic(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -282,7 +305,7 @@ app.post('/api/ai/proxy', async (req, res) => {
         temperature: 0.3,
       }),
     });
-    const json = (await resp.json()) as {
+    const json = (JSON.parse(await readPublicText(resp))) as {
       error?: { message?: string };
       choices?: Array<{ message?: { content?: string } }>;
     };
@@ -292,9 +315,9 @@ app.post('/api/ai/proxy', async (req, res) => {
     }
     const text = json.choices?.[0]?.message?.content || '';
     res.json({ text });
-  } catch (err) {
+  } catch {
     res.status(502).json({
-      error: err instanceof Error ? err.message : 'Verbindung zum KI-Anbieter fehlgeschlagen',
+      error: 'Verbindung zum KI-Anbieter fehlgeschlagen',
     });
   }
 });
@@ -303,11 +326,30 @@ async function start() {
   const isProd = process.env.NODE_ENV === 'production';
   const httpServer = http.createServer(app);
 
+  if (isProd) {
+    app.use(helmet.contentSecurityPolicy({
+      useDefaults: false,
+      directives: {
+        defaultSrc: ["'self'"],
+        objectSrc: ["'none'"],
+        baseUri: ["'self'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", 'https:', 'http:', 'data:', 'blob:'],
+        fontSrc: ["'self'", 'https:', 'data:'],
+        mediaSrc: ["'self'", 'https:', 'http:', 'blob:'],
+        frameSrc: ['https://www.youtube.com', 'https://www.youtube-nocookie.com'],
+        frameAncestors: ["'self'"],
+        connectSrc: ["'self'", 'https:'],
+        workerSrc: ["'self'", 'blob:'],
+      },
+    }));
+  }
+
   if (!isProd) {
     const vite = await createViteServer({
       server: {
         middlewareMode: true,
-        allowedHosts: true,
         hmr: false,
         ws: { server: httpServer },
       },
