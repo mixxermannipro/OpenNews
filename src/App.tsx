@@ -46,6 +46,7 @@ import { OfflineIndicator } from './components/PWAInstallButton';
 import { DEFAULT_PREFERENCES, applyEditionSources, resolveHomeTab, resolveRetention, type AppPreferences, type HomeTab } from './lib/preferences';
 import { Onboarding, ProfileView, type ProfilePage } from './components/Preferences';
 
+const AudioBriefing = lazy(() => import('./components/AudioBriefing').then(module => ({ default: module.AudioBriefing })));
 const DiscoverView = lazy(() => import('./components/DiscoverView').then(module => ({ default: module.DiscoverView })));
 const SavedView = lazy(() => import('./components/SavedView').then(module => ({ default: module.SavedView })));
 const MediaView = lazy(() => import('./components/MediaView').then(module => ({ default: module.MediaView })));
@@ -663,6 +664,9 @@ export default function App() {
         {activeTab === 'home' && (
           <HomeView
             articles={homeSections[homeCategory]}
+            briefing={homeCategory === 'Heute' && aiConfig.apiKey.trim() ? (
+              <Suspense fallback={null}><AudioBriefing articles={homeSections.Heute} config={aiConfig} /></Suspense>
+            ) : null}
             showHero={preferences.hero}
             selectedCategory={homeCategory}
             onSelectCategory={setHomeCategory}

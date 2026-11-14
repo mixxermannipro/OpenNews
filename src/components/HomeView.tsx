@@ -8,6 +8,7 @@ import { CompactArticleCard, HeadlineArticleCard } from './ArticleCards';
 interface HomeViewProps {
   articles: NewsArticle[];
   showHero: boolean;
+  briefing?: React.ReactNode;
   selectedCategory: HomeTab;
   onSelectCategory: (cat: HomeTab) => void;
   profile: PersonalizationProfile;
@@ -21,6 +22,7 @@ interface HomeViewProps {
 export const HomeView: React.FC<HomeViewProps> = ({
   articles,
   showHero,
+  briefing,
   selectedCategory,
   onSelectCategory,
   profile,
@@ -155,6 +157,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         })}
       </div>
 
+      {briefing}
       {visibleArticles.length === 0 ? (
         <div className="liquid-glass rounded-3xl p-8 text-center">
           <p className="text-base font-semibold text-slate-900 dark:text-white">
