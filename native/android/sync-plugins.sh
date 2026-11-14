@@ -14,6 +14,11 @@ if ! grep -q 'com.google.mlkit:genai-summarization' "$gradle"; then
 fi
 
 manifest=android/app/src/main/AndroidManifest.xml
+# The optional GenAI plugin checks API 26 before calling either library.
+if ! grep -q 'tools:overrideLibrary' "$manifest"; then
+  sed -i 's/<manifest /<manifest xmlns:tools="http:\/\/schemas.android.com\/tools" /' "$manifest"
+  sed -i '/<manifest /a\    <uses-sdk tools:overrideLibrary="com.google.mlkit.genai.summarization,com.google.mlkit.genai.common" />' "$manifest"
+fi
 if ! grep -q 'NewsMessagingService' "$manifest"; then
   sed -i '/<\/application>/e cat native/android/push-manifest.xml' "$manifest"
 fi
