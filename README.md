@@ -498,6 +498,7 @@ Für sichtbare Änderungen lohnt zusätzlich ein manueller Blick auf Startseite 
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Ablauf für Beiträge |
 | [DESIGN.md](DESIGN.md) | Verbindliche Gestaltung für Navigation, Karten, Leseflächen und Zustände |
 | [Auswahl der Nachrichten](docs/content-ranking.md) | Lokale Regeln für Heute, Für dich und Neueste |
+| [Android-Nachrichtenwidget](docs/android-widget.md) | Einrichtung, Größen und Aktualisierung |
 | [PRODUCT.md](PRODUCT.md) | Produktbeschreibung |
 | [SECURITY.md](SECURITY.md) | Sicherheitslücken melden |
 | [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | Verhaltensregeln |
@@ -531,7 +532,7 @@ Das Repository ist privat und in einer frühen Alpha. Beiträge klein und prüfb
 | PWA | nutzbar (Installation, Offline-Hinweis) |
 | Android | Alpha, Debug-APK |
 | iOS | vorbereitet (Brücken und WidgetKit), Build nur mit Xcode/macOS |
-| Android-Widget | verfügbar (Top-Themen) |
+| Android-Widget | Lokale Schlagzeilen mit Quellenfilter und Reader-Verknüpfung |
 | iOS-Widget | vorbereitet, nicht geprüft |
 | Native Push | Android mit Firebase und laufendem Feed-Dienst |
 | Artikelvolltext | Beta, abhängig von der Quelle |
