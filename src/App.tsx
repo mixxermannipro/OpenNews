@@ -38,6 +38,7 @@ import { useArticleStorage } from './hooks/useArticleStorage';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { HomeView } from './components/HomeView';
 import type { SettingsSectionTab } from './components/SettingsView';
+
 import { OfflineIndicator } from './components/PWAInstallButton';
 
 import { DEFAULT_PREFERENCES, applyEditionSources, resolveHomeTab, resolveRetention, type AppPreferences, type HomeTab } from './lib/preferences';
@@ -517,6 +518,40 @@ export default function App() {
     }
   };
 
+  const [backupStatus, setBackupStatus] = useState('');
+  const exportBackup = async () => {
+    const { createDeviceBackup } = await import('./lib/deviceBackup');
+    const backup = createDeviceBackup(sources, normalizedProfile, savedArticles);
+    const url = URL.createObjectURL(new Blob([backup], { type: 'application/json' }));
+    const download = document.createElement('a');
+    download.href = url;
+    download.download = 'opennews-sicherung.json';
+    download.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+  const importBackup = async (file: File) => {
+    try {
+      if (file.size > 5_000_000) throw new Error('Datei zu groß');
+      const { parseDeviceBackup } = await import('./lib/deviceBackup');
+      const backup = parseDeviceBackup(await file.text());
+      setSources(previous => {
+        const incoming = new Map(backup.sources.map(source => [source.url, source]));
+        const merged = previous.map(source => incoming.delete(source.url) ? { ...source, subscribed: true } : source);
+        return [...merged, ...incoming.values()];
+      });
+      setProfile(previous => {
+        const bookmarks = [...new Set([...previous.bookmarkedIds, ...backup.reactions.bookmarkedIds])];
+        const disliked = [...new Set([...previous.dislikedIds, ...backup.reactions.dislikedIds])];
+        const liked = [...new Set([...previous.likedIds, ...backup.reactions.likedIds])].filter(id => !disliked.includes(id));
+        return { ...previous, bookmarkedIds: bookmarks, dislikedIds: disliked, likedIds: liked };
+      });
+      setSavedArticles(previous => ({ ...Object.fromEntries(backup.bookmarks.map(article => [article.id, article])), ...previous }));
+      setBackupStatus('Sicherung übernommen.');
+    } catch {
+      setBackupStatus('Sicherung konnte nicht gelesen werden. Wähle eine OpenNews-Sicherung bis 5 MB.');
+    }
+  };
+
   const openProfile = (page: ProfilePage = 'profile') => {
     navigate({ tab: 'profile', profile: page });
   };
@@ -646,6 +681,22 @@ export default function App() {
         {activeTab === 'profile' && <ProfileView {...appearance} page={profilePage} onPage={page => openProfile(page)} onBack={goBack}
           onSaved={() => openSaved('bookmarks')} onHistory={() => openSaved('history')}
           onSources={() => openSettings('feeds')} onAI={() => openSettings('ai')} onNotifications={() => openSettings('app')}
+          backupControls={
+            <div className="space-y-2">
+              <p>Sichere Abos, Reaktionen und Lesezeichen als Datei. Beim Import werden die Einträge zusammengeführt.</p>
+              <div className="flex flex-wrap gap-2">
+                <button className="choice-pill" type="button" onClick={exportBackup}>Sicherung exportieren</button>
+                <label className="choice-pill cursor-pointer">Sicherung importieren
+                  <input type="file" accept=".json,application/json" className="sr-only" onChange={event => {
+                    const file = event.currentTarget.files?.[0];
+                    event.currentTarget.value = '';
+                    if (file) void importBackup(file);
+                  }} />
+                </label>
+              </div>
+              <p role="status">{backupStatus}</p>
+            </div>
+          }
           backgroundPlayback={backgroundPlayback} onBackgroundPlayback={setBackgroundPlayback}
           fontSize={fontSize} fontFamily={fontFamily} onFontSize={setFontSize} onFontFamily={setFontFamily} />}
 

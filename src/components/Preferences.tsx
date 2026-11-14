@@ -69,7 +69,7 @@ export function Appearance({ theme, onTheme, preferences, onPreferences }: Appea
 
 export type ProfilePage = 'profile' | 'preferences' | 'appearance' | 'feed' | 'reader' | 'motion' | 'playback' | 'privacy' | 'topics';
 
-export function ProfileView({ page, onPage, onBack, onSaved, onHistory, onSources, onAI, onNotifications, backgroundPlayback, onBackgroundPlayback, fontSize, fontFamily, onFontSize, onFontFamily, ...appearance }: AppearanceProps & {
+export function ProfileView({ page, onPage, onBack, onSaved, onHistory, onSources, onAI, onNotifications, backupControls, backgroundPlayback, onBackgroundPlayback, fontSize, fontFamily, onFontSize, onFontFamily, ...appearance }: AppearanceProps & {
   page: ProfilePage;
   onPage: (page: ProfilePage) => void;
   onBack: () => void;
@@ -78,6 +78,7 @@ export function ProfileView({ page, onPage, onBack, onSaved, onHistory, onSource
   onSources: () => void;
   onAI: () => void;
   onNotifications: () => void;
+  backupControls: ReactNode;
   backgroundPlayback: boolean;
   onBackgroundPlayback: (enabled: boolean) => void;
   fontSize: ReaderFontSize;
@@ -184,6 +185,7 @@ export function ProfileView({ page, onPage, onBack, onSaved, onHistory, onSource
       </div>}
       {page === 'privacy' && <div className="settings-group p-5 space-y-3 leading-relaxed">
         <p>Deine Einstellungen, Interessen und Leseliste werden auf diesem Gerät gespeichert.</p>
+        {backupControls}
         <p>Beim Abrufen von Nachrichten verbindet sich OpenNews mit den ausgewählten Quellen. Wenn du eine externe KI verwendest, erhält der Anbieter den Artikeltext für die Analyse.</p>
       </div>}
       {page === 'topics' && <TopicChoices topics={preferences.topics} onChange={topics => onPreferences({ ...preferences, topics })} />}
