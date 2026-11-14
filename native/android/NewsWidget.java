@@ -17,6 +17,7 @@ import org.json.JSONObject;
 public class NewsWidget extends Plugin {
     static final String STORE = "opennews-widget";
     static final String ARTICLE = "io.opennews.app.WIDGET_ARTICLE";
+    static final String ACTION = "io.opennews.app.WIDGET_ACTION";
     static final String REFRESH = "io.opennews.app.WIDGET_REFRESH";
 
     @PluginMethod
@@ -48,6 +49,12 @@ public class NewsWidget extends Plugin {
     private JSObject consume(Intent intent) {
         JSObject data = new JSObject();
         if (intent == null) return data;
+        String action = intent.getStringExtra(ACTION);
+        intent.removeExtra(ACTION);
+        if ("discover".equals(action)) {
+            data.put("discover", true);
+            return data;
+        }
         String article = intent.getStringExtra(ARTICLE);
         intent.removeExtra(ARTICLE);
         if (article != null) {
@@ -58,6 +65,7 @@ public class NewsWidget extends Plugin {
                     JSONObject candidate = stories.optJSONObject(i);
                     if (candidate != null && article.equals(candidate.optString("id"))) {
                         data.put("article", candidate);
+                        if ("save".equals(action)) data.put("save", true);
                         return data;
                     }
                 }

@@ -1,13 +1,13 @@
 # Android-Nachrichtenwidget
 
-Das Widget zeigt Schlagzeilen aus OpenNews. Tippe auf eine Meldung, um den zugehörigen Artikel im Reader zu öffnen. Über den Namen der Ansicht stellst du für jedes Widget „Heute“, „Für dich“ oder „Neueste“ sowie Thema und Quelle ein. „›“ blättert durch den lokalen Vorrat. „↻“ öffnet OpenNews und stößt die vorhandene Feed-Aktualisierung an. Im schmalsten Layout ist „↻“ bei mehreren Seiten ausgeblendet.
+Das Widget zeigt Schlagzeilen aus OpenNews. Tippe auf eine Meldung, um den zugehörigen Artikel im Reader zu öffnen. Über den Namen der Ansicht stellst du für jedes Widget „Heute“, „Für dich“ oder „Neueste“ sowie Thema und Quelle ein. Auf ausreichend großen Widgets wechselt eine Reiterleiste direkt zwischen „Heute“, „Für dich“ und „Neueste“. „Weitere Themen entdecken“ öffnet die Suche und Themenübersicht. Das Sternsymbol speichert die Meldung in OpenNews und öffnet sie. „›“ blättert durch den lokalen Vorrat. „↻“ öffnet OpenNews und stößt die vorhandene Feed-Aktualisierung an. Im schmalsten Layout ist „↻“ bei mehreren Seiten ausgeblendet.
 
 | Platz im Launcher | Darstellung |
 | --- | --- |
 | Klein, etwa 2 × 2 | Eine Meldung mit Quelle und Zeit |
 | Breit, etwa 4 × 2 | Eine Meldung mit mehr Platz für den Titel und eigenen Bedienelementen |
 | Größer, etwa 4 × 4 | Themenillustration und bis zu zwei Meldungen |
-| Hoch | Themenillustration und bis zu drei Meldungen |
+| Hoch und breit (ab 248 × 340 dp bei Standardschrift) | Datum, Reiterleiste, Bildaufmacher, zwei kompakte Meldungen und Einstieg zu „Entdecken“. Ab 430 dp Höhe erscheint die Kurzbeschreibung, falls vorhanden. |
 
 Android-Launcher (Startbildschirm-Apps) vergeben unterschiedlich viel Platz pro Rasterzelle. Deshalb richten sich die Ansichten nach den verfügbaren Breiten und Höhen in dp. Bei großer Systemschrift sinkt die Anzahl der Zeilen. Text und bedienbare Symbole verwenden helle und dunkle Systemvarianten. Die Darstellung hat keine eigenen Animationen.
 
@@ -21,7 +21,7 @@ Die Android-App übergibt bis zu 24 bereits gruppierte Meldungen je Reiter an de
 - Google News kombiniert Schlagzeilen, Quellen und unabhängige Perspektiven. OpenNews übernimmt die Schlagzeile mit Quellenangabe und zeigt mehrere Berichte im Hauptfeed. [Google News – Auswahl](https://support.google.com/googlenews/answer/9005749)
 - Android stellt Widgets mit `RemoteViews` in einem separaten Launcher-Prozess dar. Die vorhandene Java-Implementierung braucht keine neue Jetpack-Abhängigkeit. Die Plattform stellt die Konfiguration, Größenänderungen und sichere Klickaktionen bereit. [Android Developers – App-Widgets](https://developer.android.com/develop/ui/views/appwidgets)
 
-Das Widget nutzt lokale Themenillustrationen. Artikelbilder, weitere Widget-Referenzen und Belege für alle Launcher-Größen stehen aus. Der Google-Discover-Bildschirm eines Launchers lässt sich über diese Android-Schnittstelle nicht austauschen.
+Das Widget nutzt lokale Themenillustrationen. Die Motive stehen für das Thema. Sie stammen aus dem lokalen Bildbestand der App. Der Google-Discover-Bildschirm eines Launchers lässt sich über diese Android-Schnittstelle nicht austauschen.
 
 ## Gerätetest vom 14. November 2026
 

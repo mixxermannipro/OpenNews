@@ -15,11 +15,19 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 import java.util.ArrayList;
 import java.util.List;
 
 public class OpenNewsWidget extends AppWidgetProvider {
     private static final String NEXT = "io.opennews.app.WIDGET_NEXT";
+    private static final String PICK = "io.opennews.app.WIDGET_PICK";
+    private static final int[] TAB_IDS = {R.id.widget_tab_0, R.id.widget_tab_1, R.id.widget_tab_2};
+    private static final int[] TOPIC_IDS = {R.id.widget_topic_0, R.id.widget_topic_1, R.id.widget_topic_2};
+    private static final int[] SAVE_IDS = {R.id.widget_save_0, R.id.widget_save_1, R.id.widget_save_2};
+    private static final DateTimeFormatter DAY_LABEL = DateTimeFormatter.ofPattern("EEEE, d. MMMM", Locale.GERMAN);
     static final String[] SECTIONS = {"today", "personal", "latest"};
     static final String[] LABELS = {"Heute", "Für dich", "Neueste"};
 
@@ -30,11 +38,20 @@ public class OpenNewsWidget extends AppWidgetProvider {
     @Override
     public void onReceive(Context context, Intent intent) {
         super.onReceive(context, intent);
-        if (!NEXT.equals(intent.getAction())) return;
+        boolean picking = PICK.equals(intent.getAction());
+        if (!picking && !NEXT.equals(intent.getAction())) return;
         int id = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID);
         if (id == AppWidgetManager.INVALID_APPWIDGET_ID) return;
         SharedPreferences preferences = store(context);
-        preferences.edit().putInt("page-" + id, preferences.getInt("page-" + id, 0) + 1).apply();
+        SharedPreferences.Editor edit = preferences.edit();
+        if (picking) {
+            int section = intent.getIntExtra("section", 0);
+            if (section < 0 || section >= SECTIONS.length) return;
+            edit.putInt("section-" + id, section).putInt("page-" + id, 0);
+        } else {
+            edit.putInt("page-" + id, preferences.getInt("page-" + id, 0) + 1);
+        }
+        edit.apply();
         onUpdate(context, AppWidgetManager.getInstance(context), new int[] {id});
     }
 
@@ -65,7 +82,7 @@ public class OpenNewsWidget extends AppWidgetProvider {
         JSONObject snapshot = readSnapshot(context);
         SharedPreferences preferences = store(context);
         for (int id : ids) {
-            int section = preferences.getInt("section-" + id, 0);
+            int section = Math.max(0, Math.min(SECTIONS.length - 1, preferences.getInt("section-" + id, 0)));
             String topic = preferences.getString("topic-" + id, "");
             String source = preferences.getString("source-" + id, "");
             JSONArray data = snapshot.optJSONArray(SECTIONS[section]);
@@ -82,15 +99,17 @@ public class OpenNewsWidget extends AppWidgetProvider {
             int width = dimensions.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH);
             int height = dimensions.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT);
             float fontScale = Math.max(1, context.getResources().getConfiguration().fontScale);
+            boolean agenda = width >= 248 && height >= 340 * fontScale;
             int count = height >= 340 * fontScale ? 3 : height >= 245 * fontScale ? 2 : 1;
             boolean hasPhoto = width >= 185 && height >= 185 * fontScale;
             int pages = Math.max(1, (stories.size() + count - 1) / count);
             int page = Math.floorMod(preferences.getInt("page-" + id, 0), pages);
             int first = page * count;
 
-            RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.opennews_widget);
+            RemoteViews views = new RemoteViews(context.getPackageName(), agenda ? R.layout.opennews_widget_agenda : R.layout.opennews_widget);
             views.setTextViewText(R.id.opennews_widget_section, LABELS[section]);
             views.setContentDescription(R.id.opennews_widget_section, LABELS[section] + " · Widget einstellen");
+            if (agenda) configureAgenda(context, views, id, section);
             int[] rows = {R.id.opennews_widget_lead, R.id.opennews_widget_second, R.id.opennews_widget_third};
             int[] titles = {R.id.opennews_widget_headlines, R.id.opennews_widget_next, R.id.opennews_widget_third_title};
             int[] meta = {R.id.opennews_widget_source, R.id.opennews_widget_next_source, R.id.opennews_widget_third_source};
@@ -98,13 +117,18 @@ public class OpenNewsWidget extends AppWidgetProvider {
                 JSONObject article = slot < count && first + slot < stories.size() ? stories.get(first + slot) : null;
                 views.setViewVisibility(rows[slot], article != null || slot == 0 ? View.VISIBLE : View.GONE);
                 if (article == null && slot > 0) continue;
+                if (agenda) bindAgendaArticle(context, views, id, slot, article, height >= 430 * fontScale);
                 views.setTextViewText(titles[slot], article == null ? "Keine Meldungen" : article.optString("title"));
                 views.setTextViewText(meta[slot], article == null
                     ? snapshot.length() == 0 ? "OpenNews laden" : "Auswahl prüfen"
                     : metadata(article));
-                views.setOnClickPendingIntent(rows[slot], openApp(context, id, slot, article, article == null));
+                views.setOnClickPendingIntent(rows[slot], openApp(context, id, slot, article, article == null ? "refresh" : "article"));
             }
             views.setViewVisibility(R.id.opennews_widget_image, hasPhoto && !stories.isEmpty() ? View.VISIBLE : View.GONE);
+            if (agenda) {
+                views.setViewVisibility(R.id.widget_discover, View.VISIBLE);
+                views.setOnClickPendingIntent(R.id.widget_discover, openApp(context, id, 10, null, "discover"));
+            }
             if (hasPhoto && !stories.isEmpty()) {
                 views.setImageViewResource(R.id.opennews_widget_image, illustration(stories.get(first).optString("category")));
             }
@@ -116,7 +140,7 @@ public class OpenNewsWidget extends AppWidgetProvider {
             views.setViewVisibility(R.id.opennews_widget_refresh, pages > 1 && width < 168 ? View.GONE : View.VISIBLE);
             views.setOnClickPendingIntent(R.id.opennews_widget_forward,
                 PendingIntent.getBroadcast(context, 0, next, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT));
-            views.setOnClickPendingIntent(R.id.opennews_widget_refresh, openApp(context, id, 9, null, true));
+            views.setOnClickPendingIntent(R.id.opennews_widget_refresh, openApp(context, id, 9, null, "refresh"));
             Intent setup = new Intent(context, WidgetSettingsActivity.class)
                 .setData(Uri.parse("opennews://widget/" + id + "/settings"))
                 .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id);
@@ -126,11 +150,45 @@ public class OpenNewsWidget extends AppWidgetProvider {
         }
     }
 
-    private PendingIntent openApp(Context context, int id, int slot, JSONObject article, boolean refresh) {
-        String path = article == null ? "refresh" : "article/" + Uri.encode(article.optString("id"));
+    private void configureAgenda(Context context, RemoteViews views, int id, int section) {
+        views.setTextViewText(R.id.widget_date, LocalDate.now().format(DAY_LABEL));
+        for (int i = 0; i < TAB_IDS.length; i++) {
+            boolean active = i == section;
+            views.setInt(TAB_IDS[i], "setBackgroundResource", active ? R.drawable.opennews_widget_selected : 0);
+            views.setTextColor(TAB_IDS[i], context.getColor(active ? R.color.widget_surface : R.color.widget_ink));
+            views.setContentDescription(TAB_IDS[i], active ? LABELS[i] + ", ausgewählt" : LABELS[i]);
+            Intent pick = new Intent(context, OpenNewsWidget.class).setAction(PICK)
+                .setData(Uri.parse("opennews://widget/" + id + "/select/" + i))
+                .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id).putExtra("section", i);
+            views.setOnClickPendingIntent(TAB_IDS[i],
+                PendingIntent.getBroadcast(context, 0, pick, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT));
+        }
+        views.setTextViewText(R.id.opennews_widget_forward, "›");
+        views.setTextViewText(R.id.opennews_widget_refresh, "↻");
+    }
+
+    private void bindAgendaArticle(Context context, RemoteViews views, int id, int slot, JSONObject article, boolean showSummary) {
+        views.setViewVisibility(SAVE_IDS[slot], article == null ? View.GONE : View.VISIBLE);
+        views.setTextViewText(TOPIC_IDS[slot], article == null ? "" : article.optString("category"));
+        if (slot == 0) {
+            String summary = article == null ? "" : article.optString("summary");
+            views.setViewVisibility(R.id.widget_summary, showSummary && !summary.trim().isEmpty() ? View.VISIBLE : View.GONE);
+            views.setTextViewText(R.id.widget_summary, summary);
+        }
+        if (article == null) return;
+        if (slot > 0) {
+            views.setImageViewResource(slot == 1 ? R.id.widget_thumb_1 : R.id.widget_thumb_2, illustration(article.optString("category")));
+        }
+        views.setTextViewText(SAVE_IDS[slot], "☆");
+        views.setOnClickPendingIntent(SAVE_IDS[slot], openApp(context, id, slot, article, "save"));
+    }
+
+    private PendingIntent openApp(Context context, int id, int slot, JSONObject article, String action) {
+        String path = article == null ? action : action + "/" + Uri.encode(article.optString("id"));
         Intent open = new Intent(context, MainActivity.class).setAction(Intent.ACTION_VIEW)
             .setData(Uri.parse("opennews://widget/" + id + "/" + slot + "/" + path))
-            .putExtra(NewsWidget.REFRESH, refresh);
+            .putExtra(NewsWidget.REFRESH, "refresh".equals(action))
+            .putExtra(NewsWidget.ACTION, action);
         if (article != null) open.putExtra(NewsWidget.ARTICLE, article.optString("id"));
         return PendingIntent.getActivity(context, 0, open, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
     }
