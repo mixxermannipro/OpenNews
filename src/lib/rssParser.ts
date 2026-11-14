@@ -97,17 +97,33 @@ export function extractKeywords(title: string, summary: string): string[] {
   return result;
 }
 
+const feedSections = new Map<string, NewsSource['category']>([
+  ['politik', 'Politik'], ['inland', 'Politik'], ['ausland', 'Politik'],
+  ['wirtschaft', 'Wirtschaft'], ['technologie', 'Technologie'], ['digital', 'Technologie'],
+  ['wissenschaft', 'Wissenschaft'], ['wissen', 'Wissenschaft'], ['europa', 'Europa'],
+  ['gesellschaft', 'Gesellschaft'], ['panorama', 'Gesellschaft'],
+  ['kultur', 'Kultur'], ['sport', 'Sport'],
+]);
+
 export function inferCategory(
   rawCategory: unknown,
   title: string,
   summary: string,
   fallback: Exclude<NewsCategory, 'Alle' | 'Für dich'>
 ): Exclude<NewsCategory, 'Alle' | 'Für dich'> {
-  const raw = Array.isArray(rawCategory)
-    ? rawCategory.map((c) => (typeof c === 'string' ? c : c?.['#text'] || c?.['@_term'] || '')).join(' ')
-    : typeof rawCategory === 'object' && rawCategory !== null
-      ? String((rawCategory as Record<string, unknown>)['#text'] || (rawCategory as Record<string, unknown>)['@_term'] || '')
-      : String(rawCategory || '');
+  const labels = asArray(rawCategory).map(value => {
+    if (typeof value === 'object' && value !== null) {
+      const record = value as Record<string, unknown>;
+      return String(record['#text'] || record['@_term'] || '');
+    }
+    return String(value || '');
+  });
+  for (const label of labels) {
+    const section = feedSections.get(label.trim().toLowerCase());
+    if (section) return section;
+  }
+  if (/\b(?:bundespräsiden[\p{L}]*|steinmeier|afd)\b/iu.test(title)) return 'Politik';
+  const raw = labels.join(' ');
   const hay = `${raw} ${title} ${summary}`.toLowerCase();
 
   if (/\b(politik|bundestag|regierung|kanzler|wahl|partei|diplomatie|nato|ukraine|gaza|minister)\b/.test(hay)) {

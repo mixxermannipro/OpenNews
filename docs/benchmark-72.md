@@ -19,6 +19,8 @@ Emuliertes Pixel 7 im Browser, 412 CSS-Pixel breit, Deutsch, frische Profile ohn
 | Google News, Apple News, Flipboard, SmartNews, Feedly, Inoreader | Abruf gestört, Einwilligung oder öffentliche Produktseite anstelle einer nutzbaren personalisierten Nachrichtenansicht. | Keine Ableitung über deren persönliche Trefferquote. |
 | NYT, Instagram, X, Threads, YouTube | Einstiegsseiten mit Datenschutzdialog, Anmeldung oder leerem Einstieg. | Keine Rangfolge erhoben. |
 
+Die Tagesschau dokumentiert für ihre App eine eigene Ansicht „Für mich“ und einen Meldungsbereich. Das ist ein Herstellerbeleg für die Trennung der Ansichten. Eine eigene Stichprobe aus „Für mich“ steht aus. [Tagesschau im App Store](https://apps.apple.com/de/app/tagesschau-nachrichten/id401644893)
+
 Apple News und Google Discover im nativen Einsatz sowie historische Artifact-Daten wurden nicht gemessen. Auch für freigegebene Webseiten fehlen noch vollständige Top-12-Listen und Zeitangaben. Die Tabelle belegt deshalb keine Überlegenheit gegenüber den Wettbewerbern.
 
 ## OpenNews auf demselben Nachrichtenstand
@@ -35,4 +37,4 @@ Am 14. November 2026 um 18:47 Uhr (Berlin) lieferte der OpenNews-Server 300 Arti
 
 „Heute“ führte zuvor mit dem Preis einer Pokémon-Karte. Danach stand die Bahn-Meldung zum Alkoholverbot oben, zu der zwei Quellen berichteten. Diese Platzierung zeigt die Wirkung des Quellenbonus. In der Stichprobe sank die Zahl der sichtbaren Quellen um eins. Vier der zwölf Empfehlungen passten in beiden Fassungen zu den voreingestellten Themen. In „Neueste“ gehörten fünf der zwölf jüngsten Beiträge derselben Quelle. Das ergibt sich aus den Veröffentlichungszeiten. Hier hilft die Gruppierung nach Kalendertag beim Überfliegen. Die algorithmische Gruppierung fasst Formulierungsvarianten zusammen, soweit die Regeln greifen. Eine manuelle Dublettenquote wurde noch nicht erhoben.
 
-Ein lokaler Laufzeitvergleich mit jeweils 100 Wiederholungen für den gesamten Auswahlaufruf ergab Medianwerte von rund 8–9 ms vorher und 8 ms nachher. Das misst die Auswahl im Node-Prozess ohne Netz oder Darstellung. Weitere Erhebungstage und personalisierte Stichproben der Wettbewerber sind für die Abnahme noch offen.
+Ein lokaler Laufzeitvergleich mit jeweils 100 Wiederholungen für den gesamten Auswahlaufruf ergab Medianwerte von rund 8–9 ms vorher und 8 ms nachher. Das misst die Auswahl im Node-Prozess ohne Netz oder Darstellung. Der gespeicherte Datensatz enthält die damals eingelesenen Kategorien. Eine spätere Korrektur der Themenzuordnung wird mit dem nächsten Feed-Abruf wirksam. Weitere Erhebungstage und personalisierte Stichproben der Wettbewerber sind für die Abnahme noch offen.
