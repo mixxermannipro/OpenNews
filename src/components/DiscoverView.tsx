@@ -7,7 +7,8 @@ import societyImage from '../assets/images/news_eu_parliament_1794556462855.jpg'
 import React, { useMemo, useState } from 'react';
 import { Check, ChevronRight, Plus } from 'lucide-react';
 import type { NewsArticle, NewsCategory, NewsSource, PersonalizationProfile } from '../types/news';
-import { BentoArticleCard, CompactArticleCard, HeroArticleCard } from './ArticleCards';
+import { BentoArticleCard, CompactArticleCard, HeadlineArticleCard, HeroArticleCard } from './ArticleCards';
+import { featuredStoryIds } from '../lib/featuredStories';
 import { TOPICS } from '../lib/preferences';
 import { DiscoverSearch } from './DiscoverSearch';
 
@@ -51,6 +52,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
   const bentoRightTop = filtered[2];
   const bentoRightBottom = filtered[3];
   const moreCards = filtered.slice(4, 12);
+  const featured = featuredStoryIds(moreCards.map(lead => ({ lead, reports: [] })), { ranked: false });
   const popularSources = sources.filter((s) => s.recommended).slice(0, 4);
 
   return (
@@ -212,17 +214,22 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
             Weitere Meldungen
           </h2>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            {moreCards.map((article) => (
-              <CompactArticleCard
-                key={article.id}
-                article={article}
-                isBookmarked={profile.bookmarkedIds.includes(article.id)}
-                isLiked={profile.likedIds.includes(article.id)}
-                onOpen={onOpenArticle}
-                onToggleBookmark={onToggleBookmark}
-                onToggleLike={onToggleLike}
-              />
-            ))}
+            {moreCards.map(article => {
+              const large = featured.has(article.id);
+              const Card = large ? HeadlineArticleCard : CompactArticleCard;
+              return (
+                <div key={article.id} className={large ? 'md:col-span-2' : undefined}>
+                  <Card
+                    article={article}
+                    isBookmarked={profile.bookmarkedIds.includes(article.id)}
+                    isLiked={profile.likedIds.includes(article.id)}
+                    onOpen={onOpenArticle}
+                    onToggleBookmark={onToggleBookmark}
+                    onToggleLike={onToggleLike}
+                  />
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

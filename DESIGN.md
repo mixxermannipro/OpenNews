@@ -22,7 +22,7 @@ Die App übernimmt die Systemschrift. Für Lesetext gibt es zusätzlich eine Ser
 
 | Baustein | Regel |
 | --- | --- |
-| Lead | Ein Aufmacher mit klarer Überschrift. Text auf Fotos braucht einen dunklen Verlauf bis zur Textkante und eine deckende Ersatzfläche für fehlende Bilder. |
+| Lead | Große Karten wechseln sich mit Gruppen kompakter Meldungen ab. Die Reihenfolge folgt dem jeweiligen Feed. Text auf Fotos braucht einen dunklen Verlauf bis zur Textkante und eine deckende Ersatzfläche für fehlende Bilder. |
 | Standard | Titel und Quelle bleiben auch bei einem fehlenden Bild sichtbar. Bildbereiche reservieren ihren Platz beim Laden. |
 | Kompakt | Bild links, Text und Metadaten daneben. Merken und Liken haben eigene Tasten. |
 | Medien | Die Übersicht zeigt ein großes Video, eine kompakte Audiokarte und bis zu drei Clip-Vorschauen. Hochformat nutzt seinen eigenen Vollbildbereich. |
