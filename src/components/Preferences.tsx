@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, Bell, Bookmark, BookOpen, ChevronRight, Clapperboard, Compass, History, Layers, Palette, ShieldCheck, SlidersHorizontal, Sparkles } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Bell, Bookmark, BookOpen, ChevronRight, Clapperboard, Compass, History, Layers, Palette, ShieldCheck, SlidersHorizontal, Sparkles, UserRound } from 'lucide-react';
 import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
 import { DEFAULT_PREFERENCES, EDITIONS, HOME_TAB_LABELS, RETENTION_OPTIONS, TOPICS, resolveHomeTab, resolveRetention, type AppPreferences, type Edition } from '../lib/preferences';
 import type { NewsCategory, ReaderFontFamily, ReaderFontSize, ThemeMode } from '../types/news';
@@ -104,12 +104,19 @@ export function ProfileView({ page, onPage, onBack, onSaved, onHistory, onSource
   );
 
   return (
-    <section className="settings-page">
+    <section className={page === 'profile' ? 'settings-page profile-page' : 'settings-page'}>
       {page !== 'profile' && (
         <button className="choice-pill inline-flex items-center gap-2" onClick={onBack} type="button"><ArrowLeft size={16} /> Zurück</button>
       )}
-      <h1 ref={title} tabIndex={-1} className="screen-title">{labels[page]}</h1>
+      <header>
+        <h1 ref={title} tabIndex={-1} className="screen-title">{labels[page]}</h1>
+        {page === 'profile' && <p className="screen-subtitle">Dein Bereich</p>}
+      </header>
       {page === 'profile' && <>
+        <div className="settings-group profile-intro">
+          <span className="profile-avatar"><UserRound aria-hidden="true" /></span>
+          <p>Deine Nachrichten,<br />dein Überblick.</p>
+        </div>
         <div className="settings-group">
           {link('Gespeichert', <Bookmark />, onSaved)}
           {link('Leseverlauf', <History />, onHistory)}
