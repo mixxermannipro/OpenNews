@@ -17,10 +17,18 @@ manifest=android/app/src/main/AndroidManifest.xml
 if ! grep -q 'DailyBriefing' "$manifest"; then
   sed -i '/<\/application>/e cat native/android/briefing-manifest.xml' "$manifest"
 fi
+if ! grep -q 'android.permission.POST_NOTIFICATIONS' "$manifest"; then
+  sed -i '/<\/manifest>/i\    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />' "$manifest"
+fi
 if ! grep -q 'RECEIVE_BOOT_COMPLETED' "$manifest"; then
   sed -i '/<\/manifest>/i\    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />' "$manifest"
 fi
 
+# The optional GenAI plugin checks API 26 before calling either library.
+if ! grep -q 'tools:overrideLibrary' "$manifest"; then
+  sed -i 's/<manifest /<manifest xmlns:tools="http:\/\/schemas.android.com\/tools" /' "$manifest"
+  sed -i '/<manifest /a\    <uses-sdk tools:overrideLibrary="com.google.mlkit.genai.summarization,com.google.mlkit.genai.common" />' "$manifest"
+fi
 if ! grep -q 'NewsMessagingService' "$manifest"; then
   sed -i '/<\/application>/e cat native/android/push-manifest.xml' "$manifest"
 fi
