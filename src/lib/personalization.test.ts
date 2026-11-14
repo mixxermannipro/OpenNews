@@ -157,7 +157,7 @@ test('Heute favors important stories and mixes sources independently of personal
   const localNoon = new Date(2026, 10, 12, 12).getTime();
   const politics = { ...sampleArticles[0], publishedAt: new Date(localNoon - 30 * 60_000).toISOString() };
   const technology = { ...sampleArticles[1], publishedAt: new Date(localNoon - 4 * 60 * 60_000).toISOString() };
-  const breaking = { ...politics, id: 'breaking', link: 'https://example.com/breaking', isBreaking: true, publishedAt: technology.publishedAt };
+  const breaking = { ...politics, id: 'breaking', title: 'Eilmeldung zum Bundeshaushalt', link: 'https://example.com/breaking', isBreaking: true, publishedAt: technology.publishedAt };
   const profile = { ...createDefaultProfile(), dislikedIds: ['breaking'] };
   const sections = buildHomeSections([politics, breaking, technology], profile, DEFAULT_SOURCES, localNoon);
   assert.deepEqual(sections.Heute.map(story => story.lead.id), ['breaking', 'a-tech', 'a-pol']);

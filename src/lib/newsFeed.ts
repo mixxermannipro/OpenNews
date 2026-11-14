@@ -7,18 +7,38 @@ import type { HomeTab, Retention } from './preferences';
 export const DAY_MS = 24 * 60 * 60 * 1000;
 const CACHE_LIMIT = 600;
 const PUBLIC_NEWS = new Set<NewsArticle['category']>(['Politik', 'Europa', 'Wirtschaft', 'Wissenschaft']);
+const TEASER = /^(?:das (?:glaubst|glauben) (?:du|sie) nie|(?:du wirst|sie werden) nicht glauben|was dann geschah|you won.t believe)\b/iu;
 
 export type HomeStory = ReturnType<typeof clusterStories>[number] & { reason?: string };
 
-function rankStories(ranked: ScoredArticle[]): HomeStory[] {
-  const groups = clusterStories(ranked.map(entry => entry.article));
+function rankStories(
+  ranked: ScoredArticle[], now: number, fourthSlot?: (entry: ScoredArticle) => boolean,
+): HomeStory[] {
+  const candidates = ranked.map(entry => TEASER.test(entry.article.title.trimStart())
+    ? { ...entry, score: entry.score - 6 } : entry).sort(byScore);
+  const groups = clusterStories(candidates.map(entry => entry.article));
+  const scores = new Map(candidates.map(entry => [entry.article.id, entry]));
   const groupsByLead = new Map(groups.map(group => [group.lead.id, group]));
-  return diversifyArticles(ranked.filter(entry => groupsByLead.has(entry.article.id)), true)
+  const leads = groups.map(({ lead, reports }) => {
+    const entry = scores.get(lead.id)!;
+    const sources = new Set(reports.map(report => report.sourceId));
+    const ageHours = (now - Date.parse(lead.publishedAt)) / 3_600_000;
+    const bonus = Math.min(2, sources.size - 1) * 2 * Math.exp(-ageHours / 18);
+    return {
+      ...entry, score: entry.score + bonus,
+      reason: entry.reason ?? (bonus >= 1 ? 'Von mehreren Quellen berichtet' : undefined),
+    };
+  }).sort(byScore);
+  return diversifyArticles(leads, true, fourthSlot)
     .map(({ article, reason }) => ({ ...groupsByLead.get(article.id)!, reason }));
 }
 
 function newestFirst(a: NewsArticle, b: NewsArticle): number {
   return Date.parse(b.publishedAt) - Date.parse(a.publishedAt) || a.id.localeCompare(b.id);
+}
+
+function byScore(a: ScoredArticle, b: ScoredArticle): number {
+  return b.score - a.score || newestFirst(a.article, b.article);
 }
 
 export function articleIdentity(article: NewsArticle): string {
@@ -84,32 +104,31 @@ export function buildHomeSections(
       const published = Date.parse(article.publishedAt);
       return published >= todayStart.getTime() && published <= now;
     })
-    .map(article => {
+    .map((article): ScoredArticle => {
       const ageHours = (now - Date.parse(article.publishedAt)) / (60 * 60 * 1000);
       const publicNewsBonus = PUBLIC_NEWS.has(article.category) ? 2 * Math.exp(-ageHours / 12) : 0;
       const score = 8 * Math.exp(-ageHours / 18) + publicNewsBonus + (article.isBreaking ? 8 * Math.exp(-ageHours / 12) : 0);
-      return { article, score };
-    })
-    .sort((a, b) => b.score - a.score || newestFirst(a.article, b.article));
+      return { article, score, reason: article.isBreaking ? 'Eilmeldung' : undefined };
+    });
 
   const recent = latest.filter(article => {
     const published = Date.parse(article.publishedAt);
     return published > now - 2 * DAY_MS && published <= now;
   });
 
-  const personal = rankArticlesForYou(recent, profile, sources, now, false);
-  // Weight one fresh public-interest story when personal signals would bury it.
-  const publicIndex = personal.findIndex(({ article }) =>
-    (PUBLIC_NEWS.has(article.category) || article.isBreaking)
-    && Date.parse(article.publishedAt) >= now - DAY_MS);
-  if (publicIndex > 3) {
-    const [entry] = personal.splice(publicIndex, 1);
-    personal.splice(3, 0, { ...entry, score: personal[3].score, reason: 'Aktuelle öffentliche Meldung' });
-  }
+  const personal = rankArticlesForYou(recent, profile, sources, now, false, 24);
+  const hasInterests = [profile.topicWeights, profile.sourceWeights, profile.keywordWeights]
+    .some(weights => Object.values(weights).some(weight => weight > 0));
+  const publicOutsideInterests = ({ article }: ScoredArticle) =>
+    (PUBLIC_NEWS.has(article.category) || article.isBreaking === true)
+    && Date.parse(article.publishedAt) >= now - DAY_MS
+    && (profile.topicWeights[article.category] ?? 0) <= 0
+    && (profile.sourceWeights[article.sourceId] ?? 0) <= 0
+    && !article.keywords.some(keyword => (profile.keywordWeights[keyword] ?? 0) > 0);
 
   return {
-    Heute: rankStories(headlines),
-    'Für dich': rankStories(personal),
+    Heute: rankStories(headlines, now),
+    'Für dich': rankStories(personal, now, hasInterests ? publicOutsideInterests : undefined),
     Neueste: clusterStories(latest),
   };
 }

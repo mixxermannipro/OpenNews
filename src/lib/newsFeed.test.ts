@@ -87,3 +87,54 @@ test('uses larger cards sparingly and only when a story merits emphasis', () => 
   assert.deepEqual([...featuredStoryIds(ordinary)], ['2']);
   assert.equal(featuredStoryIds(ordinary, { ranked: false }).size, 0);
 });
+
+test('makes room in the first four recommendations for reporting beyond strong interests', () => {
+  const now = new Date(2026, 10, 14, 18).getTime();
+  const personal = Array.from({ length: 8 }, (_, index) => ({
+    ...article, id: 'sports-' + index, sourceId: 'sports-source-' + index,
+    title: 'Spielbericht ' + index, category: 'Sport' as const, keywords: ['Fußball', 'Liga', 'Pokal'],
+    link: 'https://example.org/sports/' + index, publishedAt: new Date(now - 60_000).toISOString(),
+  }));
+  const publicStory = {
+    ...article, id: 'public-agenda', publishedAt: new Date(now - 21 * 3_600_000).toISOString(),
+  };
+  const profile = { ...createDefaultProfile(), topicWeights: { Sport: 3 }, keywordWeights: { Fußball: 3, Liga: 3, Pokal: 3 } };
+  const top = buildHomeSections([...personal, publicStory], profile, [], now)['Für dich'].slice(0, 4);
+  assert.equal(top[3].lead.id, publicStory.id);
+  assert.equal(top[3].reason, 'Wichtiges Thema außerhalb deiner Interessen');
+});
+
+test('uses corroboration and handles obvious teasers without changing chronology', () => {
+  const now = new Date(2026, 10, 14, 18).getTime();
+  const teaser = {
+    ...article, id: 'teaser', title: 'Das glaubst du nie: unglaubliche neue Nachrichten',
+    publishedAt: new Date(now - 60_000).toISOString(),
+  };
+  const report = {
+    ...article, id: 'report', title: 'Bundestag beschließt Haushalt für Verkehr und Schulen',
+    link: 'https://reporter.example.net/details', publishedAt: new Date(now - 70 * 60_000).toISOString(),
+  };
+  const secondReport = {
+    ...report, id: 'confirmation', sourceId: 'another', title: 'Bundestag beschließt Haushalt für Schulen und Verkehr',
+    link: 'https://another.example.com/details', publishedAt: new Date(now - 90 * 60_000).toISOString(),
+  };
+  const sections = buildHomeSections([teaser, report, secondReport], createDefaultProfile(), [], now);
+  assert.deepEqual(sections.Heute.map(story => story.lead.id), ['report', 'teaser']);
+  assert.equal(sections.Heute[0].reason, 'Von mehreren Quellen berichtet');
+  assert.deepEqual(sections.Neueste.map(story => story.lead.id), ['teaser', 'report']);
+});
+
+test('reduces the influence of learned interests before the 48-hour cutoff', () => {
+  const now = new Date(2026, 10, 14, 18).getTime();
+  const fresh = { ...article, id: 'fresh', publishedAt: new Date(now - 12 * 3_600_000).toISOString() };
+  const old = {
+    ...article, id: 'old', title: 'Ein alter Spielbericht', link: 'https://example.net/old',
+    category: 'Sport' as const, sourceId: 'favorite', keywords: ['Fußball', 'Liga', 'Pokal'],
+    publishedAt: new Date(now - 29 * 3_600_000).toISOString(),
+  };
+  const profile = {
+    ...createDefaultProfile(), topicWeights: { Sport: 3 }, sourceWeights: { favorite: 3 },
+    keywordWeights: { Fußball: 3, Liga: 3, Pokal: 3 },
+  };
+  assert.equal(buildHomeSections([fresh, old], profile, [], now)['Für dich'][0].lead.id, 'fresh');
+});

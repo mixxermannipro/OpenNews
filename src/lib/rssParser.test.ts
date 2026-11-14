@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseFeedPayload, stripHtml, estimateReadingTime } from './rssParser';
+import { inferCategory, parseFeedPayload, stripHtml, estimateReadingTime } from './rssParser';
 import type { NewsSource } from '../types/news';
 
 const mockSource: NewsSource = {
@@ -172,4 +172,10 @@ test('parses the thumbnail, description and portrait link from a YouTube channel
   assert.equal(article.imageUrl, 'https://i.ytimg.com/vi/tLm6NC0tkt0/hqdefault.jpg');
   assert.equal(article.summary, 'Nachrichten im Hochformat');
   assert.equal(article.media?.find(media => media.type === 'youtube')?.portrait, true);
+});
+
+test('prefers a known publisher section and recognizes political titles about athletes', () => {
+  assert.equal(inferCategory([{ '#text': 'Sport' }], 'Verein bittet Minister um Unterstützung', '', 'Gesellschaft'), 'Sport');
+  assert.equal(inferCategory(undefined, 'Steinmeier-Nachfolge: AfD nominiert Fußballer', 'Der ehemalige Spieler war in der Bundesliga.', 'Gesellschaft'), 'Politik');
+  assert.equal(inferCategory('International', 'Tanker kollidiert bei New Orleans', '', 'Europa'), 'Europa');
 });
