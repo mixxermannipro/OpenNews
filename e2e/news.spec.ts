@@ -168,3 +168,11 @@ test('keeps home tabs usable with large text on a narrow screen', async ({ page 
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
   }
 });
+
+test('shows a rate limit without marking feeds as failed', async ({ page }) => {
+  await page.route('**/api/feeds/fetch', route => route.fulfill({ status: 429 }));
+  await page.reload();
+  await enterApp(page);
+  await expect(page.getByText('Der Server erhält zu viele Anfragen.', { exact: false })).toBeVisible();
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('opennews_feed_health') ?? '{}'))).toEqual({});
+});
