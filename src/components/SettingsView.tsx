@@ -9,10 +9,8 @@ import {
   Eye,
   EyeOff,
   Globe,
-  Info,
   KeyRound,
   Layers,
-  Link2,
   Loader2,
   Pencil,
   Plus,
@@ -32,7 +30,6 @@ import type {
   NewsCategory,
   NewsSource,
   NotificationSettings,
-  SourceApiKeys,
 } from '../types/news';
 import { AI_PROVIDERS, testAIConnection } from '../lib/aiClient';
 import { TopicChoices } from './Preferences';
@@ -47,7 +44,6 @@ interface SettingsViewProps {
   initialSection?: SettingsSectionTab;
   sources: NewsSource[];
   formatPrefs: FormatPreferences;
-  sourceKeys: SourceApiKeys;
   aiConfig: AIProviderConfig;
   notifications: NotificationSettings;
   autoTranslate: boolean;
@@ -59,7 +55,6 @@ interface SettingsViewProps {
   onUpdateSource: (sourceId: string, updates: Partial<NewsSource>) => void;
   onRemoveCustomSource: (sourceId: string) => void;
   onUpdateFormatPrefs: (prefs: FormatPreferences) => void;
-  onUpdateSourceKeys: (keys: SourceApiKeys) => void;
   onUpdateAIConfig: (config: AIProviderConfig) => void;
   onUpdateNotifications: (next: NotificationSettings) => void;
   onSendTestNotification: () => void;
@@ -92,7 +87,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   initialSection = 'overview',
   sources,
   formatPrefs,
-  sourceKeys,
   aiConfig,
   notifications,
   autoTranslate,
@@ -104,7 +98,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onUpdateSource,
   onRemoveCustomSource,
   onUpdateFormatPrefs,
-  onUpdateSourceKeys,
   onUpdateAIConfig,
   onUpdateNotifications,
   onSendTestNotification,
@@ -137,8 +130,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     useState<Exclude<NewsCategory, 'Alle' | 'Für dich'>>('Politik');
   const [customError, setCustomError] = useState<string | null>(null);
 
-  const [editingKeyTarget, setEditingKeyTarget] = useState<keyof SourceApiKeys | null>(null);
-  const [tempSourceKey, setTempSourceKey] = useState('');
 
   const [showAIKey, setShowAIKey] = useState(false);
   const [aiTestStatus, setAiTestStatus] = useState<{ ok: boolean; message: string } | null>(null);
@@ -382,102 +373,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </div>
           </div>
 
-          {/* Card 2: Optionale API-Schlüssel */}
-          <div className="liquid-glass rounded-[26px] p-5 space-y-3">
-            <div className="flex items-center gap-3">
-              <div className="liquid-glass-subtle flex h-10 w-10 items-center justify-center rounded-full">
-                <Link2 className="h-4 w-4 text-slate-700 dark:text-slate-200" />
-              </div>
-              <div>
-                <h2 className="text-base font-bold text-slate-900 dark:text-white">
-                  Optionale API-Schlüssel
-                </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Verbinde zusätzliche, redaktionelle Quellen
-                </p>
-              </div>
-            </div>
-
-            <div className="divide-y divide-black/[0.06] dark:divide-white/[0.08]">
-              {[
-                { key: 'guardian' as const, name: 'The Guardian', desc: 'Aktuelle Nachrichten & Analysen', code: 'G', color: '#052962' },
-                { key: 'nasa' as const, name: 'NASA', desc: 'Wissenschaft, Raumfahrt & Forschung', code: 'NASA', color: '#0B3D91' },
-                { key: 'youtube' as const, name: 'YouTube', desc: 'Videos & offizielle Kanäle', code: 'YT', color: '#DC2626' },
-                { key: 'bundestag' as const, name: 'Bundestag DIP', desc: 'Drucksachen, Debatten & Termine', code: 'DIP', color: '#1E293B' },
-              ].map((item) => {
-                const hasKey = Boolean(sourceKeys[item.key]);
-                const isEditing = editingKeyTarget === item.key;
-                return (
-                  <div key={item.key} className="py-3 space-y-2">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div
-                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-[10px] font-bold text-white"
-                          style={{ backgroundColor: item.color }}
-                        >
-                          {item.code}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                            {item.name}
-                          </p>
-                          <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                            {item.desc}
-                          </p>
-                        </div>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditingKeyTarget(isEditing ? null : item.key);
-                          setTempSourceKey(sourceKeys[item.key] || '');
-                        }}
-                        className="liquid-glass-subtle min-h-[38px] shrink-0 rounded-full px-3.5 text-xs font-semibold text-slate-800 dark:text-slate-100 transition hover:scale-[1.02]"
-                      >
-                        {hasKey ? 'Key gespeichert' : '+ API-Key hinzufügen'}
-                      </button>
-                    </div>
-
-                    {isEditing && (
-                      <div className="flex items-center gap-2 pt-1">
-                        <input
-                          type="password"
-                          value={tempSourceKey}
-                          onChange={(e) => setTempSourceKey(e.target.value)}
-                          placeholder={`${item.name} API-Key`}
-                          aria-label={`${item.name} API-Key eingeben`}
-                          className="flex-1 rounded-xl border border-black/10 bg-white/80 px-3 py-2 text-xs text-slate-900 dark:border-white/10 dark:bg-white/5 dark:text-white"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            onUpdateSourceKeys({
-                              ...sourceKeys,
-                              [item.key]: tempSourceKey.trim() || undefined,
-                            });
-                            setEditingKeyTarget(null);
-                          }}
-                          className="min-h-[36px] rounded-xl bg-blue-600 px-3.5 text-xs font-semibold text-white"
-                        >
-                          Speichern
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="liquid-glass-subtle flex items-start gap-2.5 rounded-2xl p-3 text-xs text-slate-600 dark:text-slate-300">
-              <Info className="mt-0.5 h-4 w-4 shrink-0 text-slate-500 dark:text-slate-400" />
-              <span>
-                Private API-Keys sind optional. Die App funktioniert auch ohne sie – mit öffentlichen Quellen.
-              </span>
-            </div>
-          </div>
-
-          {/* Card 3: Datenschutz */}
           <div className="liquid-glass rounded-[26px] p-5 space-y-3.5">
             <div className="flex items-center gap-3">
               <div className="liquid-glass-subtle flex h-10 w-10 items-center justify-center rounded-full">
@@ -900,7 +795,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 link.remove();
                 window.setTimeout(() => URL.revokeObjectURL(url), 1000);
               }}>OPML exportieren</button>
-              <button type="button" className="choice-pill" onClick={onAdvancedSources}>Formate &amp; Zugangsschlüssel</button>
+              <button type="button" className="choice-pill" onClick={onAdvancedSources}>Feed-Formate</button>
             </div>
             {transferStatus && <p role="status">{transferStatus}</p>}
           </details>

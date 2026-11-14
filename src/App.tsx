@@ -15,7 +15,6 @@ import type {
   PersonalizationProfile,
   ReaderFontFamily,
   ReaderFontSize,
-  SourceApiKeys,
   ThemeMode,
 } from './types/news';
 import { DEFAULT_AI_CONFIG, migrateAIConfig } from './lib/aiClient';
@@ -175,7 +174,6 @@ export default function App() {
     openData: true,
     podcasts: false,
   });
-  const [sourceKeys, setSourceKeys] = useLocalStorage<SourceApiKeys>('opennews_source_keys', {});
   const [notifications, setNotifications] = useLocalStorage<NotificationSettings>(
     'opennews_notifications',
     { enabled: false, breakingOnly: false, topics: [] }
@@ -790,7 +788,6 @@ export default function App() {
             initialSection={settingsSection}
             sources={sources}
             formatPrefs={formatPrefs}
-            sourceKeys={sourceKeys}
             aiConfig={aiConfig}
             notifications={notifications}
             autoTranslate={autoTranslate}
@@ -812,7 +809,6 @@ export default function App() {
               setSources((prev) => prev.filter((s) => s.id !== id))
             }
             onUpdateFormatPrefs={setFormatPrefs}
-            onUpdateSourceKeys={setSourceKeys}
             onUpdateAIConfig={updateAIConfig}
             pushStatus={pushStatus}
             onUpdateNotifications={next => {
