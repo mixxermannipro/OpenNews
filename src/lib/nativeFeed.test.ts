@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DEFAULT_SOURCES } from './catalog';
-import { fetchNativeFeeds } from './nativeFeed';
+import { fetchNativeFeeds, publicHttpUrl } from './nativeFeed';
 
 test('loads sources past 20 while one slow request is still pending', async () => {
   let finishSlow!: () => void;
@@ -32,4 +32,12 @@ test('loads sources past 20 while one slow request is still pending', async () =
     await loading;
   }
   assert.equal(received.size, 21);
+});
+
+test('checks public URLs before native fetch and removes fragments', () => {
+  assert.equal(publicHttpUrl('https://example.org/rss#fragment'), 'https://example.org/rss');
+  assert.equal(publicHttpUrl('https://1.1.1.1/rss'), 'https://1.1.1.1/rss');
+  for (const host of ['localhost', '172.16.0.1', '100.64.0.1', '[fc00::1]', '[fe80::1]', '[::ffff:127.0.0.1]']) {
+    assert.equal(publicHttpUrl(`https://${host}/rss`), null, host);
+  }
 });

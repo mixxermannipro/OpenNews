@@ -332,7 +332,7 @@ NODE_ENV=production npm start
 | `npm start` | `tsx server.ts` | Express starten; mit `NODE_ENV=production` aus `dist/` |
 | `npm run preview` | `vite preview` | Statischen Build ansehen (ohne API) |
 | `npm run lint` | `tsc --noEmit` | TypeScript-Typprüfung |
-| `npm test` | `node --import tsx --test src/lib/*.test.ts` | 50 Unit-Tests |
+| `npm test` | `node --import tsx --test src/lib/*.test.ts` | 51 Unit-Tests |
 | `npm run test:e2e` | `playwright test` | 9 Browsertests gegen den Produktionsbuild |
 | `npm run push:worker` | `tsx scripts/push-news.ts` | Android-Push aus den Standardquellen senden |
 | `node scripts/check-web-budget.mjs` | Node | Prüft das Start-JavaScript gegen 170 KiB gzip |
@@ -396,7 +396,7 @@ Bei Parse- oder Quota-Fehlern fällt der Hook auf den Standardwert zurück, ohne
 
 **Grenzen:** maximal 20 Feeds pro Anfrage (5,5 s Timeout je Feed), 25 Beiträge pro Feed, 128 KB JSON-Body, 45 API-Anfragen pro Minute und IP, 10 KI-Anfragen pro Minute, 4 MB je Antwort, 5 Weiterleitungen, 6 s für Volltext, 5 s und 6 Treffer für die Feed-Erkennung, 6 parallele Abrufe im nativen Betrieb.
 
-**Sicherheit:** Jede ausgehende Adresse wird per DNS aufgelöst; nur öffentliche Ziele sind erlaubt (kein Loopback, kein `10.*`, `192.168.*` oder `169.254.*`, keine Zugangsdaten in der URL). Helmet setzt Sicherheits-Header, in Produktion zusätzlich eine Content-Security-Policy. `/api/*` prüft `Origin` bzw. `Sec-Fetch-Site` und begrenzt Anfragen pro IP. Es gibt **keine Authentifizierung** — die API ist für lokalen bzw. privaten Betrieb gedacht. Feed-HTML wird bereinigt, OPML-Importe mit DOCTYPE/ENTITY werden abgelehnt. BYOK-Schlüssel werden nicht gespeichert oder protokolliert, liegen aber im Arbeitsspeicher des Servers.
+**Sicherheit:** Android prüft eingegebene URLs vor dem Abruf auf lokale Hostnamen und nicht öffentliche IP-Adressen. Auf dem Webserver wird jede ausgehende Adresse wird per DNS aufgelöst; nur öffentliche Ziele sind erlaubt (kein Loopback, kein `10.*`, `192.168.*` oder `169.254.*`, keine Zugangsdaten in der URL). Helmet setzt Sicherheits-Header, in Produktion zusätzlich eine Content-Security-Policy. `/api/*` prüft `Origin` bzw. `Sec-Fetch-Site` und begrenzt Anfragen pro IP. Es gibt **keine Authentifizierung** — die API ist für lokalen bzw. privaten Betrieb gedacht. Feed-HTML wird bereinigt, OPML-Importe mit DOCTYPE/ENTITY werden abgelehnt. BYOK-Schlüssel werden nicht gespeichert oder protokolliert, liegen aber im Arbeitsspeicher des Servers.
 
 **Diagnose:** Der Server nimmt nur bekannte Fehlerarten an und schreibt sie mit der auf Stunden gerundeten Empfangszeit ins Betriebsprotokoll. Es gibt keine Authentifizierung; schütze den Endpunkt über den vorgeschalteten Webserver und führe dort keine Zugriffsprotokolle für diesen Pfad.
 
@@ -419,7 +419,7 @@ Die App ist eine Capacitor-WebView mit `CapacitorHttp` (Feed- und KI-Aufrufe dir
 
 **CI:** Zwei Workflows laufen bei Pull Requests gegen `main`:
 
-- **Web CI** (`web-ci.yml`): Typprüfung, 50 Unit-Tests, Build, JavaScript-Budget und 9 Browsertests mit Playwright.
+- **Web CI** (`web-ci.yml`): Typprüfung, 51 Unit-Tests, Build, JavaScript-Budget und 9 Browsertests mit Playwright.
 - **OpenNews Android Test APK** (`android-test-apk.yml`): bei Änderungen an `src/**`, `scripts/**`, `native/android/**`, `public/**` und Build-Dateien sowie manuell über **Actions → Run workflow**. Richtet Node 22 und JDK 21 ein, prüft Typen, führt Unit-Tests und Build aus, erzeugt das Android-Projekt, baut `assembleDebug`, lädt die APK als Artefakt (7 Tage) hoch und veröffentlicht bei manuellem Lauf ein privates Pre-Release `v0.1.0-alpha.<Run-Nummer>`.
 
 **Lokal:**
@@ -457,7 +457,7 @@ Für iOS liegen die Brücken- und Widget-Dateien unter `native/ios/`. Ein Build 
 
 ## Tests und Qualität
 
-`npm test` führt **50 Unit-Tests** aus elf Dateien aus: `rssParser.test.ts`, `personalization.test.ts`, `newsFeed.test.ts`, `opml.test.ts`, `nativeFeed.test.ts`, `aiClient.test.ts`, `articleMedia.test.ts`, `articleExtraction.test.ts`, `publicHttp.test.ts`, `storyClusters.test.ts` und `scrollNavigation.test.ts`. Abgedeckt sind Parsing und Medien, Aufbewahrung, Ranking und Vielfalt, OPML, native URL-Sicherheit, KI-Antwortparsing, Volltext, SSRF-Schutz, Themencluster und die Scroll-Navigation.
+`npm test` führt **51 Unit-Tests** aus elf Dateien aus: `rssParser.test.ts`, `personalization.test.ts`, `newsFeed.test.ts`, `opml.test.ts`, `nativeFeed.test.ts`, `aiClient.test.ts`, `articleMedia.test.ts`, `articleExtraction.test.ts`, `publicHttp.test.ts`, `storyClusters.test.ts` und `scrollNavigation.test.ts`. Abgedeckt sind Parsing und Medien, Aufbewahrung, Ranking und Vielfalt, OPML, native URL-Sicherheit, KI-Antwortparsing, Volltext, SSRF-Schutz, Themencluster und die Scroll-Navigation.
 
 `npm run test:e2e` startet den Produktionsbuild auf Port `3099` und prüft mit Playwright acht Kernabläufe gegen einen simulierten Feed: Onboarding, Artikel öffnen und speichern, eigene Quelle, OPML-Import, Clip-Ansicht, Offline-Lesen, Tagesüberblick und Migration des Leseverlaufs. Einmalig `npx playwright install chromium` ausführen.
 
@@ -542,7 +542,7 @@ Das Repository ist privat und in einer frühen Alpha. Beiträge klein und prüfb
 | BYOK-KI | Beta, abhängig von Anbieter und Schlüssel |
 | Tagesüberblick | Beta, benötigt eingerichtete KI und Systemstimme |
 | Diagnose | lokal verfügbar, Senden optional |
-| Tests | 50 Unit-Tests und 9 Playwright-Browsertests |
+| Tests | 51 Unit-Tests und 9 Playwright-Browsertests |
 | Lizenz | Apache-2.0 |
 
 ## Lizenz
