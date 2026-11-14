@@ -400,6 +400,8 @@ Bei Parse- oder Quota-Fehlern fällt der Hook auf den Standardwert zurück, ohne
 
 **Diagnose:** Der Server nimmt nur bekannte Fehlerarten an und schreibt sie mit der auf Stunden gerundeten Empfangszeit ins Betriebsprotokoll. Es gibt keine Authentifizierung; schütze den Endpunkt über den vorgeschalteten Webserver und führe dort keine Zugriffsprotokolle für diesen Pfad.
 
+Im statischen Browserbetrieb kann Anthropic direkt mit dem in der App hinterlegten eigenen Schlüssel aufgerufen werden. Bei einem verfügbaren OpenNews-Server hat der Serveraufruf Vorrang.
+
 ## Datenschutz
 
 **Nicht vorhanden:** Benutzerkonten, Cloud-Sync, Analytics, Tracking, Werbung, Telemetrie, serverseitige Speicherung von Artikeln oder Profilen.
