@@ -8,3 +8,5 @@ coverage/
 !.env.example
 
 /opennews-push-state.json*
+
+/dev-dist/

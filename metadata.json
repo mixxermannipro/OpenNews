@@ -1,6 +1,0 @@
-{
-  "name": "OpenNews",
-  "description": "Datenschutzfreundliche, personalisierte Nachrichten-App für freie RSS-, Atom- und JSON-Feeds mit lokaler Empfehlungslogik und eigener KI-Integration.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
