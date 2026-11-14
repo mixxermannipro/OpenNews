@@ -23,3 +23,5 @@ Der Betreiber ergänzt hier vor Veröffentlichung einen erreichbaren Datenschutz
 ## Freiwillige Fehlerdiagnose
 
 Die optionale Diagnose speichert Fehlerarten und auf Stunden gerundete Zeiten lokal. Sie erfasst keine Artikel- oder Feed-Adressen, Schlüssel, Gerätekennungen oder Fehlertexte. Der Bericht bleibt auf deinem Gerät, bis du ihn selbst exportierst und weitergibst. Beim Ausschalten löscht OpenNews die gespeicherten Diagnoseeinträge.
+
+Bei selbst betriebenen Web-Installationen kann der Betreiber den Empfang mit `OPENNEWS_DIAGNOSTICS=1` aktivieren. Nutzer müssen das Senden separat einschalten. Der Browser sendet nur die Fehlerart. Der Server schreibt diese mit der auf Stunden gerundeten Empfangszeit in sein Betriebsprotokoll. Das Diagnoseprotokoll enthält keine IP-Adresse, URL, Gerätekennung oder Fehlertexte. Beim Verbindungsaufbau ist die IP-Adresse für den Betreiber technisch sichtbar. Für den Diagnosepfad sollten im vorgeschalteten Webserver keine Zugriffsprotokolle geführt werden. Der Betreiber legt die Speicherdauer fest und dokumentiert sie vor Einsatz. Die Android-App verwendet weiterhin den lokalen Export.
