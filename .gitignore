@@ -10,3 +10,6 @@ coverage/
 /opennews-push-state.json*
 
 /dev-dist/
+
+/playwright-report/
+/test-results/
