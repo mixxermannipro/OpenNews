@@ -16,26 +16,7 @@
     <meta name="apple-mobile-web-app-title" content="OpenNews" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="icon" type="image/png" sizes="512x512" href="/pwa-512x512.png" />
-    <script>
-      (function () {
-        try {
-          var savedTheme = localStorage.getItem('opennews_theme');
-          var mode = savedTheme ? JSON.parse(savedTheme) : 'system';
-          var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-          var resolvedDark = mode === 'system' ? prefersDark : mode === 'dark';
-          var root = document.documentElement;
-          if (resolvedDark) {
-            root.classList.add('dark');
-          } else {
-            root.classList.remove('dark');
-          }
-          var metaTheme = document.querySelector('meta[name="theme-color"]');
-          if (metaTheme) {
-            metaTheme.setAttribute('content', resolvedDark ? '#111214' : '#f6f5f2');
-          }
-        } catch (e) {}
-      })();
-    </script>
+    <script src="/theme-init.js"></script>
   </head>
   <body class="bg-[#F2F3F7] text-[#111318] dark:bg-[#111214] dark:text-[#F4F6FA] antialiased selection:bg-blue-500/30">
     <div id="root"></div>

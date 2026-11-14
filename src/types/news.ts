@@ -70,6 +70,7 @@ export interface PersonalizationProfile {
   readingSecondsByTopic: Record<string, number>;
   readingSecondsBySource: Record<string, number>;
   totalReadingSeconds: number;
+  weightsUpdatedAt?: number;
 }
 
 export type AIProviderId = 'google' | 'openai' | 'anthropic' | 'mistral' | 'custom';

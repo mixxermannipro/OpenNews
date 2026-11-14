@@ -132,7 +132,8 @@ async function requestAI(config: AIProviderConfig, prompt: string, expectJson: b
 
   // The Node server exists only in web/dev mode; installed APKs use native HTTP.
   // Avoid attempting https://localhost/api/... in the standalone Android WebView.
-  if (!Capacitor.isNativePlatform()) {
+  // Keyless custom endpoints can only be contacted directly from the device.
+  if (!Capacitor.isNativePlatform() && (config.provider !== 'custom' || config.apiKey.trim())) {
     try {
       const proxyResp = await fetch('/api/ai/proxy', {
         method: 'POST',
