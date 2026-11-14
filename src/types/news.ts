@@ -85,12 +85,15 @@ export interface PersonalizationProfile {
 
 export type AIProviderId = 'google' | 'openai' | 'anthropic' | 'mistral' | 'custom';
 
+export type SummaryStyle = 'highlights' | 'five-w' | 'plain' | 'english';
+
 export interface AIProviderConfig {
   provider: AIProviderId;
   apiKey: string;
   model: string;
   customEndpoint?: string;
   autoSummarize: boolean;
+  summaryStyle?: SummaryStyle;
 }
 
 export interface AISummaryResult {

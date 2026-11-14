@@ -1,7 +1,8 @@
+import { resolveSummaryStyle, SUMMARY_STYLES } from './summaryStyles';
 import { withAIResult } from './aiCache';
 import { Capacitor } from '@capacitor/core';
 import { buildGroundedPrompt, parseArticleAnswer, parseBriefingText, parseSourcedReport, parseSummaryBullets } from './aiResponse';
-import type { AIProviderConfig, AIProviderId, AISummaryResult, NewsArticle } from '../types/news';
+import type { AIProviderConfig, AIProviderId, AISummaryResult, NewsArticle, SummaryStyle } from '../types/news';
 
 export interface AIProviderMeta {
   id: AIProviderId;
@@ -82,10 +83,13 @@ export function migrateAIConfig(config: AIProviderConfig): AIProviderConfig {
   return config;
 }
 
-function buildPrompt(article: NewsArticle): string {
+export function buildSummaryPrompt(
+  article: Pick<NewsArticle, 'title' | 'category' | 'paragraphs' | 'summary' | 'sourceName'>, style: SummaryStyle,
+): string {
+  const preset = SUMMARY_STYLES[style];
   const body = article.paragraphs.join('\n\n') || article.summary;
   return buildGroundedPrompt(
-    'Fasse den Artikel neutral auf Deutsch zusammen. Antworte nur als JSON mit bis zu vier kurzen Kernaussagen: {"bullets":["Kernaussage"]}.',
+    `${preset.instruction} Antworte nur als JSON mit bis zu ${preset.max} kurzen Punkten: {"bullets":["Kernaussage"]}.`,
     { source: article.sourceName.slice(0, 160), category: article.category, title: article.title.slice(0, 240), text: body.slice(0, 6000) },
   );
 }
@@ -96,9 +100,10 @@ export async function analyzeArticleWithBYOK(
 ): Promise<AISummaryResult> {
   const providerMeta = AI_PROVIDERS.find((p) => p.id === config.provider);
   const providerLabel = `${providerMeta?.name || config.provider} · ${config.model}`;
-  const prompt = buildPrompt(article);
+  const style = resolveSummaryStyle(config.summaryStyle);
+  const prompt = buildSummaryPrompt(article, style);
   return withAIResult(config, 'summary', [article.id], prompt, async () => ({
-    bullets: parseSummaryBullets(await requestAI(config, prompt, true)),
+    bullets: parseSummaryBullets(await requestAI(config, prompt, true), SUMMARY_STYLES[style].max),
     mode: 'ai', providerLabel, generatedAt: new Date().toISOString(),
   }));
 }
