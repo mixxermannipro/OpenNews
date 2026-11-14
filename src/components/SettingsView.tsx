@@ -1,3 +1,5 @@
+import { DailyBriefingSettings } from './DailyBriefingSettings';
+import type { DailyBriefingSettings as BriefingSettings } from '../lib/dailyBriefing';
 import { localAIAvailable } from '../lib/localAI';
 import { resolveSummaryStyle, SUMMARY_STYLES } from '../lib/summaryStyles';
 import { Capacitor } from '@capacitor/core';
@@ -48,6 +50,8 @@ interface SettingsViewProps {
   formatPrefs: FormatPreferences;
   aiConfig: AIProviderConfig;
   notifications: NotificationSettings;
+  briefingSettings: BriefingSettings;
+  onBriefingSettings: (value: BriefingSettings) => void;
   autoTranslate: boolean;
   pushStatus: string;
   onAutoTranslate: (enabled: boolean) => void;
@@ -91,6 +95,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   formatPrefs,
   aiConfig,
   notifications,
+  briefingSettings,
+  onBriefingSettings,
   autoTranslate,
   pushStatus,
   onAutoTranslate,
@@ -1007,6 +1013,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
       {section === 'app' && (
         <div className="space-y-4">
+          {Capacitor.getPlatform() === 'android' && <DailyBriefingSettings settings={briefingSettings} onChange={onBriefingSettings} />}
           <div className="liquid-glass rounded-[26px] p-5 space-y-4">
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3">

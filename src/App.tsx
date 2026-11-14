@@ -1,3 +1,4 @@
+import { DailyBriefing, type DailyBriefingSettings } from './lib/dailyBriefing';
 import { clusterStories } from './lib/storyClusters';
 import { clearAIResults, pruneAIResults } from './lib/aiCache';
 import React, { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -88,6 +89,8 @@ export default function App() {
     return () => window.removeEventListener('popstate', restore);
   }, []);
   const [preferences, setPreferences] = useLocalStorage<AppPreferences>('opennews_preferences', DEFAULT_PREFERENCES);
+  const [briefingSettings, setBriefingSettings] = useLocalStorage<DailyBriefingSettings>('opennews_daily_briefing', { enabled: false, time: '07:30' });
+  const [openBriefing, setOpenBriefing] = useState(false);
   const [homeCategory, setHomeCategory] = useState<HomeTab>(() => resolveHomeTab(preferences.home));
   const retention = resolveRetention(preferences.retention);
   useEffect(() => {
@@ -511,6 +514,30 @@ export default function App() {
     [activeArticles, normalizedProfile, sources, preferences.topics, feedClock]
   );
   useEffect(() => {
+    if (Capacitor.getPlatform() !== 'android' || !briefingSettings.enabled) return;
+    const headline = homeSections.Heute[0]?.lead.title;
+    if (headline) void DailyBriefing.updateHeadline({ headline: headline.slice(0, 240) }).catch(() => {});
+  }, [homeSections, briefingSettings.enabled]);
+
+  useEffect(() => {
+    if (Capacitor.getPlatform() !== 'android' || !onboarded) return;
+    let active = true;
+    const show = () => {
+      if (!active) return;
+      setLocation(HOME_LOCATION);
+      window.history.replaceState(null, '');
+      setHomeCategory('Heute');
+      setOpenBriefing(true);
+    };
+    const listener = DailyBriefing.addListener('open', show);
+    void DailyBriefing.getLaunch().then(result => { if (result.open) show(); }).catch(() => {});
+    return () => {
+      active = false;
+      void listener.then(handle => handle.remove()).catch(() => {});
+    };
+  }, [onboarded]);
+
+  useEffect(() => {
     const platform = Capacitor.getPlatform();
     if (!cachedStorageReady || isLoadingFeeds || (platform !== 'android' && platform !== 'ios')) return;
     if (platform === 'ios') {
@@ -737,8 +764,8 @@ export default function App() {
         {activeTab === 'home' && (
           <HomeView
             stories={homeSections[homeCategory]}
-            briefing={homeCategory === 'Heute' && aiConfig.provider !== 'device' && aiConfig.apiKey.trim() ? (
-              <Suspense fallback={null}><AudioBriefing articles={homeSections.Heute.map(story => story.lead)} config={aiConfig} /></Suspense>
+            briefing={homeCategory === 'Heute' ? (
+              <Suspense fallback={null}><AudioBriefing articles={homeSections.Heute.map(story => story.lead)} config={aiConfig} open={openBriefing} /></Suspense>
             ) : null}
             showHero={preferences.hero}
             selectedCategory={homeCategory}
@@ -830,6 +857,8 @@ export default function App() {
             formatPrefs={formatPrefs}
             aiConfig={aiConfig}
             notifications={notifications}
+            briefingSettings={briefingSettings}
+            onBriefingSettings={setBriefingSettings}
             autoTranslate={autoTranslate}
             onAutoTranslate={setAutoTranslate}
             onAdvancedSources={() => openSettings('overview')}

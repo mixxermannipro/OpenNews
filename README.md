@@ -56,7 +56,7 @@ OpenNews bündelt Nachrichten aus frei zugänglichen Feeds in einer ruhigen Ober
 | **Frag den Artikel** | Fragen in der KI-Zusammenfassung stellen. Antworten zeigen ein wörtliches Zitat aus dem Artikel, wenn ein Beleg vorliegt. |
 | **Perspektiven vergleichen** | Bei Meldungsgruppen mit mindestens zwei Quellen vergleicht die eingerichtete KI die Kurztexte und zeigt die Quellennamen an. |
 | **Wochenrückblick** | Die eingerichtete KI fasst bis zu acht der zuletzt veröffentlichten Beiträge aus Lesezeichen und Likes thematisch zusammen. |
-| **Tagesüberblick** | Optionaler gesprochener Überblick über bis zu acht Schlagzeilen; die Texte erzeugt die eingerichtete KI, vorgelesen wird mit der Systemstimme (Android) oder im Browser |
+| **Tagesüberblick** | Schlagzeilen als Karte und optional zum Anhören. Android kann zur gewünschten Ortszeit lokal daran erinnern. Mit eingerichteter Anbieter-KI kann die App beim Anhören einen gesprochenen Überblick erstellen. |
 | **Entdecken** | Themenraster, Quellen- und Volltextsuche, letzte sechs Suchbegriffe lokal gespeichert |
 | **Darstellung** | System/Hell/Dunkel, Akzentfarbe, Transparenz, Ecken, Kartendichte, Textgröße, reduzierte Bewegung |
 | **Sicherung** | Export und Import von Abos, Reaktionen und Lesezeichen als JSON-Datei bis 5 MB; bleibt auf dem Gerät |
@@ -559,7 +559,7 @@ Das Repository ist privat und in einer frühen Alpha. Beiträge klein und prüfb
 | Native Push | Android mit Firebase und laufendem Feed-Dienst |
 | Artikelvolltext | Beta, abhängig von der Quelle |
 | BYOK-KI | Beta, abhängig von Anbieter und Schlüssel |
-| Tagesüberblick | Beta, benötigt eingerichtete KI und Systemstimme |
+| Tagesüberblick | Schlagzeilen ohne Schlüssel, optional mit Anbieter-KI und Systemstimme |
 | Diagnose | lokal verfügbar, Senden optional |
 | Tests | 52 Unit-Tests und 10 Playwright-Browsertests |
 | Lizenz | Apache-2.0 |

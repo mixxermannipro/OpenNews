@@ -50,3 +50,8 @@ Bei **Auf diesem Gerät** verarbeitet Gemini Nano Artikeltexte lokal. Chrome
 benötigt die Prompt API, Android die ML-Kit-Schnittstelle und einen passenden
 AICore-Dienst. Beim erstmaligen Start kann ein Modell-Download anfallen.
 Android unterstützt hier längere englische Artikel und einen Stichpunkt.
+
+Die Android-Erinnerung für den Tagesüberblick wird auf dem Gerät geplant.
+Uhrzeit, Einwilligung und die zuletzt geladene Schlagzeile bleiben lokal.
+Beim Erinnern wird keine KI-Anfrage ausgelöst. Android kann die Zustellung
+im Stromsparmodus verzögern.
