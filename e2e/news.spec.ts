@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import type { NewsArticle, NewsSource } from '../src/types/news';
+import { DEFAULT_PREFERENCES } from '../src/lib/preferences';
 
 const title = 'Testmeldung aus dem lokalen Testfeed';
 
@@ -147,5 +148,23 @@ test('migrates old reading history and preserves it across restarts', async ({ b
     expect(history).toEqual(legacy);
   } finally {
     await context.close();
+  }
+});
+
+test('keeps home tabs usable with large text on a narrow screen', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 820 });
+  await page.emulateMedia({ colorScheme: 'dark', reducedMotion: 'reduce' });
+  await page.evaluate(preferences => localStorage.setItem('opennews_preferences', JSON.stringify(preferences)), { ...DEFAULT_PREFERENCES, textScale: 'large' });
+  await page.reload();
+  await enterApp(page);
+  const tabs = page.getByRole('group', { name: 'Ansicht der Startseite' });
+  const initialHeight = (await tabs.boundingBox())?.height;
+  for (const name of ['Heute', 'Für dich', 'Neueste']) {
+    const button = tabs.getByRole('button', { name, exact: true });
+    await button.click();
+    await expect(button).toHaveAttribute('aria-pressed', 'true');
+    expect((await button.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+    expect((await tabs.boundingBox())?.height).toBe(initialHeight);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
   }
 });

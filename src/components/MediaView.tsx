@@ -1,3 +1,4 @@
+import { ViewStatus } from './ViewStatus';
 import { Capacitor, SystemBars } from '@capacitor/core';
 import { ArrowLeft, Bookmark, Headphones, Heart, Play, Share2, Video } from 'lucide-react';
 import { createPortal } from 'react-dom';
@@ -205,10 +206,10 @@ export function MediaView({ articles, loading, background, onArticle, onSources,
           </ul>
         </section>
       )) : (
-        <div className="settings-group space-y-3 p-5">
-          <p role="status" className="text-sm">{loading ? 'Beiträge werden geladen …' : 'Hier sind gerade keine passenden Beiträge verfügbar.'}</p>
-          {!loading && <button type="button" className="choice-pill" onClick={onSources}>Quellen verwalten</button>}
-        </div>
+        <ViewStatus
+          title={loading ? 'Beiträge werden geladen …' : 'Hier sind gerade keine passenden Beiträge verfügbar.'}
+          action={!loading && <button type="button" className="choice-pill" onClick={onSources}>Quellen verwalten</button>}
+        />
       )}
       {groups.length > 0 && <button type="button" className="choice-pill" onClick={onSources}>Medienquellen verwalten</button>}
     </section>

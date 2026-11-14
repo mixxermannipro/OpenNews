@@ -496,7 +496,7 @@ Für sichtbare Änderungen lohnt zusätzlich ein manueller Blick auf Startseite 
 | [README.md](README.md) | Einstieg, Funktionen, Aufbau, Befehle, API und Datenschutz |
 | [AGENTS.md](AGENTS.md) | Regeln für Agenten und Mitwirkende, inklusive Dokumentationspflicht |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Ablauf für Beiträge |
-| [DESIGN.md](DESIGN.md) | Gestaltungsleitlinien |
+| [DESIGN.md](DESIGN.md) | Verbindliche Gestaltung für Navigation, Karten, Leseflächen und Zustände |
 | [PRODUCT.md](PRODUCT.md) | Produktbeschreibung |
 | [SECURITY.md](SECURITY.md) | Sicherheitslücken melden |
 | [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | Verhaltensregeln |
