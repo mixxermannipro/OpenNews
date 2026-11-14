@@ -1,25 +1,20 @@
 import { contentUrlKey } from './contentIdentity';
 import type { NewsArticle, NewsSource, PersonalizationProfile } from '../types/news';
-import { diversifyArticles, rankArticlesForYou } from './personalization';
+import { diversifyArticles, rankArticlesForYou, type ScoredArticle } from './personalization';
+import { clusterStories } from './storyClusters';
 import type { HomeTab, Retention } from './preferences';
 
 export const DAY_MS = 24 * 60 * 60 * 1000;
 const CACHE_LIMIT = 600;
 const PUBLIC_NEWS = new Set<NewsArticle['category']>(['Politik', 'Europa', 'Wirtschaft', 'Wissenschaft']);
 
-function spaceSimilarHeadlines(articles: NewsArticle[]): NewsArticle[] {
-  const first: { article: NewsArticle; words: Set<string> }[] = [];
-  const later: NewsArticle[] = [];
-  for (const article of articles) {
-    const words = new Set(article.title.toLocaleLowerCase('de-DE').match(/[\p{L}\p{N}]{4,}/gu));
-    const similar = words.size >= 4 && first.some(entry => {
-      const overlap = [...words].filter(word => entry.words.has(word)).length;
-      return overlap >= 4 && overlap / Math.max(words.size, entry.words.size) >= 0.65;
-    });
-    if (similar) later.push(article);
-    else first.push({ article, words });
-  }
-  return [...first.map(({ article }) => article), ...later];
+export type HomeStory = ReturnType<typeof clusterStories>[number] & { reason?: string };
+
+function rankStories(ranked: ScoredArticle[]): HomeStory[] {
+  const groups = clusterStories(ranked.map(entry => entry.article));
+  const groupsByLead = new Map(groups.map(group => [group.lead.id, group]));
+  return diversifyArticles(ranked.filter(entry => groupsByLead.has(entry.article.id)), true)
+    .map(({ article, reason }) => ({ ...groupsByLead.get(article.id)!, reason }));
 }
 
 function newestFirst(a: NewsArticle, b: NewsArticle): number {
@@ -78,9 +73,9 @@ export function buildHomeSections(
   profile: PersonalizationProfile,
   sources: NewsSource[],
   now: number,
-): Record<HomeTab, NewsArticle[]> {
+): Record<HomeTab, HomeStory[]> {
   const podcastIds = new Set(sources.filter(source => source.format === 'podcast').map(source => source.id));
-  const latest = distinctArticles(articles.filter(article => !podcastIds.has(article.sourceId)).sort(newestFirst));
+  const latest = distinctArticles(articles.filter(article => !podcastIds.has(article.sourceId) && Date.parse(article.publishedAt) <= now).sort(newestFirst));
   const todayStart = new Date(now);
   todayStart.setHours(0, 0, 0, 0);
 
@@ -92,7 +87,7 @@ export function buildHomeSections(
     .map(article => {
       const ageHours = (now - Date.parse(article.publishedAt)) / (60 * 60 * 1000);
       const publicNewsBonus = PUBLIC_NEWS.has(article.category) ? 2 * Math.exp(-ageHours / 12) : 0;
-      const score = 8 * Math.exp(-ageHours / 18) + publicNewsBonus + (article.isBreaking ? 8 : 0);
+      const score = 8 * Math.exp(-ageHours / 18) + publicNewsBonus + (article.isBreaking ? 8 * Math.exp(-ageHours / 12) : 0);
       return { article, score };
     })
     .sort((a, b) => b.score - a.score || newestFirst(a.article, b.article));
@@ -102,9 +97,19 @@ export function buildHomeSections(
     return published > now - 2 * DAY_MS && published <= now;
   });
 
+  const personal = rankArticlesForYou(recent, profile, sources, now, false);
+  // Weight one fresh public-interest story when personal signals would bury it.
+  const publicIndex = personal.findIndex(({ article }) =>
+    (PUBLIC_NEWS.has(article.category) || article.isBreaking)
+    && Date.parse(article.publishedAt) >= now - DAY_MS);
+  if (publicIndex > 3) {
+    const [entry] = personal.splice(publicIndex, 1);
+    personal.splice(3, 0, { ...entry, score: personal[3].score, reason: 'Aktuelle öffentliche Meldung' });
+  }
+
   return {
-    Heute: spaceSimilarHeadlines(diversifyArticles(headlines).map(({ article }) => article)),
-    'Für dich': spaceSimilarHeadlines(rankArticlesForYou(recent, profile, sources, now).map(({ article }) => article)),
-    Neueste: latest,
+    Heute: rankStories(headlines),
+    'Für dich': rankStories(personal),
+    Neueste: clusterStories(latest),
   };
 }

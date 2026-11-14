@@ -497,6 +497,7 @@ Für sichtbare Änderungen lohnt zusätzlich ein manueller Blick auf Startseite 
 | [AGENTS.md](AGENTS.md) | Regeln für Agenten und Mitwirkende, inklusive Dokumentationspflicht |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Ablauf für Beiträge |
 | [DESIGN.md](DESIGN.md) | Verbindliche Gestaltung für Navigation, Karten, Leseflächen und Zustände |
+| [Auswahl der Nachrichten](docs/content-ranking.md) | Lokale Regeln für Heute, Für dich und Neueste |
 | [PRODUCT.md](PRODUCT.md) | Produktbeschreibung |
 | [SECURITY.md](SECURITY.md) | Sicherheitslücken melden |
 | [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | Verhaltensregeln |

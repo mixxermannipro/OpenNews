@@ -238,7 +238,8 @@ export function rankArticlesForYou(
   articles: NewsArticle[],
   profile: PersonalizationProfile,
   sources: NewsSource[],
-  nowMs: number = Date.now()
+  nowMs: number = Date.now(),
+  diversify = true,
 ): ScoredArticle[] {
   const subscribedIds = new Set(sources.filter((s) => s.subscribed).map((s) => s.id));
   const ranked = articles
@@ -247,10 +248,10 @@ export function rankArticlesForYou(
     .sort((a, b) => b.score - a.score || b.article.publishedAt.localeCompare(a.article.publishedAt)
       || a.article.id.localeCompare(b.article.id));
 
-  return diversifyArticles(ranked);
+  return diversify ? diversifyArticles(ranked) : ranked;
 }
 
-export function diversifyArticles(ranked: ScoredArticle[]): ScoredArticle[] {
+export function diversifyArticles(ranked: ScoredArticle[], capSources = false): ScoredArticle[] {
   const selected: ScoredArticle[] = [];
   // Mix each page of recommendations. Consider other topics even if one source
   // supplies most of the initial candidates.
@@ -260,15 +261,18 @@ export function diversifyArticles(ranked: ScoredArticle[]): ScoredArticle[] {
     const adjustedScore = ({ article, score }: ScoredArticle) =>
       score - 2 * (bySource.get(article.sourceId) ?? 0) - 3 * (byTopic.get(article.category) ?? 0);
     for (let slot = 0; slot < 12 && ranked.length; slot++) {
-      let best = 0;
-      let bestScore = adjustedScore(ranked[best]);
-      for (let i = 1; i < ranked.length && ranked[i].score >= bestScore; i++) {
+      let best = -1;
+      let bestScore = -Infinity;
+      for (let i = 0; i < ranked.length; i++) {
+        if (ranked[i].score < bestScore && !capSources) break;
+        if (capSources && (bySource.get(ranked[i].article.sourceId) ?? 0) >= 2) continue;
         const score = adjustedScore(ranked[i]);
         if (score > bestScore) {
           best = i;
           bestScore = score;
         }
       }
+      if (best < 0) break;
       const [entry] = ranked.splice(best, 1);
       selected.push(entry);
       const { sourceId, category } = entry.article;

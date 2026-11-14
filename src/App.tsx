@@ -493,7 +493,7 @@ export default function App() {
   );
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
-    const stories = homeSections.Heute.slice(0, 2).map(article => ({
+    const stories = homeSections.Heute.slice(0, 2).map(({ lead: article }) => ({
       title: article.title.slice(0, 180), source: article.sourceName.slice(0, 80), category: article.category,
     }));
     if (!stories.length && isLoadingFeeds) return;
@@ -680,9 +680,9 @@ export default function App() {
         )}
         {activeTab === 'home' && (
           <HomeView
-            articles={homeSections[homeCategory]}
+            stories={homeSections[homeCategory]}
             briefing={homeCategory === 'Heute' && aiConfig.apiKey.trim() ? (
-              <Suspense fallback={null}><AudioBriefing articles={homeSections.Heute} config={aiConfig} /></Suspense>
+              <Suspense fallback={null}><AudioBriefing articles={homeSections.Heute.map(story => story.lead)} config={aiConfig} /></Suspense>
             ) : null}
             showHero={preferences.hero}
             selectedCategory={homeCategory}
