@@ -65,7 +65,7 @@ public class NewsMessagingService extends FirebaseMessagingService {
         Intent open = new Intent(context, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
         PendingIntent tap = PendingIntent.getActivity(context, 0, open, PendingIntent.FLAG_IMMUTABLE);
         var notification = new NotificationCompat.Builder(context, channel)
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setSmallIcon(R.drawable.ic_stat_opennews)
             .setContentTitle(title)
             .setContentText(source)
             .setStyle(new NotificationCompat.BigTextStyle().bigText(title))
