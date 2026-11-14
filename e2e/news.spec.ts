@@ -117,11 +117,18 @@ test('generates an audio briefing on demand and starts speech', async ({ page })
     });
     Object.defineProperty(window.speechSynthesis, 'cancel', { value: () => {} });
   });
-  await page.route('**/api/ai/proxy', route => route.fulfill({ json: { text: 'Guten Morgen. Das ist dein Testüberblick.' } }));
+  let briefingText = '';
+  await page.route('**/api/ai/proxy', route => {
+    const { prompt } = route.request().postDataJSON() as { prompt: string };
+    const data = JSON.parse(prompt.split('\n').find(line => line.startsWith('{'))!) as { articles: Array<{ source: string }> };
+    briefingText = `Guten Morgen. Laut ${data.articles[0].source} erscheint heute eine Testmeldung.`;
+    return route.fulfill({ json: { text: JSON.stringify({ text: briefingText }) } });
+  });
   await page.reload();
   await enterApp(page);
   await page.getByRole('button', { name: 'Tagesüberblick anhören' }).click();
-  await expect(page.locator('html')).toHaveAttribute('data-spoken-briefing', 'Guten Morgen. Das ist dein Testüberblick.');
+  await expect.poll(() => briefingText).not.toBe('');
+  await expect(page.locator('html')).toHaveAttribute('data-spoken-briefing', briefingText);
   await page.getByRole('button', { name: 'Wiedergabe stoppen' }).click();
   await expect(page.getByRole('button', { name: 'Tagesüberblick anhören' })).toBeVisible();
 });
