@@ -84,3 +84,22 @@ test('opens and closes the full-screen clips view', async ({ page }) => {
   await dialog.getByRole('button', { name: 'Clips schließen' }).click();
   await expect(dialog).toBeHidden();
 });
+
+test('reads a saved article offline', async ({ page, context }) => {
+  await enterApp(page);
+  await page.getByText(title, { exact: true }).first().click();
+  const reader = page.getByRole('dialog', { name: /Artikel lesen/ });
+  await expect(reader.getByText(/Volltext stammt/).first()).toBeVisible();
+  await reader.getByRole('button', { name: 'Offline speichern' }).click();
+  await expect(reader.getByText('Text offline verfügbar.')).toBeVisible();
+  await page.goBack();
+  await expect(reader).toBeHidden();
+  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await page.reload();
+  await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
+  await context.setOffline(true);
+  await page.getByRole('button', { name: 'Profil', exact: true }).click();
+  await page.getByRole('button', { name: 'Gespeichert', exact: true }).click();
+  await page.getByText(title, { exact: true }).first().click();
+  await expect(reader.getByText(/Volltext stammt/).first()).toBeVisible();
+});
