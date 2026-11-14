@@ -103,3 +103,49 @@ test('reads a saved article offline', async ({ page, context }) => {
   await page.getByText(title, { exact: true }).first().click();
   await expect(reader.getByText(/Volltext stammt/).first()).toBeVisible();
 });
+
+test('generates an audio briefing on demand and starts speech', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('opennews_ai_config', JSON.stringify({
+      provider: 'google', model: 'gemini-flash-latest', apiKey: 'local-test-fixture', autoSummarize: false,
+    }));
+    Object.defineProperty(window.speechSynthesis, 'speak', {
+      value: (utterance: SpeechSynthesisUtterance) => {
+        document.documentElement.dataset.spokenBriefing = utterance.text;
+      },
+    });
+    Object.defineProperty(window.speechSynthesis, 'cancel', { value: () => {} });
+  });
+  await page.route('**/api/ai/proxy', route => route.fulfill({ json: { text: 'Guten Morgen. Das ist dein Testüberblick.' } }));
+  await page.reload();
+  await enterApp(page);
+  await page.getByRole('button', { name: 'Tagesüberblick anhören' }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-spoken-briefing', 'Guten Morgen. Das ist dein Testüberblick.');
+  await page.getByRole('button', { name: 'Wiedergabe stoppen' }).click();
+  await expect(page.getByRole('button', { name: 'Tagesüberblick anhören' })).toBeVisible();
+});
+
+test('migrates old reading history and preserves it across restarts', async ({ browser, baseURL }) => {
+  const context = await browser.newContext({ baseURL });
+  try {
+    const page = await context.newPage();
+    await page.goto('/api/health');
+    const legacy = [{ id: 'legacy-article', title: 'Migrationstest' }];
+    await page.evaluate(value => localStorage.setItem('opennews_read_articles', JSON.stringify(value)), legacy);
+    await page.goto('/');
+    await expect.poll(() => page.evaluate(() => localStorage.getItem('opennews_read_articles'))).toBeNull();
+    await page.reload();
+    const history = await page.evaluate(() => new Promise<unknown>((resolve, reject) => {
+      const open = indexedDB.open('opennews', 1);
+      open.onerror = () => reject(open.error);
+      open.onsuccess = () => {
+        const request = open.result.transaction('articles').objectStore('articles').get('opennews_read_articles');
+        request.onsuccess = () => { resolve(request.result); open.result.close(); };
+        request.onerror = () => reject(request.error);
+      };
+    }));
+    expect(history).toEqual(legacy);
+  } finally {
+    await context.close();
+  }
+});
