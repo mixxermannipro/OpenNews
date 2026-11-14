@@ -23,6 +23,20 @@ Die Tagesschau dokumentiert für ihre App eine eigene Ansicht „Für mich“ un
 
 Apple News und Google Discover im nativen Einsatz sowie historische Artifact-Daten wurden nicht gemessen. Auch für freigegebene Webseiten fehlen noch vollständige Top-12-Listen und Zeitangaben. Die Tabelle belegt deshalb keine Überlegenheit gegenüber den Wettbewerbern.
 
+## Chronologische Ansichten im mobilen Web
+
+Nachstichprobe am selben Tag gegen 19:08 Uhr. Beim ZDF zählen die ersten zwölf Einträge im eigentlichen Ticker. Der redaktionelle Block „Wichtige Meldungen“ oberhalb des Tickers ist separat. Bei SRF zählen die ersten zwölf Karten der Detailansicht.
+
+![Neueste Meldungen bei SRF, ZDFheute und Tagesschau](screenshots/benchmark-72/chronologie-2026-11-14.jpg)
+
+| Ansicht | Quellen | Altersmedian | Unter 24 Stunden | Darstellung |
+| --- | --- | --- | --- | --- |
+| [SRF – Das Neueste](https://www.srf.ch/news/das-neueste) | 1 Medienmarke | ungefähr 2,3 h | 12 von 12 | Detailansicht oder kompakte Liste. Alle zwölf Karten zeigten einen Audio- oder Videohinweis. |
+| [ZDFheute – Schlagzeilen](https://www.zdfheute.de/newsticker/schlagzeilen-100.html) | 1 Medienmarke | 3,2 h | 12 von 12 | Zeitstempel links, Detailansicht oder kompakter Ticker. Die zwölf Zeitstempel fielen durchgehend ab. |
+| [Tagesschau – Alle Meldungen](https://www.tagesschau.de/infoservices/alle-meldungen-100.html) | 1 Medienmarke | nicht erhoben | nicht erhoben | Die ersten drei sichtbaren Zeiten waren 17:31, 16:37 und 17:44 Uhr. Diese Stichprobe zeigt keine strikte Chronologie auf dieser Seite. |
+
+Die Alterswerte der Anbieter stammen aus der Nachstichprobe. Der OpenNews-Lauf unten stammt von 18:47 Uhr. Die unterschiedlichen Erhebungszeiten erlauben keinen direkten Geschwindigkeitsvergleich.
+
 ## OpenNews auf demselben Nachrichtenstand
 
 Am 14. November 2026 um 18:47 Uhr (Berlin) lieferte der OpenNews-Server 300 Artikel aus 13 abonnierten Standardquellen ohne Podcasts. 297 Artikel blieben nach der üblichen viertägigen Aufbewahrung übrig. Beide Fassungen verarbeiteten denselben Satz zur gleichen Uhrzeit. Basis war `ad6e6a5`. Für „Für dich“ wurden Technologie und Wissenschaft mit je vier Punkten und heise mit drei Punkten als feste Präferenzen verwendet. Die Browserbilder zeigen zusätzlich ein neues Profil ohne Lernverlauf.
