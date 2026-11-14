@@ -6,6 +6,7 @@ import { isDiagnostic } from './src/lib/diagnosticEvents.ts';
 import { rateLimit } from 'express-rate-limit';
 import { fetchPublic, isSafeHttpUrl, readPublicText } from './src/lib/publicHttp.ts';
 import http from 'node:http';
+import { isIP } from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createServer as createViteServer } from 'vite';
@@ -16,6 +17,18 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 3000);
 
 const app = express();
+const trustedProxies = process.env.OPENNEWS_TRUST_PROXY?.split(',').map(proxy => proxy.trim()).filter(Boolean);
+if (trustedProxies?.length) {
+  for (const proxy of trustedProxies) {
+    const [address, prefix, extra] = proxy.split('/');
+    const version = isIP(address);
+    if (!version || extra !== undefined || (prefix !== undefined &&
+      (!/^\d+$/.test(prefix) || Number(prefix) > (version === 4 ? 32 : 128) || Number(prefix) === 0))) {
+      throw new Error('OPENNEWS_TRUST_PROXY erwartet einzelne IP-Adressen oder begrenzte CIDR-Netze.');
+    }
+  }
+  app.set('trust proxy', trustedProxies);
+}
 app.use(helmet({
   contentSecurityPolicy: false,
   crossOriginEmbedderPolicy: false,

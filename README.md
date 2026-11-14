@@ -347,6 +347,7 @@ NODE_ENV=production npm start
 | `NODE_ENV` | nicht gesetzt | `production` liefert `dist/` aus und aktiviert CSP/HSTS, sonst wird Vite eingebunden |
 | `DISABLE_HMR` | nicht gesetzt | `true` deaktiviert Hot Reload und Watch (nur Entwicklung) |
 | `OPENNEWS_ORIGIN` | Anfrage-Host | Erlaubte Herkunft für `/api/*` hinter einem Reverse-Proxy, z. B. `https://news.example.org` |
+| `OPENNEWS_TRUST_PROXY` | nicht gesetzt | IP-Adressen oder Netzbereiche eigener Reverse-Proxys, mit Komma getrennt. Nur dann nutzt Express die weitergereichte Client-IP für Anfragelimits. Der öffentliche Proxy muss eingehende Weiterleitungsheader ersetzen. |
 | `OPENNEWS_DIAGNOSTICS` | nicht gesetzt | `1` aktiviert den Empfang freiwilliger Fehlerberichte unter `/api/diagnostics` |
 | `OPENNEWS_FIREBASE_PROJECT` | nicht gesetzt | Firebase-Projekt-ID für `npm run push:worker` (Pflicht dort) |
 | `OPENNEWS_PUSH_STATE` | `./opennews-push-state.json` | Datei mit bereits versendeten Meldungen |
