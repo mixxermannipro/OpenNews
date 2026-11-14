@@ -188,7 +188,8 @@ public class OpenNewsWidget extends AppWidgetProvider {
         Intent open = new Intent(context, MainActivity.class).setAction(Intent.ACTION_VIEW)
             .setData(Uri.parse("opennews://widget/" + id + "/" + slot + "/" + path))
             .putExtra(NewsWidget.REFRESH, "refresh".equals(action))
-            .putExtra(NewsWidget.ACTION, action);
+            .putExtra(NewsWidget.ACTION, action)
+            .putExtra(NewsWidget.TOKEN, NewsWidget.launchToken(context));
         if (article != null) open.putExtra(NewsWidget.ARTICLE, article.optString("id"));
         return PendingIntent.getActivity(context, 0, open, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
     }
