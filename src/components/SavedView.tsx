@@ -1,3 +1,4 @@
+import { ViewStatus } from './ViewStatus';
 import { distinctArticles } from '../lib/newsFeed';
 import React, { useMemo, useState } from 'react';
 import { Bookmark, Heart, RotateCcw, SlidersHorizontal, Sparkles } from 'lucide-react';
@@ -65,7 +66,7 @@ export const SavedView: React.FC<SavedViewProps> = ({
   return (
     <section aria-label="Gespeichert und Interessen" className="space-y-5">
       <div>
-        <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-900 dark:text-white">
+        <h1 className="screen-title">
           {subTab === 'history' ? 'Leseverlauf' : 'Gespeichert'}
         </h1>
         <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
@@ -191,16 +192,11 @@ export const SavedView: React.FC<SavedViewProps> = ({
           </div>
         </div>
       ) : activeList.length === 0 ? (
-        <div className="liquid-glass rounded-3xl p-8 text-center">
-          <p className="text-base font-semibold text-slate-900 dark:text-white">
-            {subTab === 'history' ? 'Noch keine Artikel gelesen' : subTab === 'bookmarks' ? 'Noch keine gespeicherten Artikel' : 'Noch keine Likes vergeben'}
-          </p>
-          <p className="mt-1.5 text-sm text-slate-500 dark:text-slate-400">
-            {subTab === 'history' ? 'Hier erscheinen Artikel, die du geöffnet hast.' : subTab === 'bookmarks'
-              ? 'Tippe bei einem Artikel auf das Lesezeichen-Symbol, um ihn offline verfügbar zu halten.'
-              : 'Tippe auf das Herz-Symbol, um OpenNews beizubringen, welche Themen und Quellen dir gefallen.'}
-          </p>
-        </div>
+        <ViewStatus title={subTab === 'history' ? 'Noch keine Artikel gelesen' : subTab === 'bookmarks' ? 'Noch keine gespeicherten Artikel' : 'Noch keine Likes vergeben'}>
+          {subTab === 'history' ? 'Hier erscheinen Artikel, die du geöffnet hast.' : subTab === 'bookmarks'
+            ? 'Tippe bei einem Artikel auf das Lesezeichen-Symbol, um ihn offline verfügbar zu halten.'
+            : 'Tippe auf das Herz-Symbol, um OpenNews beizubringen, welche Themen und Quellen dir gefallen.'}
+        </ViewStatus>
       ) : (
         <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
           {activeList.map((article) => (

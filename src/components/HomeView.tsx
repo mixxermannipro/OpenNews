@@ -1,8 +1,9 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { ArrowDown, LoaderCircle, Sparkles } from 'lucide-react';
+import { ArrowDown, LoaderCircle } from 'lucide-react';
 import type { NewsArticle, PersonalizationProfile } from '../types/news';
 import { clusterStories } from '../lib/storyClusters';
 import { HOME_TABS, type HomeTab } from '../lib/preferences';
+import { ViewStatus } from './ViewStatus';
 import { CompactArticleCard, HeadlineArticleCard } from './ArticleCards';
 
 interface HomeViewProps {
@@ -66,11 +67,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
     if (reports.length < 2) return null;
     return (
       <details className="px-2 py-2 text-sm">
-        <summary className="cursor-pointer">{sources > 1 ? `${sources} Quellen berichten` : 'Weitere Berichte'}</summary>
+        <summary className="inline-flex min-h-11 cursor-pointer items-center">{sources > 1 ? `${sources} Quellen berichten` : 'Weitere Berichte'}</summary>
         <ul className="space-y-1 pt-2">
           {reports.slice(1).map(report => (
             <li key={report.id}>
-              <button className="text-left underline" type="button" onClick={() => onOpenArticle(report)}>
+              <button className="min-h-11 text-left underline" type="button" onClick={() => onOpenArticle(report)}>
                 {report.sourceName} · {report.title}
               </button>
             </li>
@@ -119,57 +120,31 @@ export const HomeView: React.FC<HomeViewProps> = ({
               : <ArrowDown size={17} aria-label="Zum Aktualisieren nach unten ziehen" />}
           </div>
         )}
-        <div className={isToday ? 'flex flex-wrap items-end justify-between gap-x-4 gap-y-1 border-b-2 border-red-700 pb-2 dark:border-red-400' : undefined}>
-          <h1 className="text-slate-900 dark:text-white">Heute</h1>
-          <p className={isToday ? 'pb-0.5 text-sm font-medium text-slate-600 dark:text-slate-400' : 'mt-0.5 text-sm text-slate-500 dark:text-slate-400'}>
-            {new Intl.DateTimeFormat('de-DE', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())}
-          </p>
+        <div className="screen-heading">
+          <h1>Startseite</h1>
+          <p>{new Intl.DateTimeFormat('de-DE', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())}</p>
         </div>
       </div>
 
-      <div
-        role="group"
-        aria-label="Ansicht der Startseite"
-        className={`grid grid-cols-3 ${isToday ? 'gap-0 border-b border-slate-300 dark:border-slate-700' : 'gap-2'}`}
-      >
-        {HOME_TABS.map((cat) => {
-          const active = selectedCategory === cat;
-          return (
-            <button
-              key={cat}
-              type="button"
-              aria-pressed={active}
-              onClick={() => onSelectCategory(cat)}
-              className={`inline-flex shrink-0 items-center justify-center gap-1.5 px-2 py-2 text-xs font-semibold whitespace-nowrap transition focus-visible:outline-2 ${
-                isToday
-                  ? active
-                    ? 'min-h-11 border-b-2 border-slate-900 text-slate-950 dark:border-white dark:text-white'
-                    : 'min-h-11 border-b-2 border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'
-                  : active
-                    ? 'min-h-[40px] rounded-full active:scale-95 bg-[#2C2F36] text-white shadow-sm dark:bg-white dark:text-slate-950'
-                    : 'min-h-[40px] liquid-glass-subtle rounded-full active:scale-95 text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'
-              }`}
-            >
-              {cat === 'Für dich' && <Sparkles className="h-3.5 w-3.5" />}
-              {cat}
-            </button>
-          );
-        })}
+      <div role="group" aria-label="Ansicht der Startseite" className="segmented-control home-tabs">
+        {HOME_TABS.map(cat => (
+          <button key={cat} type="button" aria-pressed={selectedCategory === cat}
+            onClick={() => onSelectCategory(cat)} className="choice-pill">
+            {cat}
+          </button>
+        ))}
       </div>
 
       {briefing}
       {visibleArticles.length === 0 ? (
-        <div className="liquid-glass rounded-3xl p-8 text-center">
-          <p className="text-base font-semibold text-slate-900 dark:text-white">
-            {isLoading ? 'Nachrichten werden geladen …' : selectedCategory === 'Heute'
-              ? 'Heute sind noch keine Meldungen verfügbar'
-              : selectedCategory === 'Für dich' ? 'Keine aktuellen Empfehlungen verfügbar' : 'Keine Meldungen verfügbar'}
-          </p>
-          {!isLoading && selectedCategory !== 'Neueste' && <button type="button" className="choice-pill mt-4"
-            onClick={() => onSelectCategory('Neueste')}>Zu „Neueste“</button>}
-          {!isLoading && selectedCategory === 'Neueste' && <button type="button" className="choice-pill mt-4"
-            onClick={() => void onRefresh()}>Feeds aktualisieren</button>}
-        </div>
+        <ViewStatus
+          title={isLoading ? 'Nachrichten werden geladen …' : selectedCategory === 'Heute'
+            ? 'Heute sind noch keine Meldungen verfügbar'
+            : selectedCategory === 'Für dich' ? 'Keine aktuellen Empfehlungen verfügbar' : 'Keine Meldungen verfügbar'}
+          action={!isLoading && (selectedCategory === 'Neueste'
+            ? <button type="button" className="choice-pill" onClick={() => void onRefresh()}>Feeds aktualisieren</button>
+            : <button type="button" className="choice-pill" onClick={() => onSelectCategory('Neueste')}>Zu „Neueste“</button>)}
+        />
       ) : (
         <div className="space-y-5">
           {isToday ? (

@@ -1,3 +1,4 @@
+import { ViewStatus } from './ViewStatus';
 import { SourceIcon } from './SourceIcon';
 import politicsImage from '../assets/images/news_bundestag_berlin_1794556463691.jpg';
 import businessImage from '../assets/images/news_renewable_europe_1794556463653.jpg';
@@ -57,7 +58,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
       {/* Header matching Screenshot 2 */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-900 dark:text-white">
+          <h1 className="screen-title">
             Entdecken
           </h1>
           <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
@@ -232,14 +233,9 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
       )}
 
       {filtered.length === 0 && (
-        <div className="liquid-glass rounded-3xl p-8 text-center">
-          <p className="text-base font-semibold text-slate-900 dark:text-white">
-            Keine passenden Beiträge gefunden
-          </p>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Versuche einen anderen Suchbegriff oder wähle „Alle“.
-          </p>
-        </div>
+        <ViewStatus title="Keine passenden Beiträge gefunden">
+          Versuche einen anderen Suchbegriff oder wähle „Alle“.
+        </ViewStatus>
       )}
       </>}
     </section>

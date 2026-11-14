@@ -38,6 +38,7 @@ import { SEED_ARTICLES } from './lib/seedArticles';
 import { trackNavigationScroll } from './lib/scrollNavigation';
 import { useArticleStorage } from './hooks/useArticleStorage';
 import { useLocalStorage } from './hooks/useLocalStorage';
+import { ViewStatus } from './components/ViewStatus';
 import { HomeView } from './components/HomeView';
 import type { SettingsSectionTab } from './components/SettingsView';
 
@@ -695,7 +696,7 @@ export default function App() {
           />
         )}
 
-        <Suspense fallback={<p className="px-5 py-6" role="status">Ansicht wird geladen …</p>}>
+        <Suspense fallback={<ViewStatus title="Ansicht wird geladen …" />}>
         {activeTab === 'discover' && (
           <DiscoverView
             articles={allArticles}
