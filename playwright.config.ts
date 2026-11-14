@@ -10,8 +10,8 @@ export default defineConfig({
     launchOptions: { executablePath: process.env.OPENNEWS_TEST_BROWSER || undefined },
   },
   webServer: {
-    command: 'npm run dev',
+    command: 'npm run build && npm start',
     url: 'http://localhost:3099/api/health',
-    env: { PORT: '3099' },
+    env: { PORT: '3099', NODE_ENV: 'production' },
   },
 });

@@ -1,4 +1,5 @@
 import { Capacitor } from '@capacitor/core';
+import { readOfflineArticle, removeOfflineArticle, storeOfflineArticle } from '../lib/offlineArticle';
 import { extractNativeArticle } from '../lib/nativeFeed';
 import React, { useEffect, useRef, useState } from 'react';
 import {
@@ -117,6 +118,28 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
   const [heroImage, setHeroImage] = useState<string | undefined>(article.imageUrl);
   const [loadingFullText, setLoadingFullText] = useState(false);
   const [fullTextUnavailable, setFullTextUnavailable] = useState(false);
+  const [offlineSaved, setOfflineSaved] = useState(false);
+  const [offlineBusy, setOfflineBusy] = useState(false);
+  const [offlineStatus, setOfflineStatus] = useState('');
+  const saveOffline = async () => {
+    setOfflineBusy(true);
+    try {
+      if (offlineSaved) {
+        await removeOfflineArticle(article.link);
+        setOfflineSaved(false);
+        setOfflineStatus('Offline-Kopie entfernt.');
+      } else {
+        const hasImage = await storeOfflineArticle(article.link, originalParagraphs.length ? originalParagraphs : [article.summary], headingIndexes, heroImage);
+        if (!isBookmarked) onToggleBookmark(article);
+        setOfflineSaved(true);
+        setOfflineStatus(hasImage ? 'Text und Bild offline verfügbar.' : 'Text offline verfügbar.');
+      }
+    } catch {
+      setOfflineStatus('Offline-Kopie konnte nicht gespeichert oder entfernt werden.');
+    } finally {
+      setOfflineBusy(false);
+    }
+  };
   const [shareFeedback, setShareFeedback] = useState<string | null>(null);
 
   const [aiResult, setAiResult] = useState<AISummaryResult | null>(() =>
@@ -230,8 +253,22 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
     let cancelled = false;
     const controller = new AbortController();
     setLoadingFullText(true);
+    let offlineImage: string | undefined;
     const load = async () => {
       try {
+        const cached = !Capacitor.isNativePlatform() && 'caches' in window
+          ? await readOfflineArticle(article.link).catch(() => undefined) : undefined;
+        if (cancelled) return;
+        if (cached) {
+          setOfflineSaved(true);
+          setParagraphs(cached.paragraphs);
+          setHeadingIndexes(cached.headingIndexes);
+          if (cached.image) {
+            offlineImage = URL.createObjectURL(cached.image);
+            setHeroImage(offlineImage);
+          }
+          if (!navigator.onLine) return;
+        }
         const data = Capacitor.isNativePlatform()
           ? await extractNativeArticle(article.link)
           : await fetch(`/api/article/extract?url=${encodeURIComponent(article.link)}`, { signal: controller.signal })
@@ -253,7 +290,11 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
       }
     };
     void load();
-    return () => { cancelled = true; controller.abort(); };
+    return () => {
+      cancelled = true;
+      controller.abort();
+      if (offlineImage) URL.revokeObjectURL(offlineImage);
+    };
   }, [article]);
 
   const handleShare = async () => {
@@ -356,6 +397,14 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
                 ? <h2 key={index}>{paragraph}</h2> : <p key={index}>{paragraph}</p>)}
             </div>
             {loadingFullText && <p role="status" className="mt-3 text-sm text-slate-500 dark:text-slate-400">Artikeltext wird geladen …</p>}
+            {!Capacitor.isNativePlatform() && 'caches' in window && !article.linkIsFeed && (
+              <div className="mt-4 space-y-2">
+                <button type="button" className="choice-pill" disabled={offlineBusy || loadingFullText} onClick={() => void saveOffline()}>
+                  {offlineSaved ? 'Offline-Kopie entfernen' : 'Offline speichern'}
+                </button>
+                <p className="text-sm" role="status">{offlineStatus}</p>
+              </div>
+            )}
             {fullTextUnavailable && <a href={article.link} target="_blank" rel="noopener noreferrer" className="mt-3 inline-block text-sm underline">Bei der Quelle weiterlesen</a>}
             {speechError && <p role="status" className="mt-2 text-sm">Die Sprachausgabe ist gerade nicht verfügbar.</p>}
           </div>

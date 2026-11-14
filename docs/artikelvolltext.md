@@ -7,3 +7,5 @@ Vor einer öffentlichen Veröffentlichung muss der Betreiber prüfen, für welch
 - [§ 87g UrhG – Rechte des Presseverlegers](https://www.gesetze-im-internet.de/urhg/__87g.html)
 - [§ 53 UrhG – Vervielfältigungen zum privaten und sonstigen eigenen Gebrauch](https://www.gesetze-im-internet.de/urhg/__53.html)
 - [Mozilla Readability](https://github.com/mozilla/readability)
+
+Die Web-App legt Offline-Kopien nur auf ausdrücklichen Wunsch des Lesers im Browser ab. Der Artikel erscheint anschließend unter „Gespeichert“. Die App hält höchstens 30 Kopien. Das Titelbild wird mitgespeichert, wenn die Quelle den Bildabruf für die App erlaubt und die Datei in das Größenlimit passt. Die Kopie kann im Leser entfernt werden.
