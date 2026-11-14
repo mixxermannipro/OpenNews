@@ -36,6 +36,7 @@ import {
 import { articleIdentity, buildHomeSections, distinctArticles, mergeFeedArticles, pruneFeedArticles } from './lib/newsFeed';
 import { SEED_ARTICLES } from './lib/seedArticles';
 import { trackNavigationScroll } from './lib/scrollNavigation';
+import { useArticleStorage } from './hooks/useArticleStorage';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { HomeView } from './components/HomeView';
 import type { SettingsSectionTab } from './components/SettingsView';
@@ -182,7 +183,7 @@ export default function App() {
     'sans'
   );
 
-  const [cachedLiveArticles, setCachedLiveArticles] = useLocalStorage<NewsArticle[]>(
+  const [cachedLiveArticles, setCachedLiveArticles, cachedStorageFailed, cachedStorageReady] = useArticleStorage<NewsArticle[]>(
     'opennews_cached_articles',
     []
   );
@@ -196,13 +197,13 @@ export default function App() {
       document.removeEventListener('visibilitychange', updateClock);
     };
   }, []);
-  const [savedArticles, setSavedArticles] = useLocalStorage<Record<string, NewsArticle>>(
+  const [savedArticles, setSavedArticles, savedStorageFailed] = useArticleStorage<Record<string, NewsArticle>>(
     'opennews_saved_articles',
     {}
   );
   const refresh = useRef<AbortController | null>(null);
   const [isLoadingFeeds, setIsLoadingFeeds] = useState(false);
-  const [readArticles, setReadArticles] = useLocalStorage<NewsArticle[]>('opennews_read_articles', []);
+  const [readArticles, setReadArticles, historyStorageFailed] = useArticleStorage<NewsArticle[]>('opennews_read_articles', []);
   const [alertBanner, setAlertBanner] = useState<{ title: string; source: string } | null>(null);
 
   // Sync theme class with <html>, including live prefers-color-scheme listener for 'system'
@@ -317,7 +318,10 @@ export default function App() {
   }, [feedClock, retention, setCachedLiveArticles]);
 
   const announcedArticles = useRef(new Set<string>());
-  const feedHasLoaded = useRef(cachedLiveArticles.length > 0);
+  const feedHasLoaded = useRef(false);
+  useEffect(() => {
+    if (cachedStorageReady && cachedLiveArticles.length) feedHasLoaded.current = true;
+  }, [cachedStorageReady, cachedLiveArticles.length]);
   const alertTimer = useRef<number | undefined>(undefined);
   const showAlert = useCallback((title: string, source: string) => {
     window.clearTimeout(alertTimer.current);
@@ -357,7 +361,7 @@ export default function App() {
   }, [sources, feedHealth, setSources]);
 
   const fetchLiveFeeds = useCallback(async () => {
-    if (refresh.current || !activeSources.length || !navigator.onLine) return;
+    if (!cachedStorageReady || refresh.current || !activeSources.length || !navigator.onLine) return;
     const controller = new AbortController();
     refresh.current = controller;
     setIsLoadingFeeds(true);
@@ -416,7 +420,7 @@ export default function App() {
         setIsLoadingFeeds(false);
       }
     }
-  }, [activeSources, checkForAlert, setCachedLiveArticles, setFeedHealth]);
+  }, [activeSources, cachedStorageReady, checkForAlert, setCachedLiveArticles, setFeedHealth]);
 
   const fetchLatest = useRef(fetchLiveFeeds);
   useEffect(() => { fetchLatest.current = fetchLiveFeeds; }, [fetchLiveFeeds]);
@@ -427,7 +431,7 @@ export default function App() {
       refresh.current = null;
       setIsLoadingFeeds(false);
     };
-  }, [activeSources]);
+  }, [activeSources, cachedStorageReady]);
 
   useEffect(() => {
     const update = () => { if (!document.hidden) void fetchLatest.current(); };
@@ -616,6 +620,11 @@ export default function App() {
       </header>
 
       <main className="app-content" inert={activeArticle ? true : undefined}>
+        {(cachedStorageFailed || savedStorageFailed || historyStorageFailed) && (
+          <p className="px-5 py-3 text-sm" role="status">
+            Artikel konnten nicht dauerhaft gespeichert werden. Prüfe den freien Speicher deines Geräts.
+          </p>
+        )}
         {activeTab === 'home' && (
           <HomeView
             articles={homeSections[homeCategory]}

@@ -106,17 +106,7 @@ export async function extractNativeArticle(url: string): Promise<{ paragraphs: s
   const target = publicHttpUrl(url);
   if (!target) return { paragraphs: [] };
   const html = await getNativeText(target, 7000);
-  const document = new DOMParser().parseFromString(html, 'text/html');
-  const scope = document.querySelector('.meldung__content, [itemprop="articleBody"], .article-body, .entry-content')
-    || document.querySelector('article');
-  if (!scope) return { paragraphs: [] };
-  scope.querySelectorAll('aside, footer, nav, [hidden], .teaser, .related, .newsletter, .meldungsfooter, .socialbuttons').forEach(node => node.remove());
-  const blocks = [...scope.querySelectorAll('p, h2, h3, li')]
-    .map(node => ({ text: (node.textContent || '').replace(/\s+/g, ' ').trim(), heading: /^H[23]$/.test(node.tagName) }))
-    .filter(block => block.text);
-  const paragraphs = blocks.map(block => block.text);
-  const headingIndexes = blocks.flatMap((block, index) => block.heading ? [index] : []);
-  const ogImageRaw = document.querySelector('meta[property="og:image"]')?.getAttribute('content');
-  const ogImage = ogImageRaw ? new URL(ogImageRaw, target).toString() : undefined;
-  return { paragraphs, headingIndexes, ogImage };
+  if (html.length > 4_000_000) return { paragraphs: [] };
+  const { extractArticle } = await import('./articleExtraction');
+  return extractArticle(new DOMParser().parseFromString(html, 'text/html'), target);
 }
