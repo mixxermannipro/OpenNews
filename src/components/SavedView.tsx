@@ -4,7 +4,7 @@ import { selectWeeklyArticles, reviewWeek } from '../lib/weeklyReview';
 import { ViewStatus } from './ViewStatus';
 import { distinctArticles } from '../lib/newsFeed';
 import React, { useMemo, useState } from 'react';
-import { Bookmark, Heart, RotateCcw, SlidersHorizontal, Sparkles } from 'lucide-react';
+import { Bookmark, Heart, SlidersHorizontal, Sparkles } from 'lucide-react';
 import type { AIProviderConfig, NewsArticle, NewsSource, PersonalizationProfile } from '../types/news';
 import { CompactArticleCard } from './ArticleCards';
 
@@ -18,7 +18,6 @@ interface SavedViewProps {
   onOpenArticle: (article: NewsArticle) => void;
   onToggleBookmark: (article: NewsArticle) => void;
   onToggleLike: (article: NewsArticle) => void;
-  onResetAlgorithm: () => void;
   onClearHistory: () => Promise<void>;
 }
 
@@ -32,7 +31,6 @@ export const SavedView: React.FC<SavedViewProps> = ({
   onOpenArticle,
   onToggleBookmark,
   onToggleLike,
-  onResetAlgorithm,
   onClearHistory,
 }) => {
   const [subTab, setSubTab] = useState<'bookmarks' | 'likes' | 'history' | 'algorithm'>(initialPage);
@@ -194,14 +192,6 @@ export const SavedView: React.FC<SavedViewProps> = ({
               <span className="text-sm font-semibold text-slate-900 dark:text-white">
                 Bevorzugte Anbieter
               </span>
-              <button
-                type="button"
-                onClick={onResetAlgorithm}
-                className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full px-3 text-xs font-medium text-rose-500 hover:bg-rose-500/10"
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-                Zurücksetzen
-              </button>
             </div>
             {topSources.length === 0 ? (
               <p className="text-sm text-slate-500 dark:text-slate-400">

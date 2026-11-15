@@ -16,7 +16,7 @@ Die Android-App ruft Feeds und Artikel direkt ab. Beim Abruf können Quellen und
 
 - **Externe KI.** Wenn du eine KI-Funktion verwendest, erhält der ausgewählte Anbieter den Schlüssel zur Authentifizierung und die für die Anfrage benötigten Textinhalte. Im Web leitet der OpenNews-Server die KI-Anfrage weiter. Die Nutzung und Speicherdauer beim Anbieter richten sich nach dessen Bedingungen.
 - **Android-Übersetzung.** Die App verwendet ML Kit. Benötigte Sprachmodelle werden von Google geladen. Die Übersetzung findet auf dem Gerät statt.
-- **Android-Benachrichtigungen.** Bei eingerichteter Firebase-Konfiguration verwaltet Firebase Cloud Messaging die Zustellung an die App-Installation und ihre abonnierten Themen. Benachrichtigungen kannst du in der App und in den Android-Einstellungen ändern.
+- **Android-Benachrichtigungen.** Bei eingerichteter Firebase-Konfiguration verwaltet Firebase Cloud Messaging die Zustellung an die App-Installation und ihre abonnierten Themen. Beim Aktivieren von Eilmeldungen oder der täglichen Erinnerung fragt OpenNews über Android nach der Berechtigung. Wenn Android die Benachrichtigungen sperrt, führt die App zu den Android-Einstellungen.
 
 ## Datenschutzkontakt und Betroffenenrechte
 

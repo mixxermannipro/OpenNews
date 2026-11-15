@@ -69,11 +69,13 @@ OpenNews bündelt Nachrichten aus frei zugänglichen Feeds in einer ruhigen Ober
 
 Beim App-Start werden die Feeds einmal geladen. Ziehe auf „Heute“, „Für dich“ oder „Neueste“ nach unten, um sie zu aktualisieren. Mit der Tabulatortaste erreichst du dieselbe Aktualisierung als Schaltfläche. Beim Schließen eines Artikels bleibt die geöffnete Liste erhalten. Android- und iOS-Widgets haben weiterhin eine eigene Aktualisieren-Taste.
 
+**Einstellungen:** Die Android-Freigabe erscheint beim Einschalten von Eilmeldungen oder der täglichen Erinnerung. Nach einer Ablehnung führt ein Link zur Benachrichtigungsseite von Android. Im Browser erscheinen Hinweise beim Aktualisieren der geöffneten App. Die automatische Übersetzung steht unter **Lesen**, das Zurücksetzen der Empfehlungen unter **KI & Personalisierung**. Sicherung und Diagnose stehen unter **Datenschutz**.
+
 Unter **Profil → Einstellungen → Navigation & Bewegung** kannst du die Übergänge beim Antippen, Wechseln und Öffnen von Dialogen reduzieren. OpenNews berücksichtigt auch die Bewegungseinstellung des Systems.
 
 **Aufbewahrung:** 2, 4, 7, 14, 30 oder 90 Tage (Standard **4**), maximal **600** Beiträge im Speicher. Beim Aktualisieren werden neue Artikel zusammengeführt; Abos, Lesezeichen, Likes und Verlauf bleiben erhalten.
 
-Die App zeigt die Hauptmeldung auf einer großen Bildkarte. Darunter wechseln sich große redaktionelle Karten und kompakte Meldungen ab. Eilmeldungen, Berichte aus mehreren Quellen und früh platzierte Geschichten mit Bild können mehr Platz bekommen. Zwischen größeren Karten bleiben mehrere kompakte Meldungen. „Entdecken“ kombiniert Bildkacheln und Suche, „Video & Audio“ zeigt Video, Podcast und Hochformat-Clip in eigenen Vorschauen. Im Profil sind persönliche Inhalte und Einstellungen in zwei Gruppen erreichbar.
+Die App zeigt die Hauptmeldung auf einer großen Bildkarte. Darunter wechseln sich große redaktionelle Karten und kompakte Meldungen ab. Eilmeldungen, Berichte aus mehreren Quellen und früh platzierte Geschichten mit Bild können mehr Platz bekommen. Zwischen größeren Karten bleiben mehrere kompakte Meldungen. „Entdecken“ kombiniert Bildkacheln und Suche, „Video & Audio“ zeigt Video, Podcast und Hochformat-Clip in eigenen Vorschauen. Clips öffnen bildschirmfüllend. Mit Wischen oder den Pfeilen im Player wechselst du zum nächsten Clip. Direkte Videos starten mit Ton und behalten die Tonwahl beim Wechsel. YouTube-Clips verwenden die Steuerelemente von YouTube. Falls der Browser den automatischen Start blockiert, tippe im Player auf Wiedergabe. Im Profil sind persönliche Inhalte und Einstellungen in zwei Gruppen erreichbar.
 
 ## Screenshots
 
@@ -347,7 +349,7 @@ NODE_ENV=production npm start
 | `npm run preview` | `vite preview` | Statischen Build ansehen (ohne API) |
 | `npm run lint` | `tsc --noEmit` | TypeScript-Typprüfung |
 | `npm test` | `node --import tsx --test src/lib/*.test.ts` | 66 Unit-Tests |
-| `npm run test:e2e` | `playwright test` | 12 Browsertests gegen den Produktionsbuild |
+| `npm run test:e2e` | `playwright test` | 13 Browsertests gegen den Produktionsbuild |
 | `npm run push:worker` | `tsx scripts/push-news.ts` | Android-Push aus den Standardquellen senden |
 | `node scripts/check-web-budget.mjs` | Node | Prüft das Start-JavaScript gegen 170 KiB gzip |
 | `npm run clean` | `rm -rf dist server.js` | Build-Artefakte entfernen |
@@ -439,7 +441,7 @@ Die App ist eine Capacitor-WebView mit `CapacitorHttp` (Feed- und KI-Aufrufe dir
 
 **CI:** Zwei Workflows laufen bei Pull Requests gegen `main`:
 
-- **Web CI** (`web-ci.yml`): Typprüfung, 66 Unit-Tests, Build, JavaScript-Budget und 12 Browsertests mit Playwright.
+- **Web CI** (`web-ci.yml`): Typprüfung, 66 Unit-Tests, Build, JavaScript-Budget und 13 Browsertests mit Playwright.
 - **OpenNews Android Test APK** (`android-test-apk.yml`): bei Änderungen an `src/**`, `scripts/**`, `native/android/**`, `public/**` und Build-Dateien sowie manuell über **Actions → Run workflow**. Richtet Node 22 und JDK 21 ein, prüft Typen, führt Unit-Tests und Build aus, erzeugt das Android-Projekt, baut `assembleDebug`, lädt die APK als Artefakt (7 Tage) hoch und veröffentlicht bei manuellem Lauf ein privates Pre-Release `v0.1.0-alpha.<Run-Nummer>`.
 
 **Lokal:**
@@ -465,7 +467,7 @@ Der Dienst fragt die standardmäßig abonnierten Nachrichtenfeeds regelmäßig a
 
 ### Medienquellen und Übersetzung
 
-OpenNews nutzt die öffentlichen YouTube-Kanalfeeds unter anderem von tagesschau, ZDFheute, Quarks, Finanzfluss, Weltspiegel, DW News und NASA sowie den offiziellen RSS-Feed von NASA’s Curious Universe. Hochformat-Clips erscheinen, wenn der Feed einen Shorts-Link oder Hochformat-Metadaten liefert. Die Videos bleiben beim Anbieter. Mehrere Links zur selben Video-ID und Hochformat-Beiträge mit demselben aussagekräftigen Titel erscheinen nur einmal. Bei englischen Quellen kannst du unter „KI & Personalisierung“ den Android-Lesemodus auf Deutsch aktivieren. Der erste Modell-Download benötigt WLAN. Danach übersetzt das Handy Titel und Text beim Öffnen des Artikels lokal.
+OpenNews nutzt die öffentlichen YouTube-Kanalfeeds unter anderem von tagesschau, ZDFheute, Quarks, Finanzfluss, Weltspiegel, DW News und NASA sowie den offiziellen RSS-Feed von NASA’s Curious Universe. Hochformat-Clips erscheinen, wenn der Feed einen Shorts-Link oder Hochformat-Metadaten liefert. Die Videos bleiben beim Anbieter. Mehrere Links zur selben Video-ID und Hochformat-Beiträge mit demselben aussagekräftigen Titel erscheinen nur einmal. Bei englischen Quellen kannst du unter „Lesen“ den Android-Lesemodus auf Deutsch aktivieren. Der erste Modell-Download benötigt WLAN. Danach übersetzt das Handy Titel und Text beim Öffnen des Artikels lokal.
 
 
 > [!NOTE]
@@ -483,7 +485,7 @@ Android zeigt für OpenNews-Benachrichtigungen ein eigenes monochromes Symbol in
 
 `npm test` führt **66 Unit-Tests** aus dreizehn Dateien aus: `rssParser.test.ts`, `personalization.test.ts`, `newsFeed.test.ts`, `opml.test.ts`, `nativeFeed.test.ts`, `aiClient.test.ts`, `aiCache.test.ts`, `transcript.test.ts`, `articleMedia.test.ts`, `articleExtraction.test.ts`, `publicHttp.test.ts`, `storyClusters.test.ts` und `scrollNavigation.test.ts`. Abgedeckt sind Parsing und Medien, Aufbewahrung, Ranking und Vielfalt, OPML, native URL-Sicherheit, KI-Antwortparsing, Volltext, SSRF-Schutz, Themencluster und die Scroll-Navigation.
 
-`npm run test:e2e` startet den Produktionsbuild auf Port `3099` und prüft mit Playwright zwölf Kernabläufe gegen einen simulierten Feed: Onboarding, Artikel öffnen und speichern, eigene Quelle, OPML-Import, Clip-Ansicht, Offline-Lesen, Tagesüberblick und Migration des Leseverlaufs sowie große Schrift auf schmalen Displays, die Anzeige des Anfragelimits und die Feed-Aktualisierung auf allen drei Reitern und reduzierte Bewegung. Einmalig `npx playwright install chromium` ausführen.
+`npm run test:e2e` startet den Produktionsbuild auf Port `3099` und prüft dreizehn Abläufe gegen einen simulierten Feed. Dazu gehören Feeds, Artikel, Medien, Tagesüberblick, Einstellungen, große Schrift und reduzierte Bewegung. Einmalig `npx playwright install chromium` ausführen.
 
 ```bash
 npm run lint
@@ -568,7 +570,7 @@ Das Repository ist privat und in einer frühen Alpha. Beiträge klein und prüfb
 | BYOK-KI | Beta, abhängig von Anbieter und Schlüssel |
 | Tagesüberblick | Schlagzeilen ohne Schlüssel, optional mit Anbieter-KI und Systemstimme |
 | Diagnose | lokal verfügbar, Senden optional |
-| Tests | 66 Unit-Tests und 12 Playwright-Browsertests |
+| Tests | 66 Unit-Tests und 13 Playwright-Browsertests |
 | Lizenz | Apache-2.0 |
 
 ## Lizenz
