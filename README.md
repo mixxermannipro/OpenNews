@@ -469,6 +469,8 @@ OpenNews nutzt die öffentlichen YouTube-Kanalfeeds unter anderem von tagesschau
 > [!NOTE]
 > Alle CI-Builds sind mit einem Debug-Schlüssel signiert. Wegen abweichender Signaturen lässt sich eine neue APK nicht über eine ältere installieren — vorher deinstallieren (lokale Daten gehen verloren). Die APK ist nicht für den Play Store bestimmt.
 
+Die technische Abnahme für Google Play prüft Ziel-API, Berechtigungen und 16-KB-Seitengröße am App-Paket. [Anleitung zur Paketprüfung](docs/android-release.md#ziel-api-und-16-kb-seitengröße-prüfen)
+
 ### iOS (in Vorbereitung)
 
 Für iOS liegen die Brücken- und Widget-Dateien unter `native/ios/`. Die kleine Widget-Ansicht zeigt eine Meldung, die mittlere und große bieten drei Reiter. Die App stellt bis zu drei lokale Meldungen je Ansicht bereit. Das Widget braucht iOS 17 oder neuer. Build, Signierung und Gerätetest benötigen einen Mac mit Xcode 26 oder neuer. Die [Einrichtung](docs/ios-widget.md) beschreibt die Zielkonfiguration und die verfügbaren Aktionen.

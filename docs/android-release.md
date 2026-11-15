@@ -22,6 +22,31 @@ Für jedes Paket den Commit, `versionName`, `versionCode`, die Ziel-API und den 
 
 Der lokale Debug-Build und das CI-Testpaket haben unterschiedliche Signaturen. Bei einem Update muss die Signatur der installierten App passen. Für die Abnahme im Play-Testkanal dieselbe App-Signatur wie bei späteren Store-Updates verwenden.
 
+## Ziel-API und 16-KB-Seitengröße prüfen
+
+Verwende für die Abnahme das signierte App Bundle aus dem Freigabeprotokoll. Prüfe seine Einstellungen und das zusammengeführte Manifest mit Androids `bundletool`.
+
+```sh
+bundletool dump config --bundle=opennews-release.aab
+bundletool dump manifest --bundle=opennews-release.aab --module=base
+```
+
+In der Konfiguration muss `PAGE_ALIGNMENT_16K` stehen. Das Manifest muss die Ziel-API 36 und die für diesen Build erwarteten Berechtigungen ausweisen. Prüfe in den für Play erzeugten APKs zusätzlich den ZIP-Container und die `LOAD`-Segmente der eingebetteten 64-Bit-Bibliotheken. `zipalign` wird auf die APK angewendet. Die Segment-Ausrichtung zeigt die letzte Spalte der `LOAD`-Zeilen an. Sie muss mindestens `0x4000` sein.
+
+```sh
+zipalign -c -P 16 4 opennews-universal.apk
+readelf -lW libtranslate_jni.so
+```
+
+Starte anschließend ein Android-Gerät oder einen Emulator mit 16-KB-Seiten. `adb shell getconf PAGE_SIZE` muss `16384` melden. Teste Installation, Startseite, Leser und die lokale Übersetzung. Lies nach dem Upload den Vorabtestbericht in Play Console und notiere offene Befunde im Freigabeprotokoll. [Android-Anleitung zur 16-KB-Prüfung](https://developer.android.com/guide/practices/page-sizes)
+
+### Prüfung vom 15. November 2026
+
+- Das GitHub-Test-APK aus PR #134 meldet Ziel-API 36. `zipalign -c -P 16 4` war erfolgreich.
+- Ein unsignierter lokaler Release-Build mit dem Stand von `fix/tagesueberblick` meldet `PAGE_ALIGNMENT_16K` und Ziel-API 36. Die `LOAD`-Segmente von `libdatastore_shared_counter.so` und `libtranslate_jni.so` sind in beiden Artefakten für `arm64-v8a` und `x86_64` auf `0x4000` ausgerichtet.
+- Beide Manifeste enthalten Internet, Netzwerkstatus, Benachrichtigungen, Neustart-Empfang, AICore-Dienstbindung, Wake-Lock, Firebase-Empfang und eine paketinterne Receiver-Berechtigung.
+- Das angeschlossene Samsung meldet 4.096 Byte Seitengröße. Der 16-KB-Laufzeittest, das signierte Upload-Paket und der Play-Vorabtestbericht stehen aus.
+
 ## Store-Eintrag und Test
 
 - Die [Datenschutzerklärung](datenschutz.md) mit dem tatsächlichen Betreiber, Datenschutzkontakt und den eingesetzten Diensten vervollständigen. Unter einer dauerhaften öffentlichen HTTPS-Adresse bereitstellen und aus der App verlinken.
