@@ -440,7 +440,7 @@
     rotate: none !important;
   }
 
-  *, *::before, *::after, .motion-dialog::backdrop, :is(.settings-group, .reader-menu)::details-content {
+  *, *::before, *::after, .motion-dialog::backdrop {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
@@ -459,7 +459,7 @@
 }
 
 [data-motion="reduced"] *, [data-motion="reduced"] *::before, [data-motion="reduced"] *::after,
-[data-motion="reduced"] .motion-dialog::backdrop, [data-motion="reduced"] :is(.settings-group, .reader-menu)::details-content {
+[data-motion="reduced"] .motion-dialog::backdrop {
   animation-duration: 0.01ms !important;
   animation-iteration-count: 1 !important;
   transition-duration: 0.01ms !important;
@@ -626,9 +626,10 @@
   }
 }
 
-.clips-dialog {
+.clips-dialog[open] {
   --dialog-shift: 0px;
   --dialog-scale: 1;
+  animation: dialog-enter var(--motion-enter) var(--motion-ease) both;
 }
 
 :is(.settings-group, .reader-menu)::details-content {
@@ -637,6 +638,12 @@
 }
 
 :is(.settings-group, .reader-menu)[open]::details-content { opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  :is(.settings-group, .reader-menu)::details-content { transition-duration: 0.01ms; }
+}
+
+[data-motion="reduced"] :is(.settings-group, .reader-menu)::details-content { transition-duration: 0.01ms; }
 
 .briefing-trigger {
   display: inline-flex;

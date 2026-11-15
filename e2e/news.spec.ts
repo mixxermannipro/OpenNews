@@ -326,6 +326,13 @@ test('moves between home sections while respecting both reduced-motion settings'
   const home = page.getByRole('region', { name: 'Startseite Nachrichten' });
   const duration = () => home.evaluate(element => Number.parseFloat(getComputedStyle(element).animationDuration));
   await expect.poll(duration).toBeGreaterThan(0.1);
+  const briefingEntry = page.getByRole('button', { name: 'Tagesüberblick', exact: true });
+  await briefingEntry.click();
+  const briefing = page.getByRole('dialog', { name: 'Tagesüberblick' });
+  await expect(briefing).toBeVisible();
+  await briefing.getByRole('button', { name: 'Tagesüberblick schließen' }).click();
+  await expect(briefing).toBeHidden();
+  await expect(briefingEntry).toBeFocused();
 
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await expect.poll(duration).toBeLessThan(0.001);
@@ -345,10 +352,10 @@ test('moves between home sections while respecting both reduced-motion settings'
   await page.getByRole('button', { name: 'Clips', exact: true }).click();
   const clips = page.getByRole('dialog', { name: 'Hochformat-Clips im Vollbild' });
   await expect(clips).toBeVisible();
-  const backdropDuration = await clips.evaluate(dialog =>
-    Number.parseFloat(getComputedStyle(dialog, '::backdrop').transitionDuration),
+  const clipDuration = await clips.evaluate(dialog =>
+    Number.parseFloat(getComputedStyle(dialog).animationDuration),
   );
-  expect(backdropDuration).toBeLessThan(0.001);
+  expect(clipDuration).toBeLessThan(0.001);
   await clips.getByRole('button', { name: 'Clips schließen' }).click();
   await expect(clips).toBeHidden();
 });

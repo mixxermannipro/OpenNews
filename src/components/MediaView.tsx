@@ -33,6 +33,7 @@ export function MediaView({ aiConfig, articles, loading, background, onArticle, 
   const dialogExit = useRef<(() => void) | undefined>(undefined);
   const clipsDialog = useRef<HTMLDialogElement>(null);
   const clipsPane = useRef<HTMLUListElement>(null);
+  const clipsButton = useRef<HTMLButtonElement>(null);
   const entries = useMemo(() => collectDistinctMedia(articles), [articles]);
   const clips = entries.filter(({ media }) => media.portrait);
   const [startClip, setStartClip] = useState<string>();
@@ -71,7 +72,8 @@ export function MediaView({ aiConfig, articles, loading, background, onArticle, 
       document.body.style.overflow = originalOverflow;
       dialog?.close();
       if (Capacitor.isNativePlatform()) void SystemBars.show().catch(() => {});
-      if (opener instanceof HTMLElement) opener.focus();
+      if (opener instanceof HTMLElement && opener !== document.body && opener.isConnected) opener.focus({ preventScroll: true });
+      else clipsButton.current?.focus({ preventScroll: true });
     };
   }, [filter]);
 
@@ -181,47 +183,45 @@ export function MediaView({ aiConfig, articles, loading, background, onArticle, 
       </header>
       <div className="segmented-control media-tabs" role="group" aria-label="Medien filtern">
         {(Object.keys(FILTERS) as Array<keyof typeof FILTERS>).map(key => (
-          <button key={key} type="button" className="choice-pill" aria-pressed={filter === key}
+          <button key={key} ref={key === 'clips' ? clipsButton : undefined} type="button" className="choice-pill" aria-pressed={filter === key}
             onClick={() => { setFilter(key); setSelected(undefined); }}>{FILTERS[key]}</button>
         ))}
       </div>
-      {createPortal(
+      {filter === 'clips' && createPortal(
         <dialog ref={clipsDialog} aria-label="Hochformat-Clips im Vollbild"
-          className="motion-dialog clips-dialog fixed inset-0 m-0 h-dvh max-h-none w-dvw max-w-none overflow-hidden bg-black text-white [--clip-caption-height:calc(9rem+env(safe-area-inset-bottom))] [@media(max-height:480px)]:[--clip-caption-height:calc(4rem+env(safe-area-inset-bottom))]"
+          className="clips-dialog fixed inset-0 m-0 h-dvh max-h-none w-dvw max-w-none overflow-hidden bg-black text-white [--clip-caption-height:calc(9rem+env(safe-area-inset-bottom))] [@media(max-height:480px)]:[--clip-caption-height:calc(4rem+env(safe-area-inset-bottom))]"
           onCancel={event => { event.preventDefault(); window.history.back(); }}>
-          {filter === 'clips' && <>
-            <button type="button" className="absolute top-[calc(0.75rem+env(safe-area-inset-top))] left-3 z-10 grid size-12 place-items-center rounded-full bg-black/70"
-              aria-label="Clips schließen" onClick={() => window.history.back()}><ArrowLeft aria-hidden /></button>
-            {clips.length > 1 && (
-              <div className="absolute top-[calc(0.75rem+env(safe-area-inset-top))] left-1/2 z-10 flex -translate-x-1/2 gap-2">
-                <button type="button" className="grid size-12 place-items-center rounded-full bg-black/70 disabled:opacity-40"
-                  aria-label="Vorheriger Clip" disabled={clipIndex <= 0} onClick={() => scrollToClip(clipIndex - 1)}>
-                  <ChevronUp aria-hidden />
-                </button>
-                <button type="button" className="grid size-12 place-items-center rounded-full bg-black/70 disabled:opacity-40"
-                  aria-label="Nächster Clip" disabled={clipIndex >= clips.length - 1} onClick={() => scrollToClip(clipIndex + 1)}>
-                  <ChevronDown aria-hidden />
-                </button>
-              </div>
-            )}
-            {shareFeedback && <p role="status" className="absolute top-[calc(1rem+env(safe-area-inset-top))] right-4 z-10 rounded-full bg-black/80 px-3 py-2 text-sm">{shareFeedback}</p>}
-            {clips.length > 0 ? (
-              <ul ref={clipsPane} tabIndex={0} aria-label="Hochformat-Clips"
-                className="relative h-full w-full snap-y snap-mandatory overflow-y-auto touch-pan-y overscroll-y-contain">
-                {clips.map(entry => renderCard(entry, true))}
-              </ul>
-            ) : (
-              <div className="grid h-full place-content-center gap-4 p-6 text-center">
-                <p role="status">{loading ? 'Clips werden geladen …' : 'Gerade sind keine Hochformat-Clips verfügbar.'}</p>
-                {!loading && <button type="button" className="choice-pill" onClick={() => { dialogExit.current = onSources; window.history.back(); }}>Quellen verwalten</button>}
-              </div>
-            )}
-          </>}
+          <button type="button" className="absolute top-[calc(0.75rem+env(safe-area-inset-top))] left-3 z-10 grid size-12 place-items-center rounded-full bg-black/70"
+            aria-label="Clips schließen" onClick={() => window.history.back()}><ArrowLeft aria-hidden /></button>
+          {clips.length > 1 && (
+            <div className="absolute top-[calc(0.75rem+env(safe-area-inset-top))] left-1/2 z-10 flex -translate-x-1/2 gap-2">
+              <button type="button" className="grid size-12 place-items-center rounded-full bg-black/70 disabled:opacity-40"
+                aria-label="Vorheriger Clip" disabled={clipIndex <= 0} onClick={() => scrollToClip(clipIndex - 1)}>
+                <ChevronUp aria-hidden />
+              </button>
+              <button type="button" className="grid size-12 place-items-center rounded-full bg-black/70 disabled:opacity-40"
+                aria-label="Nächster Clip" disabled={clipIndex >= clips.length - 1} onClick={() => scrollToClip(clipIndex + 1)}>
+                <ChevronDown aria-hidden />
+              </button>
+            </div>
+          )}
+          {shareFeedback && <p role="status" className="absolute top-[calc(1rem+env(safe-area-inset-top))] right-4 z-10 rounded-full bg-black/80 px-3 py-2 text-sm">{shareFeedback}</p>}
+          {clips.length > 0 ? (
+            <ul ref={clipsPane} tabIndex={0} aria-label="Hochformat-Clips"
+              className="relative h-full w-full snap-y snap-mandatory overflow-y-auto touch-pan-y overscroll-y-contain">
+              {clips.map(entry => renderCard(entry, true))}
+            </ul>
+          ) : (
+            <div className="grid h-full place-content-center gap-4 p-6 text-center">
+              <p role="status">{loading ? 'Clips werden geladen …' : 'Gerade sind keine Hochformat-Clips verfügbar.'}</p>
+              {!loading && <button type="button" className="choice-pill" onClick={() => { dialogExit.current = onSources; window.history.back(); }}>Quellen verwalten</button>}
+            </div>
+          )}
         </dialog>,
         document.body,
       )}
       {groups.length ? groups.map(({ kind, items }) => (
-        <section key={kind} aria-labelledby={`media-${kind}`} className="space-y-3">
+        <section key={`${filter}-${kind}`} aria-labelledby={`media-${kind}`} className="screen-entry space-y-3">
           <div className="flex items-center justify-between gap-3">
             <h2 id={`media-${kind}`} className="text-xl font-bold tracking-tight">{kind === 'audio' ? 'Audio & Podcasts' : 'Jetzt ansehen'}</h2>
             {filter === 'all' && items.length > 1 && (
@@ -241,7 +241,7 @@ export function MediaView({ aiConfig, articles, loading, background, onArticle, 
         />
       )}
       {filter === 'all' && clips.length > 0 && (
-        <section aria-labelledby="clips-heading" className="space-y-3">
+        <section aria-labelledby="clips-heading" className="screen-entry space-y-3">
           <div className="flex items-center justify-between gap-3">
             <h2 id="clips-heading" className="text-xl font-bold tracking-tight">Kurze Clips</h2>
             <button className="choice-pill inline-flex items-center gap-1" type="button"
