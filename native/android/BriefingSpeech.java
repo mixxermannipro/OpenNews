@@ -14,6 +14,11 @@ public class BriefingSpeech extends Plugin {
     private boolean ready;
     private PluginCall pending;
     private String pendingText;
+    private boolean paused;
+    private int position;
+    private int utteranceStart;
+    private int sequence;
+    private String utteranceId;
 
     @PluginMethod
     public void speak(PluginCall call) {
@@ -41,6 +46,11 @@ public class BriefingSpeech extends Plugin {
                     ready = true;
                     engine.setOnUtteranceProgressListener(new UtteranceProgressListener() {
                         @Override public void onStart(String id) {}
+                        @Override public void onRangeStart(String id, int start, int end, int frame) {
+                            getActivity().runOnUiThread(() -> {
+                                if (id.equals(utteranceId)) position = utteranceStart + start;
+                            });
+                        }
                         @Override public void onDone(String id) { finish(id, false); }
                         @Override public void onError(String id) { finish(id, true); }
                     });
@@ -51,8 +61,10 @@ public class BriefingSpeech extends Plugin {
     }
 
     private void startSpeech() {
-        if (pending == null) return;
-        if (engine.speak(pendingText, TextToSpeech.QUEUE_FLUSH, null, pending.getCallbackId()) == TextToSpeech.ERROR) {
+        if (pending == null || paused || !ready) return;
+        utteranceStart = position;
+        utteranceId = "briefing-" + (++sequence);
+        if (engine.speak(pendingText.substring(position), TextToSpeech.QUEUE_FLUSH, null, utteranceId) == TextToSpeech.ERROR) {
             pending.reject("Vorlesen konnte nicht gestartet werden.");
             pending = null;
         }
@@ -60,7 +72,7 @@ public class BriefingSpeech extends Plugin {
 
     private void finish(String id, boolean failed) {
         getActivity().runOnUiThread(() -> {
-            if (pending == null || !pending.getCallbackId().equals(id)) return;
+            if (pending == null || !id.equals(utteranceId)) return;
             if (failed) pending.reject("Wiedergabe fehlgeschlagen.");
             else pending.resolve();
             pending = null;
@@ -68,6 +80,9 @@ public class BriefingSpeech extends Plugin {
     }
 
     private void stopPending() {
+        utteranceId = null;
+        position = 0;
+        paused = false;
         if (engine != null) engine.stop();
         if (pending != null) pending.resolve();
         pending = null;
@@ -77,6 +92,31 @@ public class BriefingSpeech extends Plugin {
     public void stop(PluginCall call) {
         getActivity().runOnUiThread(() -> {
             stopPending();
+            call.resolve();
+        });
+    }
+
+    @PluginMethod
+    public void pause(PluginCall call) {
+        getActivity().runOnUiThread(() -> {
+            if (pending == null) {
+                call.reject("Keine laufende Wiedergabe.");
+                return;
+            }
+            paused = true;
+            utteranceId = null;
+            if (ready) engine.stop();
+            call.resolve();
+        });
+    }
+
+    @PluginMethod
+    public void resume(PluginCall call) {
+        getActivity().runOnUiThread(() -> {
+            if (paused) {
+                paused = false;
+                startSpeech();
+            }
             call.resolve();
         });
     }

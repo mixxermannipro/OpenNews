@@ -57,7 +57,7 @@ OpenNews bündelt Nachrichten aus frei zugänglichen Feeds in einer ruhigen Ober
 | **Frag den Artikel** | Fragen in der KI-Zusammenfassung stellen. Antworten zeigen ein wörtliches Zitat aus dem Artikel, wenn ein Beleg vorliegt. |
 | **Perspektiven vergleichen** | Bei Meldungsgruppen mit mindestens zwei Quellen vergleicht die eingerichtete KI die Kurztexte und zeigt die Quellennamen an. |
 | **Wochenrückblick** | Die eingerichtete KI fasst bis zu acht der zuletzt veröffentlichten Beiträge aus Lesezeichen und Likes thematisch zusammen. |
-| **Tagesüberblick** | Schlagzeilen als Karte und optional zum Anhören. Android kann zur gewünschten Ortszeit lokal daran erinnern. Mit eingerichteter Anbieter-KI kann die App beim Anhören einen gesprochenen Überblick erstellen. |
+| **Tagesüberblick** | Kompakter Einstieg im Kopf der drei Startseiten-Reiter. Zeigt die Schlagzeilen des Tages und liest sie auf Wunsch vor. Android kann zur gewünschten Ortszeit lokal daran erinnern. Mit eingerichteter Anbieter-KI kann die App beim Anhören einen gesprochenen Überblick erstellen. |
 | **Entdecken** | Themenraster, Quellen- und Volltextsuche, letzte sechs Suchbegriffe lokal gespeichert |
 | **Darstellung** | System/Hell/Dunkel, Akzentfarbe, Transparenz, Ecken, Kartendichte, Textgröße, reduzierte Bewegung |
 | **Sicherung** | Export und Import von Abos, Reaktionen und Lesezeichen als JSON-Datei bis 5 MB; bleibt auf dem Gerät |
