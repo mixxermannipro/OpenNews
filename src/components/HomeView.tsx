@@ -163,10 +163,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
         Feeds aktualisieren
       </button>
       <div className="relative">
-        <div ref={pullIndicator} className="pull-indicator" data-refreshing={gestureRefresh}
-          aria-hidden={!gestureRefresh} role="status">
-          {gestureRefresh ? <LoaderCircle size={17} className="animate-spin" aria-label="Nachrichten werden aktualisiert" />
-            : <ArrowDown size={17} aria-label="Zum Aktualisieren nach unten ziehen" />}
+        <p className="sr-only" role="status">{gestureRefresh ? 'Nachrichten werden aktualisiert' : ''}</p>
+        <div ref={pullIndicator} className="pull-indicator" data-refreshing={gestureRefresh} aria-hidden="true">
+          {gestureRefresh ? <LoaderCircle size={17} className="animate-spin" /> : <ArrowDown size={17} />}
         </div>
         <div className="screen-heading">
           <div>
