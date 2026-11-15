@@ -113,7 +113,7 @@ export function MediaView({ aiConfig, articles, loading, background, onArticle, 
     return (
       <li key={media.url} data-media-url={media.url}
         className={clip ? 'relative h-full snap-start snap-always overflow-hidden bg-black text-white' : audio ? 'settings-group media-audio overflow-hidden' : 'overflow-hidden'}>
-        <div className={embeddedClip ? 'absolute inset-x-3 top-[calc(4.25rem+env(safe-area-inset-top))] bottom-[calc(9rem+env(safe-area-inset-bottom))] bg-black' : clip ? 'absolute inset-0 bg-black' : audio ? 'media-artwork relative overflow-hidden bg-slate-900' : 'relative aspect-[2.1] overflow-hidden rounded-[var(--card-radius)] bg-black'}>
+        <div className={embeddedClip ? 'absolute inset-x-3 top-[calc(4.25rem+env(safe-area-inset-top))] bottom-[var(--clip-caption-height)] bg-black' : clip ? 'absolute inset-0 bg-black' : audio ? 'media-artwork relative overflow-hidden bg-slate-900' : 'relative aspect-[2.1] overflow-hidden rounded-[var(--card-radius)] bg-black'}>
           {playing && !audio ? (
             <MediaPlayer media={media} title={article.title} poster={artwork} background={!clip && background} clip={clip} autoPlay
               muted={clip && clipMuted} onToggleMute={() => setClipMuted(value => !value)} onEngaged={seconds => onEngaged(article, seconds)} />
@@ -135,7 +135,7 @@ export function MediaView({ aiConfig, articles, loading, background, onArticle, 
         </div>
         {playing && audio && <div className="media-audio-player px-4 pt-3"><MediaPlayer media={media} title={article.title} background={background} autoPlay onEngaged={seconds => onEngaged(article, seconds)} /></div>}
         {playing && !clip && <TranscriptSummary article={article} config={aiConfig} />}
-        <div className={embeddedClip ? 'absolute inset-x-0 bottom-0 h-[calc(9rem+env(safe-area-inset-bottom))] overflow-auto px-4 pt-3 pb-safe space-y-1.5' : clip
+        <div className={embeddedClip ? 'absolute inset-x-0 bottom-0 h-[var(--clip-caption-height)] overflow-auto px-4 pt-3 pb-safe space-y-1.5' : clip
           ? 'pointer-events-none absolute inset-x-0 bottom-0 space-y-1.5 bg-gradient-to-t from-black via-black/70 to-transparent px-4 pt-16 pb-[calc(3.5rem+env(safe-area-inset-bottom))] [&_a]:pointer-events-auto [&_button]:pointer-events-auto'
           : audio ? 'min-w-0 space-y-1.5' : 'space-y-1.5 py-3'}>
           <p className={clip ? 'text-xs text-slate-300' : 'text-xs text-slate-600 dark:text-slate-300'}>
@@ -187,7 +187,7 @@ export function MediaView({ aiConfig, articles, loading, background, onArticle, 
       </div>
       {filter === 'clips' && createPortal(
         <dialog ref={clipsDialog} aria-label="Hochformat-Clips im Vollbild"
-          className="fixed inset-0 m-0 h-dvh max-h-none w-dvw max-w-none overflow-hidden bg-black text-white"
+          className="fixed inset-0 m-0 h-dvh max-h-none w-dvw max-w-none overflow-hidden bg-black text-white [--clip-caption-height:calc(9rem+env(safe-area-inset-bottom))] [@media(max-height:480px)]:[--clip-caption-height:calc(4rem+env(safe-area-inset-bottom))]"
           onCancel={event => { event.preventDefault(); window.history.back(); }}>
           <button type="button" className="absolute top-[calc(0.75rem+env(safe-area-inset-top))] left-3 z-10 grid size-12 place-items-center rounded-full bg-black/70"
             aria-label="Clips schließen" onClick={() => window.history.back()}><ArrowLeft aria-hidden /></button>

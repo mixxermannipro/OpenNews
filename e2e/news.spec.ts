@@ -179,11 +179,14 @@ test('opens portrait clips full-screen, keeps the sound choice and closes the pl
   await expect(player).toHaveAttribute('src', /2\.webm$/);
   await expect(player).toHaveJSProperty('muted', true);
   await dialog.getByRole('button', { name: 'Ton einschalten' }).click();
-  await clips.evaluate(element => element.scrollTo(0, 2 * element.clientHeight));
+  await dialog.getByRole('button', { name: 'Nächster Clip' }).click();
   const youtube = dialog.locator('iframe');
   await expect(youtube).toHaveAttribute('src', /autoplay=1/);
   await expect(youtube).not.toHaveAttribute('src', /mute=1/);
   expect((await youtube.boundingBox())!.height).toBeGreaterThan(844 * 0.68);
+  await page.setViewportSize({ width: 844, height: 400 });
+  await clips.evaluate(element => element.scrollTo(0, 2 * element.clientHeight));
+  await expect.poll(async () => (await youtube.boundingBox())?.height).toBeGreaterThanOrEqual(200);
   await dialog.getByRole('button', { name: 'Clips schließen' }).click();
   await expect(dialog).toBeHidden();
   await expect(dialog.locator('video, iframe')).toHaveCount(0);
