@@ -334,14 +334,17 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
       role="dialog"
       aria-modal="true"
       aria-label={`Artikel lesen: ${title}`}
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/65"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
     >
+      <motion.div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-black/65"
+        initial={reducedMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }} transition={{ duration: reducedMotion ? 0 : 0.24, ease: 'easeOut' }} />
       <motion.div
         initial={reducedMotion ? false : { opacity: 0, y: 22 }}
         animate={{ opacity: 1, y: 0 }}
-        exit={reducedMotion ? undefined : { opacity: 0, y: 14, transition: { duration: 0.17, ease: 'easeIn' } }}
+        exit={reducedMotion ? undefined : { opacity: 0, y: 18, transition: { duration: 0.24, ease: [0.3, 0, 0.35, 1] } }}
         transition={reducedMotion ? { duration: 0 } : {
-          y: { type: 'spring', stiffness: 390, damping: 29, mass: 0.8 },
+          y: { type: 'spring', stiffness: 310, damping: 30, mass: 0.85 },
           opacity: { duration: 0.18, ease: 'easeOut' },
         }}
         className="relative flex h-[100dvh] sm:h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-none sm:rounded-[32px] reader-surface shadow-2xl ring-1 ring-white/15"

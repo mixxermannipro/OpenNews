@@ -25,10 +25,11 @@
     --radius-dialog: 1.75rem;
     --motion-ease: cubic-bezier(.16, 1, .3, 1);
     --motion-spring: cubic-bezier(.22, .72, .26, 1.12);
-    --motion-press: 190ms;
+    --motion-press: 220ms;
+    --motion-slide: 320ms;
     --motion-screen: 220ms;
-    --motion-exit: 170ms;
-    --motion-enter: 260ms;
+    --motion-exit: 210ms;
+    --motion-enter: 300ms;
     --scrim: rgb(0 0 0 / 52%);
     background: var(--canvas);
   }
@@ -274,7 +275,7 @@
 }
 
 @keyframes screen-appear {
-  from { opacity: .8; translate: 0 5px; }
+  from { opacity: .86; translate: 0 6px; }
   to { opacity: 1; translate: none; }
 }
 
@@ -345,6 +346,32 @@
 }
 .segmented-control .choice-pill[aria-pressed="false"] { background: transparent; }
 .media-tabs { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+.sliding-tabs { position: relative; isolation: isolate; }
+
+.sliding-tabs .tab-track {
+  position: absolute;
+  inset: .1875rem;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.sliding-tabs .tab-selection {
+  display: block;
+  height: 100%;
+  width: calc((100% - (var(--tab-count) - 1) * .25rem) / var(--tab-count));
+  translate: calc(var(--tab-index) * (100% + .25rem)) 0;
+  transition: translate var(--motion-slide) var(--motion-spring);
+  border-radius: var(--radius-pill);
+  border: 1px solid color-mix(in srgb, var(--accent) 25%, var(--line));
+  background: color-mix(in srgb, var(--accent) 13%, var(--panel));
+}
+
+.sliding-tabs .choice-pill[aria-pressed="true"] {
+  background: transparent;
+  color: var(--ink);
+  font-weight: 700;
+}
 
 .screen-subtitle { margin-top: .25rem; color: var(--muted); }
 .profile-intro {
@@ -505,13 +532,20 @@
   background: var(--panel);
   border: 1px solid var(--line);
   box-shadow: var(--glass-shadow);
+  transform: translate(-50%, var(--pull-distance, -8px));
+  opacity: 0;
+  transition: transform var(--motion-slide) var(--motion-spring), opacity var(--motion-exit) var(--motion-ease);
 }
+
+.pull-indicator[data-visible], .pull-indicator[data-refreshing="true"] { opacity: 1; }
+.pull-indicator[data-pulling] { transition-property: opacity; }
+.pull-indicator[data-refreshing="true"] { --pull-distance: 26px; }
 
 .pull-indicator > svg {
   transition: rotate var(--motion-press) var(--motion-spring);
 }
 
-.pull-indicator[data-ready="true"] > svg:not(.animate-spin) { rotate: 180deg; }
+.pull-indicator[data-ready] > svg:not(.animate-spin) { rotate: 180deg; }
 
 .reader-actions {
   display: flex;
