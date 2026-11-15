@@ -126,11 +126,32 @@ test('generates an audio briefing on demand and starts speech', async ({ page })
   });
   await page.reload();
   await enterApp(page);
-  await page.getByRole('button', { name: 'Tagesüberblick anhören' }).click();
+  await page.setViewportSize({ width: 320, height: 640 });
+  await page.evaluate(() => { document.documentElement.style.fontSize = '125%'; });
+  const tabs = page.getByRole('group', { name: 'Ansicht der Startseite' });
+  const trigger = page.getByRole('button', { name: 'Tagesüberblick', exact: true });
+  for (const tab of ['Heute', 'Für dich', 'Neueste']) {
+    await tabs.getByRole('button', { name: tab, exact: true }).click();
+    await expect(trigger).toBeVisible();
+  }
+  const tabBar = page.locator('[aria-label="Ansicht der Startseite"]');
+  const position = await tabBar.boundingBox();
+  await trigger.click();
+  const briefing = page.getByRole('dialog', { name: 'Tagesüberblick' });
+  await expect(briefing).toBeVisible();
+  expect(await tabBar.boundingBox()).toEqual(position);
+  await briefing.getByRole('button', { name: 'Tagesüberblick anhören' }).click();
   await expect.poll(() => briefingText).not.toBe('');
   await expect(page.locator('html')).toHaveAttribute('data-spoken-briefing', briefingText);
+  await briefing.getByRole('button', { name: 'Wiedergabe pausieren' }).click();
+  await expect(briefing.getByRole('status')).toHaveText('Wiedergabe pausiert.');
+  await briefing.getByRole('button', { name: 'Wiedergabe fortsetzen' }).click();
+  await expect(briefing.getByRole('status')).toHaveText('Tagesüberblick läuft.');
   await page.getByRole('button', { name: 'Wiedergabe stoppen' }).click();
   await expect(page.getByRole('button', { name: 'Tagesüberblick anhören' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(briefing).toBeHidden();
+  await expect(trigger).toBeFocused();
 });
 
 test('migrates old reading history and preserves it across restarts', async ({ browser, baseURL }) => {

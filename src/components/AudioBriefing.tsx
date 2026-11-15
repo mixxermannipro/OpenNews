@@ -1,17 +1,29 @@
 import { hasCloudAI } from '../lib/aiClient';
 import { Capacitor, registerPlugin } from '@capacitor/core';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Headphones, X } from 'lucide-react';
 import type { AIProviderConfig, NewsArticle } from '../types/news';
 
-const AndroidSpeech = registerPlugin<{ speak(options: { text: string }): Promise<void>; stop(): Promise<void> }>('BriefingSpeech');
+const AndroidSpeech = registerPlugin<{
+  speak(options: { text: string }): Promise<void>;
+  stop(): Promise<void>;
+  pause(): Promise<void>;
+  resume(): Promise<void>;
+}>('BriefingSpeech');
 const android = Capacitor.getPlatform() === 'android';
 
-export function AudioBriefing({ articles, config, open }: { articles: NewsArticle[]; config: AIProviderConfig; open: boolean }) {
-  const [expanded, setExpanded] = useState(open);
+export function AudioBriefing({ articles, config, open, onOpen, onClose }: {
+  articles: NewsArticle[];
+  config: AIProviderConfig;
+  open: boolean;
+  onOpen: () => void;
+  onClose: () => void;
+}) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
   const [briefing, setBriefing] = useState('');
   const cloud = hasCloudAI(config);
-  useEffect(() => { if (open) setExpanded(true); }, [open]);
-  const [state, setState] = useState<'idle' | 'loading' | 'playing'>('idle');
+  const [state, setState] = useState<'idle' | 'loading' | 'playing' | 'paused'>('idle');
   const [status, setStatus] = useState('');
   const request = useRef(0);
   const utterance = useRef<SpeechSynthesisUtterance | null>(null);
@@ -23,6 +35,30 @@ export function AudioBriefing({ articles, config, open }: { articles: NewsArticl
     request.current++;
     stopSpeaking();
   }, []);
+
+  useLayoutEffect(() => {
+    const element = dialog.current;
+    if (open && !element?.open) element?.showModal();
+    if (!open && element?.open) {
+      element.close();
+      trigger.current?.focus({ preventScroll: true });
+    }
+  }, [open]);
+
+  const togglePause = async () => {
+    const current = request.current;
+    const pause = state === 'playing';
+    try {
+      if (android) await (pause ? AndroidSpeech.pause() : AndroidSpeech.resume());
+      else if (pause) window.speechSynthesis.pause();
+      else window.speechSynthesis.resume();
+      if (current !== request.current) return;
+      setState(pause ? 'paused' : 'playing');
+      setStatus(pause ? 'Wiedergabe pausiert.' : 'Tagesüberblick läuft.');
+    } catch {
+      if (current === request.current) setStatus('Wiedergabe konnte nicht umgeschaltet werden.');
+    }
+  };
 
   const play = async () => {
     if (state !== 'idle') {
@@ -46,6 +82,7 @@ export function AudioBriefing({ articles, config, open }: { articles: NewsArticl
       if (!text.trim()) throw new Error('Leere Antwort');
       const finish = (message: string) => {
         if (current !== request.current) return;
+        request.current++;
         utterance.current = null;
         setState('idle');
         setStatus(message);
@@ -75,21 +112,43 @@ export function AudioBriefing({ articles, config, open }: { articles: NewsArticl
 
   const canSpeak = android || 'speechSynthesis' in window;
   return (
-    <div className="space-y-2">
-      <button className="choice-pill" type="button" aria-expanded={expanded} onClick={() => setExpanded(value => !value)}>
+    <>
+      <button ref={trigger} className="briefing-trigger" type="button" aria-haspopup="dialog" onClick={onOpen}>
+        <Headphones size={16} aria-hidden="true" />
         Tagesüberblick
       </button>
-      {canSpeak && articles.length > 0 && (cloud || expanded) && <button className="choice-pill" type="button" onClick={() => void play()}>
-        {state === 'idle' ? 'Tagesüberblick anhören' : state === 'loading' ? 'Erstellung abbrechen' : 'Wiedergabe stoppen'}
-      </button>}
-      {expanded && <section className="settings-group space-y-2 px-4 py-3" aria-label="Tagesüberblick">
-        <h2 className="font-semibold">Dein Tagesüberblick</h2>
-        {briefing ? <p className="whitespace-pre-line text-sm">{briefing}</p> : articles.length ? <ul className="list-disc space-y-1 ps-5 text-sm">
-          {articles.slice(0, 8).map(article => <li key={article.id}>{article.title} · {article.sourceName}</li>)}
-        </ul> : <p className="text-sm">Sobald deine Meldungen geladen sind, erscheinen hier die Schlagzeilen.</p>}
-      </section>}
-      {cloud && <p className="text-sm">Beim Anhören erhält die eingestellte KI bis zu acht Überschriften und Kurztexte.</p>}
-      <p className="text-sm" role="status">{status}</p>
-    </div>
+      <dialog ref={dialog} className="briefing-dialog" aria-labelledby="briefing-title"
+        onCancel={event => { event.preventDefault(); onClose(); }}
+        onClick={event => { if (event.target === event.currentTarget) onClose(); }}>
+        <div className="reader-summary-content space-y-4">
+          <div className="flex items-center justify-between gap-2">
+            <h2 id="briefing-title" className="text-xl font-semibold">Tagesüberblick</h2>
+            <button type="button" autoFocus className="glass-icon shrink-0" aria-label="Tagesüberblick schließen" onClick={onClose}>
+              <X size={20} aria-hidden="true" />
+            </button>
+          </div>
+          {briefing ? <p className="whitespace-pre-line text-sm">{briefing}</p> : articles.length ? (
+            <ul className="divide-y divide-[var(--line)] text-sm">
+              {articles.slice(0, 8).map(article => <li className="py-2" key={article.id}>
+                <span className="block font-medium">{article.title}</span>
+                <span className="text-[var(--muted)]">{article.sourceName}</span>
+              </li>)}
+            </ul>
+          ) : <p className="text-sm">Sobald deine Meldungen geladen sind, erscheinen hier die Schlagzeilen.</p>}
+          {canSpeak && (articles.length > 0 || state !== 'idle') && <div className="flex flex-wrap gap-2">
+            {(state === 'playing' || state === 'paused') && (
+              <button className="choice-pill" type="button" onClick={() => void togglePause()}>
+                {state === 'playing' ? 'Wiedergabe pausieren' : 'Wiedergabe fortsetzen'}
+              </button>
+            )}
+            <button className="choice-pill" type="button" onClick={() => void play()}>
+              {state === 'idle' ? 'Tagesüberblick anhören' : state === 'loading' ? 'Erstellung abbrechen' : 'Wiedergabe stoppen'}
+            </button>
+          </div>}
+          <p className="text-sm text-[var(--muted)]" role="status">{status}</p>
+          {cloud && <p className="text-sm text-[var(--muted)]">Beim Anhören erhält die eingestellte KI bis zu acht Überschriften und Kurztexte.</p>}
+        </div>
+      </dialog>
+    </>
   );
 }

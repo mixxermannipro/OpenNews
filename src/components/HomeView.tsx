@@ -153,8 +153,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
         )}
         <div className="screen-heading">
-          <h1>Startseite</h1>
-          <p>{new Intl.DateTimeFormat('de-DE', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())}</p>
+          <div>
+            <h1>Startseite</h1>
+            <p>{new Intl.DateTimeFormat('de-DE', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())}</p>
+          </div>
+          {briefing}
         </div>
       </div>
 
@@ -168,7 +171,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
       </div>
 
       <p className="text-sm text-[var(--muted)]">{viewDescription}</p>
-      {briefing}
       {visibleArticles.length === 0 ? (
         <ViewStatus
           title={isLoading ? 'Nachrichten werden geladen …' : selectedCategory === 'Heute'
