@@ -46,6 +46,52 @@ test('skips onboarding and displays a feed article', async ({ page }) => {
   await expect(page.getByText(title, { exact: true }).first()).toBeVisible();
 });
 
+test('keeps the feed unchanged when returning to an open app', async ({ page }) => {
+  await page.route('**/api/feeds/fetch', route => route.fulfill({ status: 429 }));
+  await page.reload();
+  await enterApp(page);
+  await expect(page.getByText(/Der Server erhält zu viele Anfragen/)).toBeVisible();
+  await page.clock.install();
+
+  const triggeredRequest = await page.evaluate(() => {
+    let triggered = false;
+    const originalFetch = window.fetch;
+    window.fetch = (input, options) => {
+      if (input === '/api/feeds/fetch') triggered = true;
+      return originalFetch(input, options);
+    };
+    document.dispatchEvent(new Event('visibilitychange'));
+    window.dispatchEvent(new Event('online'));
+    window.fetch = originalFetch;
+    return triggered;
+  });
+  expect(triggeredRequest).toBe(false);
+
+  const requests: string[] = [];
+  page.on('request', request => {
+    if (request.url().endsWith('/api/feeds/fetch')) requests.push(request.url());
+  });
+  await page.clock.fastForward(5 * 60_000);
+  await page.evaluate(() => new Promise<void>(resolve => window.setTimeout(resolve, 0)));
+  expect(requests).toHaveLength(0);
+
+  const tabs = page.getByRole('group', { name: 'Ansicht der Startseite' });
+  const feed = page.getByRole('region', { name: 'Startseite Nachrichten' });
+  for (const tab of ['Heute', 'Für dich', 'Neueste']) {
+    await tabs.getByRole('button', { name: tab, exact: true }).click();
+    await page.evaluate(() => window.scrollTo(0, 0));
+    const request = page.waitForRequest('**/api/feeds/fetch');
+    await feed.evaluate(element => {
+      const touch = (clientY: number) => new Touch({ identifier: 1, target: element, clientX: 100, clientY });
+      element.dispatchEvent(new TouchEvent('touchstart', { bubbles: true, touches: [touch(100)] }));
+      element.dispatchEvent(new TouchEvent('touchmove', { bubbles: true, touches: [touch(230)] }));
+      element.dispatchEvent(new TouchEvent('touchend', { bubbles: true }));
+    });
+    await request;
+    await expect(page.getByText(/Der Server erhält zu viele Anfragen/)).toBeVisible();
+  }
+});
+
 test('opens a reader and saves the article', async ({ page }) => {
   await enterApp(page);
   await page.getByText(title, { exact: true }).first().click();

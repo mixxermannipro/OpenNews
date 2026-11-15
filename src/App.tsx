@@ -450,25 +450,14 @@ export default function App() {
   const fetchLatest = useRef(fetchLiveFeeds);
   useEffect(() => { fetchLatest.current = fetchLiveFeeds; }, [fetchLiveFeeds]);
   useEffect(() => {
+    if (!cachedStorageReady) return;
     void fetchLatest.current();
     return () => {
       refresh.current?.abort();
       refresh.current = null;
       setIsLoadingFeeds(false);
     };
-  }, [activeSources, cachedStorageReady]);
-
-  useEffect(() => {
-    const update = () => { if (!document.hidden) void fetchLatest.current(); };
-    const timer = window.setInterval(update, 5 * 60_000);
-    document.addEventListener('visibilitychange', update);
-    window.addEventListener('online', update);
-    return () => {
-      window.clearInterval(timer);
-      document.removeEventListener('visibilitychange', update);
-      window.removeEventListener('online', update);
-    };
-  }, []);
+  }, [cachedStorageReady]);
 
   const activeArticles = useMemo(() => {
     const activeIds = new Set(activeSources.map(source => source.id));
