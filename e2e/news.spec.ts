@@ -134,14 +134,59 @@ test('imports a feed from OPML', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'OPML Testquelle abbestellen' })).toBeVisible();
 });
 
-test('opens and closes the full-screen clips view', async ({ page }) => {
+test('opens portrait clips full-screen, keeps the sound choice and closes the player', async ({ page }) => {
+  await page.route('https://example.org/clips/*.webm', route =>
+    route.fulfill({ path: 'e2e/fixtures/portrait.webm', contentType: 'video/webm' }));
+  await page.route('**/api/feeds/fetch', route => {
+    const { feeds } = route.request().postDataJSON() as { feeds: NewsSource[] };
+    const source = feeds[0];
+    const articles: NewsArticle[] = [1, 2, 3].map(index => ({
+      id: 'clip-' + index,
+      sourceId: source.id,
+      sourceName: source.name,
+      sourceShortCode: source.shortCode,
+      sourceColor: source.accentColor,
+      title: 'Testclip ' + index,
+      summary: '',
+      paragraphs: [],
+      link: 'https://example.org/clips/' + index,
+      category: source.category,
+      publishedAt: new Date(Date.now() - 60_000 * index).toISOString(),
+      readingTimeMin: 1,
+      keywords: [],
+      media: [index === 3
+        ? { type: 'youtube', url: 'https://www.youtube-nocookie.com/embed/abcdefghijk', portrait: true }
+        : { type: 'video', url: 'https://example.org/clips/' + index + '.webm', portrait: true }],
+    }));
+    return route.fulfill({ json: { articles, feedStatuses: [] } });
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.reload();
   await enterApp(page);
   await page.getByRole('button', { name: 'Video & Audio' }).click();
-  await page.getByRole('button', { name: 'Clips', exact: true }).click();
+  await page.getByRole('button', { name: 'Testclip 1 abspielen' }).click();
   const dialog = page.getByRole('dialog', { name: 'Hochformat-Clips im Vollbild' });
   await expect(dialog).toBeVisible();
+  expect(await dialog.boundingBox()).toEqual({ x: 0, y: 0, width: 390, height: 844 });
+
+  const player = dialog.locator('video');
+  await expect(player).toHaveAttribute('src', /1\.webm$/);
+  await expect(player).toHaveJSProperty('muted', false);
+  await dialog.getByRole('button', { name: 'Ton ausschalten' }).click();
+  await expect(player).toHaveJSProperty('muted', true);
+  const clips = dialog.getByRole('list', { name: 'Hochformat-Clips' });
+  await clips.evaluate(element => element.scrollTo(0, element.clientHeight));
+  await expect(player).toHaveAttribute('src', /2\.webm$/);
+  await expect(player).toHaveJSProperty('muted', true);
+  await dialog.getByRole('button', { name: 'Ton einschalten' }).click();
+  await clips.evaluate(element => element.scrollTo(0, 2 * element.clientHeight));
+  const youtube = dialog.locator('iframe');
+  await expect(youtube).toHaveAttribute('src', /autoplay=1/);
+  await expect(youtube).not.toHaveAttribute('src', /mute=1/);
+  expect((await youtube.boundingBox())!.height).toBeGreaterThan(844 * 0.68);
   await dialog.getByRole('button', { name: 'Clips schließen' }).click();
   await expect(dialog).toBeHidden();
+  await expect(dialog.locator('video, iframe')).toHaveCount(0);
 });
 
 test('reads a saved article offline', async ({ page, context }) => {

@@ -1,7 +1,7 @@
 import { TranscriptSummary } from './TranscriptSummary';
 import { ViewStatus } from './ViewStatus';
 import { Capacitor, SystemBars } from '@capacitor/core';
-import { ArrowLeft, Bookmark, ChevronRight, Headphones, Heart, Play, Share2, Video } from 'lucide-react';
+import { ArrowLeft, Bookmark, ChevronDown, ChevronRight, ChevronUp, Headphones, Heart, Play, Share2, Video } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { collectDistinctMedia } from '../lib/articleMedia';
@@ -36,6 +36,14 @@ export function MediaView({ aiConfig, articles, loading, background, onArticle, 
   const entries = useMemo(() => collectDistinctMedia(articles), [articles]);
   const clips = entries.filter(({ media }) => media.portrait);
   const [startClip, setStartClip] = useState<string>();
+  const [clipMuted, setClipMuted] = useState(false);
+  const clipIndex = clips.findIndex(({ media }) => media.url === selected);
+  const scrollToClip = (index: number) => {
+    const pane = clipsPane.current;
+    if (pane && index >= 0 && index < clips.length) {
+      pane.scrollTo({ top: index * pane.clientHeight, behavior: 'instant' });
+    }
+  };
   const closeClips = () => {
     setFilter('all');
     setSelected(undefined);
@@ -105,9 +113,10 @@ export function MediaView({ aiConfig, articles, loading, background, onArticle, 
     return (
       <li key={media.url} data-media-url={media.url}
         className={clip ? 'relative h-full snap-start snap-always overflow-hidden bg-black text-white' : audio ? 'settings-group media-audio overflow-hidden' : 'overflow-hidden'}>
-        <div className={embeddedClip ? 'absolute inset-x-0 top-[12%] bottom-[34%] bg-black' : clip ? 'absolute inset-0 bg-black' : audio ? 'media-artwork relative overflow-hidden bg-slate-900' : 'relative aspect-[2.1] overflow-hidden rounded-[var(--card-radius)] bg-black'}>
+        <div className={embeddedClip ? 'absolute inset-x-3 top-[calc(4.25rem+env(safe-area-inset-top))] bottom-[calc(9rem+env(safe-area-inset-bottom))] bg-black' : clip ? 'absolute inset-0 bg-black' : audio ? 'media-artwork relative overflow-hidden bg-slate-900' : 'relative aspect-[2.1] overflow-hidden rounded-[var(--card-radius)] bg-black'}>
           {playing && !audio ? (
-            <MediaPlayer media={media} title={article.title} poster={artwork} background={!clip && background} clip={clip} autoPlay onEngaged={seconds => onEngaged(article, seconds)} />
+            <MediaPlayer media={media} title={article.title} poster={artwork} background={!clip && background} clip={clip} autoPlay
+              muted={clip && clipMuted} onToggleMute={() => setClipMuted(value => !value)} onEngaged={seconds => onEngaged(article, seconds)} />
           ) : (
             <button type="button" aria-label={`${article.title} abspielen`} onClick={() => {
                 if (media.portrait && !clip) {
@@ -126,7 +135,7 @@ export function MediaView({ aiConfig, articles, loading, background, onArticle, 
         </div>
         {playing && audio && <div className="media-audio-player px-4 pt-3"><MediaPlayer media={media} title={article.title} background={background} autoPlay onEngaged={seconds => onEngaged(article, seconds)} /></div>}
         {playing && !clip && <TranscriptSummary article={article} config={aiConfig} />}
-        <div className={embeddedClip ? 'absolute inset-x-0 top-[66%] bottom-0 overflow-auto px-4 pt-3 pb-safe space-y-1.5' : clip
+        <div className={embeddedClip ? 'absolute inset-x-0 bottom-0 h-[calc(9rem+env(safe-area-inset-bottom))] overflow-auto px-4 pt-3 pb-safe space-y-1.5' : clip
           ? 'pointer-events-none absolute inset-x-0 bottom-0 space-y-1.5 bg-gradient-to-t from-black via-black/70 to-transparent px-4 pt-16 pb-[calc(3.5rem+env(safe-area-inset-bottom))] [&_a]:pointer-events-auto [&_button]:pointer-events-auto'
           : audio ? 'min-w-0 space-y-1.5' : 'space-y-1.5 py-3'}>
           <p className={clip ? 'text-xs text-slate-300' : 'text-xs text-slate-600 dark:text-slate-300'}>
@@ -182,6 +191,18 @@ export function MediaView({ aiConfig, articles, loading, background, onArticle, 
           onCancel={event => { event.preventDefault(); window.history.back(); }}>
           <button type="button" className="absolute top-[calc(0.75rem+env(safe-area-inset-top))] left-3 z-10 grid size-12 place-items-center rounded-full bg-black/70"
             aria-label="Clips schließen" onClick={() => window.history.back()}><ArrowLeft aria-hidden /></button>
+          {clips.length > 1 && (
+            <div className="absolute top-[calc(0.75rem+env(safe-area-inset-top))] left-1/2 z-10 flex -translate-x-1/2 gap-2">
+              <button type="button" className="grid size-12 place-items-center rounded-full bg-black/70 disabled:opacity-40"
+                aria-label="Vorheriger Clip" disabled={clipIndex <= 0} onClick={() => scrollToClip(clipIndex - 1)}>
+                <ChevronUp aria-hidden />
+              </button>
+              <button type="button" className="grid size-12 place-items-center rounded-full bg-black/70 disabled:opacity-40"
+                aria-label="Nächster Clip" disabled={clipIndex >= clips.length - 1} onClick={() => scrollToClip(clipIndex + 1)}>
+                <ChevronDown aria-hidden />
+              </button>
+            </div>
+          )}
           {shareFeedback && <p role="status" className="absolute top-[calc(1rem+env(safe-area-inset-top))] right-4 z-10 rounded-full bg-black/80 px-3 py-2 text-sm">{shareFeedback}</p>}
           {clips.length > 0 ? (
             <ul ref={clipsPane} tabIndex={0} aria-label="Hochformat-Clips"
