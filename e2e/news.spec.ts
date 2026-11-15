@@ -41,9 +41,9 @@ async function openSources(page: Page) {
 
 test('skips onboarding and displays a feed article', async ({ page }) => {
   await enterApp(page);
-  await expect(page.getByText(title, { exact: true }).first()).toBeVisible();
+  await expect(page.getByText(title, { exact: true }).filter({ visible: true }).first()).toBeVisible();
   await page.reload();
-  await expect(page.getByText(title, { exact: true }).first()).toBeVisible();
+  await expect(page.getByText(title, { exact: true }).filter({ visible: true }).first()).toBeVisible();
 });
 
 test('keeps the feed unchanged when returning to an open app', async ({ page }) => {
@@ -94,7 +94,7 @@ test('keeps the feed unchanged when returning to an open app', async ({ page }) 
 
 test('opens a reader and saves the article', async ({ page }) => {
   await enterApp(page);
-  await page.getByText(title, { exact: true }).first().click();
+  await page.getByText(title, { exact: true }).filter({ visible: true }).first().click();
   const reader = page.getByRole('dialog', { name: /Artikel lesen/ });
   await expect(reader).toBeVisible();
   await reader.getByRole('button', { name: 'Artikel speichern' }).click();
@@ -109,7 +109,7 @@ test('opens a reader and saves the article', async ({ page }) => {
   });
   await page.goBack();
   await expect(reader).toBeHidden();
-  await expect(page.getByText(title, { exact: true }).first()).toBeVisible();
+  await expect(page.getByText(title, { exact: true }).filter({ visible: true }).first()).toBeVisible();
   expect(await page.evaluate(() => window.scrollY)).toBe(scrollPosition);
 });
 
@@ -146,7 +146,7 @@ test('opens and closes the full-screen clips view', async ({ page }) => {
 
 test('reads a saved article offline', async ({ page, context }) => {
   await enterApp(page);
-  await page.getByText(title, { exact: true }).first().click();
+  await page.getByText(title, { exact: true }).filter({ visible: true }).first().click();
   const reader = page.getByRole('dialog', { name: /Artikel lesen/ });
   await expect(reader.getByText(/Volltext stammt/).first()).toBeVisible();
   await reader.getByRole('button', { name: 'Offline speichern' }).click();
@@ -159,7 +159,7 @@ test('reads a saved article offline', async ({ page, context }) => {
   await context.setOffline(true);
   await page.getByRole('button', { name: 'Profil', exact: true }).click();
   await page.getByRole('button', { name: 'Gespeichert', exact: true }).click();
-  await page.getByText(title, { exact: true }).first().click();
+  await page.getByText(title, { exact: true }).filter({ visible: true }).first().click();
   await expect(reader.getByText(/Volltext stammt/).first()).toBeVisible();
 });
 
