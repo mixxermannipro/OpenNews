@@ -164,7 +164,7 @@ export function MediaView({ aiConfig, articles, loading, background, onArticle, 
     );
   };
   return (
-    <section aria-labelledby="media-heading" className="space-y-5">
+    <section aria-labelledby="media-heading" className="screen-entry space-y-5">
       <p role="status" className={shareFeedback ? "text-sm" : "sr-only"}>{shareFeedback}</p>
       <header>
         <h1 id="media-heading" className="screen-title">Video &amp; Audio</h1>
@@ -176,10 +176,11 @@ export function MediaView({ aiConfig, articles, loading, background, onArticle, 
             onClick={() => { setFilter(key); setSelected(undefined); }}>{FILTERS[key]}</button>
         ))}
       </div>
-      {filter === 'clips' && createPortal(
+      {createPortal(
         <dialog ref={clipsDialog} aria-label="Hochformat-Clips im Vollbild"
-          className="fixed inset-0 m-0 h-dvh max-h-none w-dvw max-w-none overflow-hidden bg-black text-white"
+          className="motion-dialog clips-dialog fixed inset-0 m-0 h-dvh max-h-none w-dvw max-w-none overflow-hidden bg-black text-white"
           onCancel={event => { event.preventDefault(); window.history.back(); }}>
+          {filter === 'clips' && <>
           <button type="button" className="absolute top-[calc(0.75rem+env(safe-area-inset-top))] left-3 z-10 grid size-12 place-items-center rounded-full bg-black/70"
             aria-label="Clips schließen" onClick={() => window.history.back()}><ArrowLeft aria-hidden /></button>
           {shareFeedback && <p role="status" className="absolute top-[calc(1rem+env(safe-area-inset-top))] right-4 z-10 rounded-full bg-black/80 px-3 py-2 text-sm">{shareFeedback}</p>}
@@ -194,6 +195,7 @@ export function MediaView({ aiConfig, articles, loading, background, onArticle, 
               {!loading && <button type="button" className="choice-pill" onClick={() => { dialogExit.current = onSources; window.history.back(); }}>Quellen verwalten</button>}
             </div>
           )}
+          </>}
         </dialog>,
         document.body,
       )}

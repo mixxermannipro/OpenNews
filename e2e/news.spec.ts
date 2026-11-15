@@ -271,3 +271,36 @@ test('shows a rate limit without marking feeds as failed', async ({ page }) => {
   await expect(page.getByText('Der Server erhält zu viele Anfragen.', { exact: false })).toBeVisible();
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('opennews_feed_health') ?? '{}'))).toEqual({});
 });
+
+test('moves between home sections while respecting both reduced-motion settings', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await enterApp(page);
+  const home = page.getByRole('region', { name: 'Startseite Nachrichten' });
+  const duration = () => home.evaluate(element => Number.parseFloat(getComputedStyle(element).animationDuration));
+  await expect.poll(duration).toBeGreaterThan(0.1);
+
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await expect.poll(duration).toBeLessThan(0.001);
+
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.getByRole('button', { name: 'Profil', exact: true }).click();
+  await page.getByRole('button', { name: 'Einstellungen', exact: true }).click();
+  await page.getByRole('button', { name: 'Navigation & Bewegung', exact: true }).click();
+  await page.getByLabel('Animationen').selectOption('reduced');
+  const dock = page.getByRole('navigation', { name: 'Mobile Navigation' });
+  await dock.getByRole('button', { name: 'Heute', exact: true }).click();
+  await expect.poll(duration).toBeLessThan(0.001);
+  const tabs = page.getByRole('group', { name: 'Ansicht der Startseite' });
+  await tabs.getByRole('button', { name: 'Neueste', exact: true }).click();
+  await expect(tabs.getByRole('button', { name: 'Neueste', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await dock.getByRole('button', { name: 'Video & Audio' }).click();
+  await page.getByRole('button', { name: 'Clips', exact: true }).click();
+  const clips = page.getByRole('dialog', { name: 'Hochformat-Clips im Vollbild' });
+  await expect(clips).toBeVisible();
+  const backdropDuration = await clips.evaluate(dialog =>
+    Number.parseFloat(getComputedStyle(dialog, '::backdrop').transitionDuration),
+  );
+  expect(backdropDuration).toBeLessThan(0.001);
+  await clips.getByRole('button', { name: 'Clips schließen' }).click();
+  await expect(clips).toBeHidden();
+});

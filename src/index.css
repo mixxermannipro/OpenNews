@@ -24,7 +24,10 @@
     --radius-pill: 999px;
     --radius-dialog: 1.75rem;
     --motion-ease: cubic-bezier(.16, 1, .3, 1);
-    --motion-press: 180ms;
+    --motion-spring: cubic-bezier(.22, .72, .26, 1.12);
+    --motion-press: 190ms;
+    --motion-screen: 220ms;
+    --motion-exit: 170ms;
     --motion-enter: 260ms;
     --scrim: rgb(0 0 0 / 52%);
     background: var(--canvas);
@@ -169,8 +172,8 @@
 
 .mobile-navigation, .reader-actions {
   transition:
-    transform 380ms cubic-bezier(.16, 1, .3, 1),
-    opacity 260ms cubic-bezier(.16, 1, .3, 1);
+    transform 320ms var(--motion-spring),
+    opacity var(--motion-enter) var(--motion-ease);
 }
 
 .mobile-navigation {
@@ -180,7 +183,7 @@
 .mobile-navigation[data-scroll-hidden="true"]:not(:has(:focus-visible)),
 .reader-actions[data-scroll-hidden="true"]:not(:has(:focus-visible, .reader-menu[open])) {
   transition-timing-function: cubic-bezier(.32, .08, .65, 1), ease-in;
-  transition-duration: 280ms, 210ms;
+  transition-duration: var(--motion-enter), var(--motion-exit);
 }
 
 .mobile-navigation[data-scroll-hidden="true"]:not(:has(:focus-visible)) {
@@ -251,8 +254,29 @@
   font-weight: 650;
 }
 
-.choice-pill, .primary-action, .glass-icon { transition: transform var(--motion-press) var(--motion-ease); }
-.choice-pill:active, .primary-action:active, .glass-icon:active { transform: scale(.97); }
+.choice-pill, .primary-action, .glass-icon, .briefing-trigger, .settings-link, .dock-tab > svg {
+  transition: scale var(--motion-press) var(--motion-spring);
+}
+
+:is(.choice-pill, .primary-action, .glass-icon, .briefing-trigger, .settings-link):active,
+.dock-tab:active > svg {
+  scale: .96;
+  transition-duration: 95ms;
+  transition-timing-function: ease-out;
+}
+
+.screen-entry {
+  animation: screen-appear var(--motion-screen) var(--motion-ease);
+}
+
+.feed-content {
+  animation: screen-appear var(--motion-press) var(--motion-ease);
+}
+
+@keyframes screen-appear {
+  from { opacity: .8; translate: 0 5px; }
+  to { opacity: 1; translate: none; }
+}
 
 .settings-page, .onboarding {
   max-width: 40rem;
@@ -410,7 +434,13 @@
     transform: none;
   }
 
-  *, *::before, *::after {
+  .pull-indicator > svg, .dock-tab:active > svg,
+  :is(.choice-pill, .primary-action, .glass-icon, .briefing-trigger, .settings-link):active {
+    scale: 1;
+    rotate: none !important;
+  }
+
+  *, *::before, *::after, .motion-dialog::backdrop, :is(.settings-group, .reader-menu)::details-content {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
@@ -422,7 +452,14 @@
   transform: none;
 }
 
-[data-motion="reduced"] *, [data-motion="reduced"] *::before, [data-motion="reduced"] *::after {
+[data-motion="reduced"] :is(.pull-indicator > svg, .dock-tab:active > svg,
+  .choice-pill:active, .primary-action:active, .glass-icon:active, .briefing-trigger:active, .settings-link:active) {
+  scale: 1;
+  rotate: none !important;
+}
+
+[data-motion="reduced"] *, [data-motion="reduced"] *::before, [data-motion="reduced"] *::after,
+[data-motion="reduced"] .motion-dialog::backdrop, [data-motion="reduced"] :is(.settings-group, .reader-menu)::details-content {
   animation-duration: 0.01ms !important;
   animation-iteration-count: 1 !important;
   transition-duration: 0.01ms !important;
@@ -469,6 +506,12 @@
   border: 1px solid var(--line);
   box-shadow: var(--glass-shadow);
 }
+
+.pull-indicator > svg {
+  transition: rotate var(--motion-press) var(--motion-spring);
+}
+
+.pull-indicator[data-ready="true"] > svg:not(.animate-spin) { rotate: 180deg; }
 
 .reader-actions {
   display: flex;
@@ -526,16 +569,74 @@
   overscroll-behavior: contain;
 }
 
-.reader-summary[open],
-.briefing-dialog[open] {
-  animation: reader-summary-in var(--motion-enter) var(--motion-ease) both;
+.motion-dialog[open] {
+  animation: dialog-enter var(--motion-enter) var(--motion-spring) both;
 }
 
-.reader-summary::backdrop,
-.briefing-dialog::backdrop {
-  background: var(--scrim);
-  animation: reader-summary-dim 220ms ease-out both;
+.motion-dialog::backdrop { background: var(--scrim); }
+
+@keyframes dialog-enter {
+  from { opacity: 0; translate: 0 var(--dialog-shift, 9px); scale: var(--dialog-scale, .98); }
+  to { opacity: 1; translate: none; scale: 1; }
 }
+
+@supports (transition-behavior: allow-discrete) {
+  .motion-dialog {
+    opacity: 0;
+    translate: 0 var(--dialog-shift, 9px);
+    scale: var(--dialog-scale, .98);
+    transition:
+      opacity var(--motion-exit) ease-in,
+      translate var(--motion-exit) ease-in,
+      scale var(--motion-exit) ease-in,
+      display var(--motion-exit) allow-discrete,
+      overlay var(--motion-exit) allow-discrete;
+    pointer-events: none;
+  }
+
+  .motion-dialog[open] {
+    opacity: 1;
+    translate: none;
+    scale: 1;
+    animation: none;
+    transition-duration: var(--motion-enter);
+    transition-timing-function: var(--motion-spring);
+    pointer-events: auto;
+  }
+
+  .motion-dialog::backdrop {
+    opacity: 0;
+    transition: opacity var(--motion-exit) ease-in, display var(--motion-exit) allow-discrete, overlay var(--motion-exit) allow-discrete;
+  }
+
+  .motion-dialog[open]::backdrop {
+    opacity: 1;
+    transition-duration: var(--motion-enter);
+    transition-timing-function: var(--motion-ease);
+  }
+
+  @starting-style {
+    .motion-dialog[open] {
+      opacity: 0;
+      translate: 0 var(--dialog-shift, 9px);
+      scale: var(--dialog-scale, .98);
+    }
+
+    .motion-dialog[open]::backdrop { opacity: 0; }
+  }
+}
+
+.clips-dialog {
+  --dialog-shift: 0px;
+  --dialog-scale: 1;
+}
+
+:is(.settings-group, .reader-menu)::details-content {
+  opacity: 0;
+  transition: opacity var(--motion-exit) var(--motion-ease), content-visibility var(--motion-exit) allow-discrete;
+}
+
+:is(.settings-group, .reader-menu)[open]::details-content { opacity: 1; }
 
 .briefing-trigger {
   display: inline-flex;
@@ -550,16 +651,6 @@
 
 .reader-summary-content {
   padding: 1.25rem;
-}
-
-@keyframes reader-summary-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-@keyframes reader-summary-dim {
-  from { opacity: 0; }
-  to { opacity: 1; }
 }
 
 .screen-heading {

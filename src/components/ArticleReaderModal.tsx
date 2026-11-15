@@ -43,6 +43,7 @@ interface ArticleReaderModalProps {
   sourceLanguage?: 'de' | 'en';
   translate: boolean;
   backgroundPlayback: boolean;
+  reducedMotion: boolean;
   isBookmarked: boolean;
   isLiked: boolean;
   isDisliked: boolean;
@@ -65,6 +66,7 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
   sourceLanguage,
   translate,
   backgroundPlayback,
+  reducedMotion,
   isBookmarked,
   isLiked,
   isDisliked,
@@ -335,10 +337,13 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/65"
     >
       <motion.div
-        initial={{ opacity: 0, y: 28 }}
+        initial={reducedMotion ? false : { opacity: 0, y: 22 }}
         animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: 20 }}
-        transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+        exit={reducedMotion ? undefined : { opacity: 0, y: 14, transition: { duration: 0.17, ease: 'easeIn' } }}
+        transition={reducedMotion ? { duration: 0 } : {
+          y: { type: 'spring', stiffness: 390, damping: 29, mass: 0.8 },
+          opacity: { duration: 0.18, ease: 'easeOut' },
+        }}
         className="relative flex h-[100dvh] sm:h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-none sm:rounded-[32px] reader-surface shadow-2xl ring-1 ring-white/15"
       >
         <div className="flex-1 overflow-y-auto" onScroll={event => {
@@ -442,7 +447,7 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
           </details>
         </div>
       </motion.div>
-      <dialog ref={summaryDialog} id="reader-summary" className="reader-summary"
+      <dialog ref={summaryDialog} id="reader-summary" className="motion-dialog reader-summary"
         aria-labelledby="reader-summary-title"
         onCancel={event => { event.preventDefault(); onClose(); }}
         onClick={event => { if (event.target === event.currentTarget) onClose(); }}>

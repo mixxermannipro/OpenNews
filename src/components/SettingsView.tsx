@@ -278,7 +278,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const otherSources = filteredSources.filter((s) => !s.subscribed && !s.recommended);
 
   return (
-    <section className="settings-page">
+    <section key={section} className="screen-entry settings-page">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="screen-title">
