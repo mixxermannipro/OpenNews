@@ -145,6 +145,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
         }
       }}
       onTouchCancel={resetPull}>
+      <button type="button" className="choice-pill sr-only focus:not-sr-only"
+        disabled={isLoading} onClick={() => void onRefresh()}>
+        Feeds aktualisieren
+      </button>
       <div className="relative">
         {(pull > 0 || gestureRefresh) && (
           <div className="pull-indicator" role="status" style={{ transform: `translate(-50%, ${gestureRefresh ? 26 : pull}px)` }}>

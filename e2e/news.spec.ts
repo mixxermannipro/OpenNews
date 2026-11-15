@@ -48,10 +48,10 @@ test('skips onboarding and displays a feed article', async ({ page }) => {
 
 test('keeps the feed unchanged when returning to an open app', async ({ page }) => {
   await page.route('**/api/feeds/fetch', route => route.fulfill({ status: 429 }));
+  await page.clock.install();
   await page.reload();
   await enterApp(page);
   await expect(page.getByText(/Der Server erhält zu viele Anfragen/)).toBeVisible();
-  await page.clock.install();
 
   const triggeredRequest = await page.evaluate(() => {
     let triggered = false;
@@ -99,6 +99,18 @@ test('opens a reader and saves the article', async ({ page }) => {
   await expect(reader).toBeVisible();
   await reader.getByRole('button', { name: 'Artikel speichern' }).click();
   await expect(reader.getByRole('button', { name: 'Lesezeichen entfernen' })).toBeVisible();
+  const scrollPosition = await page.evaluate(() => window.scrollY);
+  await page.evaluate(() => {
+    const now = Date.now;
+    const twoDaysLater = now() + 2 * 24 * 60 * 60_000;
+    Date.now = () => twoDaysLater;
+    document.dispatchEvent(new Event('visibilitychange'));
+    Date.now = now;
+  });
+  await page.goBack();
+  await expect(reader).toBeHidden();
+  await expect(page.getByText(title, { exact: true }).first()).toBeVisible();
+  expect(await page.evaluate(() => window.scrollY)).toBe(scrollPosition);
 });
 
 test('subscribes to a custom feed', async ({ page }) => {

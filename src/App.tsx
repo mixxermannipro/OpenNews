@@ -200,6 +200,8 @@ export default function App() {
     []
   );
   const [feedRateLimited, setFeedRateLimited] = useState(false);
+  const [readerFeedSnapshot, setReaderFeedSnapshot] = useState<ReturnType<typeof buildHomeSections>[HomeTab] | null>(null);
+  useEffect(() => { setReaderFeedSnapshot(null); }, [activeTab, homeCategory]);
   const [feedClock, setFeedClock] = useState(Date.now);
   useEffect(() => {
     const updateClock = () => setFeedClock(Date.now());
@@ -382,6 +384,7 @@ export default function App() {
     refresh.current = controller;
     setIsLoadingFeeds(true);
     setFeedRateLimited(false);
+    setReaderFeedSnapshot(null);
 
     const applyArticles = (articles: NewsArticle[]) => {
       if (controller.signal.aborted || !articles.length) return;
@@ -543,6 +546,9 @@ export default function App() {
   };
 
   const handleOpenArticle = (article: NewsArticle) => {
+    if (activeTab === 'home') {
+      setReaderFeedSnapshot(previous => previous ?? homeSections[homeCategory]);
+    }
     navigate({ article });
     const historyEntry = {
       ...article,
@@ -757,7 +763,7 @@ export default function App() {
         )}
         {activeTab === 'home' && (
           <HomeView
-            stories={homeSections[homeCategory]}
+            stories={readerFeedSnapshot ?? homeSections[homeCategory]}
             briefing={homeCategory === 'Heute' ? (
               <Suspense fallback={null}><AudioBriefing articles={homeSections.Heute.map(story => story.lead)} config={aiConfig} open={openBriefing} /></Suspense>
             ) : null}

@@ -67,7 +67,7 @@ OpenNews bündelt Nachrichten aus frei zugänglichen Feeds in einer ruhigen Ober
 | **Android** | Capacitor-WebView, direkte HTTP-Aufrufe, nativer Zurück-Knopf, Share-Dialog, Systemstimme und lokale Übersetzung |
 | **Benachrichtigungen** | Android-Push für unterstützte abonnierte Quellen mit eingerichtetem Firebase. Im Web erscheinen Hinweise in der geöffneten App. |
 
-Beim App-Start werden die Feeds einmal geladen. Ziehe auf „Heute“, „Für dich“ oder „Neueste“ nach unten, um sie zu aktualisieren. Beim Zurückkehren zur offenen App bleiben die angezeigten Nachrichten stehen. Android- und iOS-Widgets haben weiterhin eine eigene Aktualisieren-Taste.
+Beim App-Start werden die Feeds einmal geladen. Ziehe auf „Heute“, „Für dich“ oder „Neueste“ nach unten, um sie zu aktualisieren. Mit der Tabulatortaste erreichst du dieselbe Aktualisierung als Schaltfläche. Beim Schließen eines Artikels bleibt die geöffnete Liste erhalten. Android- und iOS-Widgets haben weiterhin eine eigene Aktualisieren-Taste.
 
 **Aufbewahrung:** 2, 4, 7, 14, 30 oder 90 Tage (Standard **4**), maximal **600** Beiträge im Speicher. Beim Aktualisieren werden neue Artikel zusammengeführt; Abos, Lesezeichen, Likes und Verlauf bleiben erhalten.
 
