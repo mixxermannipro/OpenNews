@@ -85,8 +85,11 @@ test('keeps the feed unchanged when returning to an open app', async ({ page }) 
       const touch = (clientY: number) => new Touch({ identifier: 1, target: element, clientX: 100, clientY });
       element.dispatchEvent(new TouchEvent('touchstart', { bubbles: true, touches: [touch(100)] }));
       element.dispatchEvent(new TouchEvent('touchmove', { bubbles: true, touches: [touch(230)] }));
-      element.dispatchEvent(new TouchEvent('touchend', { bubbles: true }));
     });
+    const indicator = feed.locator('.pull-indicator');
+    await expect(indicator).toHaveAttribute('data-ready', '');
+    await feed.dispatchEvent('touchend');
+    await expect(indicator).not.toHaveAttribute('data-pulling');
     await request;
     await expect(page.getByText(/Der Server erhält zu viele Anfragen/)).toBeVisible();
   }
@@ -326,6 +329,13 @@ test('moves between home sections while respecting both reduced-motion settings'
   const home = page.getByRole('region', { name: 'Startseite Nachrichten' });
   const duration = () => home.evaluate(element => Number.parseFloat(getComputedStyle(element).animationDuration));
   await expect.poll(duration).toBeGreaterThan(0.1);
+  const tabs = page.getByRole('group', { name: 'Ansicht der Startseite' });
+  const selection = tabs.locator('.tab-selection');
+  const initialPosition = (await selection.boundingBox())!.x;
+  await tabs.getByRole('button', { name: 'Für dich', exact: true }).click();
+  await expect.poll(async () => (await selection.boundingBox())!.x).toBeGreaterThan(initialPosition + 90);
+  await tabs.getByRole('button', { name: 'Heute', exact: true }).click();
+  await expect.poll(async () => (await selection.boundingBox())!.x).toBeCloseTo(initialPosition, 0);
   const briefingEntry = page.getByRole('button', { name: 'Tagesüberblick', exact: true });
   await briefingEntry.click();
   const briefing = page.getByRole('dialog', { name: 'Tagesüberblick' });
@@ -345,7 +355,8 @@ test('moves between home sections while respecting both reduced-motion settings'
   const dock = page.getByRole('navigation', { name: 'Mobile Navigation' });
   await dock.getByRole('button', { name: 'Heute', exact: true }).click();
   await expect.poll(duration).toBeLessThan(0.001);
-  const tabs = page.getByRole('group', { name: 'Ansicht der Startseite' });
+  await expect.poll(() => selection.evaluate(element => Number.parseFloat(getComputedStyle(element).transitionDuration)))
+    .toBeLessThan(0.001);
   await tabs.getByRole('button', { name: 'Neueste', exact: true }).click();
   await expect(tabs.getByRole('button', { name: 'Neueste', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await dock.getByRole('button', { name: 'Video & Audio' }).click();

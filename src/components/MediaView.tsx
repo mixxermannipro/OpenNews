@@ -181,7 +181,9 @@ export function MediaView({ aiConfig, articles, loading, background, onArticle, 
         <h1 id="media-heading" className="screen-title">Video &amp; Audio</h1>
         <p className="screen-subtitle">Nachrichten in Bild und Ton.</p>
       </header>
-      <div className="segmented-control media-tabs" role="group" aria-label="Medien filtern">
+      <div className="segmented-control sliding-tabs media-tabs" role="group" aria-label="Medien filtern"
+        style={{ '--tab-count': Object.keys(FILTERS).length, '--tab-index': Object.keys(FILTERS).indexOf(filter) } as React.CSSProperties}>
+        <span className="tab-track" aria-hidden="true"><span className="tab-selection" /></span>
         {(Object.keys(FILTERS) as Array<keyof typeof FILTERS>).map(key => (
           <button key={key} ref={key === 'clips' ? clipsButton : undefined} type="button" className="choice-pill" aria-pressed={filter === key}
             onClick={() => { setFilter(key); setSelected(undefined); }}>{FILTERS[key]}</button>

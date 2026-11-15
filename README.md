@@ -71,7 +71,7 @@ Beim App-Start werden die Feeds einmal geladen. Ziehe auf „Heute“, „Für d
 
 **Einstellungen:** Die Android-Freigabe erscheint beim Einschalten von Eilmeldungen oder der täglichen Erinnerung. Nach einer Ablehnung führt ein Link zur Benachrichtigungsseite von Android. Im Browser erscheinen Hinweise beim Aktualisieren der geöffneten App. Die automatische Übersetzung steht unter **Lesen**, das Zurücksetzen der Empfehlungen unter **KI & Personalisierung**. Sicherung und Diagnose stehen unter **Datenschutz**.
 
-Unter **Profil → Einstellungen → Navigation & Bewegung** kannst du die Übergänge beim Antippen, Wechseln und Öffnen von Dialogen reduzieren. OpenNews berücksichtigt auch die Bewegungseinstellung des Systems.
+Unter **Profil → Einstellungen → Navigation & Bewegung** kannst du die Übergänge beim Antippen, Wechseln und Öffnen von Dialogen reduzieren. OpenNews berücksichtigt auch die Bewegungseinstellung des Systems. Die Auswahlmarkierung gleitet zwischen Reitern, und der Aktualisierungspfeil folgt beim Herunterziehen der Geste.
 
 **Aufbewahrung:** 2, 4, 7, 14, 30 oder 90 Tage (Standard **4**), maximal **600** Beiträge im Speicher. Beim Aktualisieren werden neue Artikel zusammengeführt; Abos, Lesezeichen, Likes und Verlauf bleiben erhalten.
 

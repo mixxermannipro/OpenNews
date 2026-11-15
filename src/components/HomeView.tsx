@@ -37,13 +37,18 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onToggleLike,
 }) => {
   const gesture = useRef<{ x: number; y: number; distance: number } | null>(null);
-  const [pull, setPull] = useState(0);
+  const pullIndicator = useRef<HTMLDivElement>(null);
   const [gestureRefresh, setGestureRefresh] = useState(false);
   const pullThreshold = 72;
 
   const resetPull = () => {
     gesture.current = null;
-    setPull(0);
+    const indicator = pullIndicator.current;
+    if (!indicator) return;
+    indicator.style.removeProperty('--pull-distance');
+    delete indicator.dataset.pulling;
+    delete indicator.dataset.visible;
+    delete indicator.dataset.ready;
   };
 
   const [batch, setBatch] = useState({ category: selectedCategory, limit: 30 });
@@ -116,9 +121,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
   return (
     <section aria-label="Startseite Nachrichten" className="screen-entry space-y-5"
       onTouchStart={event => {
-        if (window.scrollY > 1 || isLoading || event.touches.length !== 1) return;
+        if (window.scrollY > 1 || isLoading || gestureRefresh || event.touches.length !== 1) return;
         const { clientX, clientY } = event.touches[0];
         gesture.current = { x: clientX, y: clientY, distance: 0 };
+        pullIndicator.current?.setAttribute('data-pulling', '');
       }}
       onTouchMove={event => {
         const start = gesture.current;
@@ -134,7 +140,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
           return;
         }
         start.distance = Math.max(0, dy);
-        setPull(Math.min(48, start.distance * 0.55));
+        const indicator = pullIndicator.current;
+        if (!indicator) return;
+        const distance = start.distance;
+        indicator.toggleAttribute('data-visible', distance > 0);
+        indicator.toggleAttribute('data-ready', distance >= pullThreshold);
+        // Follow the finger without re-rendering the feed on every touchmove.
+        const offset = 68 * distance / (distance + 55);
+        indicator.style.setProperty('--pull-distance', `${offset}px`);
       }}
       onTouchEnd={() => {
         const shouldRefresh = (gesture.current?.distance ?? 0) >= pullThreshold;
@@ -150,12 +163,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
         Feeds aktualisieren
       </button>
       <div className="relative">
-        {(pull > 0 || gestureRefresh) && (
-          <div className="pull-indicator" role="status" data-ready={(gesture.current?.distance ?? 0) >= pullThreshold} style={{ transform: `translate(-50%, ${gestureRefresh ? 26 : pull}px)` }}>
-            {gestureRefresh ? <LoaderCircle size={17} className="animate-spin" aria-label="Nachrichten werden aktualisiert" />
-              : <ArrowDown size={17} aria-label="Zum Aktualisieren nach unten ziehen" />}
-          </div>
-        )}
+        <div ref={pullIndicator} className="pull-indicator" data-refreshing={gestureRefresh}
+          aria-hidden={!gestureRefresh} role="status">
+          {gestureRefresh ? <LoaderCircle size={17} className="animate-spin" aria-label="Nachrichten werden aktualisiert" />
+            : <ArrowDown size={17} aria-label="Zum Aktualisieren nach unten ziehen" />}
+        </div>
         <div className="screen-heading">
           <div>
             <h1>Startseite</h1>
@@ -165,7 +177,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </div>
       </div>
 
-      <div role="group" aria-label="Ansicht der Startseite" className="segmented-control">
+      <div role="group" aria-label="Ansicht der Startseite" className="segmented-control sliding-tabs"
+        style={{ '--tab-count': HOME_TABS.length, '--tab-index': HOME_TABS.indexOf(selectedCategory) } as React.CSSProperties}>
+        <span className="tab-track" aria-hidden="true"><span className="tab-selection" /></span>
         {HOME_TABS.map(cat => (
           <button key={cat} type="button" aria-pressed={selectedCategory === cat}
             onClick={() => onSelectCategory(cat)} className="choice-pill">
