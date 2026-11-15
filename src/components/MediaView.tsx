@@ -33,6 +33,7 @@ export function MediaView({ aiConfig, articles, loading, background, onArticle, 
   const dialogExit = useRef<(() => void) | undefined>(undefined);
   const clipsDialog = useRef<HTMLDialogElement>(null);
   const clipsPane = useRef<HTMLUListElement>(null);
+  const clipsButton = useRef<HTMLButtonElement>(null);
   const entries = useMemo(() => collectDistinctMedia(articles), [articles]);
   const clips = entries.filter(({ media }) => media.portrait);
   const [startClip, setStartClip] = useState<string>();
@@ -71,7 +72,8 @@ export function MediaView({ aiConfig, articles, loading, background, onArticle, 
       document.body.style.overflow = originalOverflow;
       dialog?.close();
       if (Capacitor.isNativePlatform()) void SystemBars.show().catch(() => {});
-      if (opener instanceof HTMLElement) opener.focus();
+      if (opener instanceof HTMLElement && opener !== document.body && opener.isConnected) opener.focus({ preventScroll: true });
+      else clipsButton.current?.focus({ preventScroll: true });
     };
   }, [filter]);
 
@@ -173,7 +175,7 @@ export function MediaView({ aiConfig, articles, loading, background, onArticle, 
     );
   };
   return (
-    <section aria-labelledby="media-heading" className="space-y-5">
+    <section aria-labelledby="media-heading" className="screen-entry space-y-5">
       <p role="status" className={shareFeedback ? "text-sm" : "sr-only"}>{shareFeedback}</p>
       <header>
         <h1 id="media-heading" className="screen-title">Video &amp; Audio</h1>
@@ -181,13 +183,13 @@ export function MediaView({ aiConfig, articles, loading, background, onArticle, 
       </header>
       <div className="segmented-control media-tabs" role="group" aria-label="Medien filtern">
         {(Object.keys(FILTERS) as Array<keyof typeof FILTERS>).map(key => (
-          <button key={key} type="button" className="choice-pill" aria-pressed={filter === key}
+          <button key={key} ref={key === 'clips' ? clipsButton : undefined} type="button" className="choice-pill" aria-pressed={filter === key}
             onClick={() => { setFilter(key); setSelected(undefined); }}>{FILTERS[key]}</button>
         ))}
       </div>
       {filter === 'clips' && createPortal(
         <dialog ref={clipsDialog} aria-label="Hochformat-Clips im Vollbild"
-          className="fixed inset-0 m-0 h-dvh max-h-none w-dvw max-w-none overflow-hidden bg-black text-white [--clip-caption-height:calc(9rem+env(safe-area-inset-bottom))] [@media(max-height:480px)]:[--clip-caption-height:calc(4rem+env(safe-area-inset-bottom))]"
+          className="clips-dialog fixed inset-0 m-0 h-dvh max-h-none w-dvw max-w-none overflow-hidden bg-black text-white [--clip-caption-height:calc(9rem+env(safe-area-inset-bottom))] [@media(max-height:480px)]:[--clip-caption-height:calc(4rem+env(safe-area-inset-bottom))]"
           onCancel={event => { event.preventDefault(); window.history.back(); }}>
           <button type="button" className="absolute top-[calc(0.75rem+env(safe-area-inset-top))] left-3 z-10 grid size-12 place-items-center rounded-full bg-black/70"
             aria-label="Clips schließen" onClick={() => window.history.back()}><ArrowLeft aria-hidden /></button>
@@ -219,7 +221,7 @@ export function MediaView({ aiConfig, articles, loading, background, onArticle, 
         document.body,
       )}
       {groups.length ? groups.map(({ kind, items }) => (
-        <section key={kind} aria-labelledby={`media-${kind}`} className="space-y-3">
+        <section key={`${filter}-${kind}`} aria-labelledby={`media-${kind}`} className="screen-entry space-y-3">
           <div className="flex items-center justify-between gap-3">
             <h2 id={`media-${kind}`} className="text-xl font-bold tracking-tight">{kind === 'audio' ? 'Audio & Podcasts' : 'Jetzt ansehen'}</h2>
             {filter === 'all' && items.length > 1 && (
@@ -239,7 +241,7 @@ export function MediaView({ aiConfig, articles, loading, background, onArticle, 
         />
       )}
       {filter === 'all' && clips.length > 0 && (
-        <section aria-labelledby="clips-heading" className="space-y-3">
+        <section aria-labelledby="clips-heading" className="screen-entry space-y-3">
           <div className="flex items-center justify-between gap-3">
             <h2 id="clips-heading" className="text-xl font-bold tracking-tight">Kurze Clips</h2>
             <button className="choice-pill inline-flex items-center gap-1" type="button"

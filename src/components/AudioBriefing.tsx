@@ -121,7 +121,7 @@ export function AudioBriefing({ articles, config, open, onOpen, onClose }: {
         <Headphones size={16} aria-hidden="true" />
         Tagesüberblick
       </button>
-      <dialog ref={dialog} className="briefing-dialog" aria-labelledby="briefing-title"
+      <dialog ref={dialog} className="motion-dialog briefing-dialog" aria-labelledby="briefing-title"
         onCancel={event => { event.preventDefault(); onClose(); }}
         onClick={event => { if (event.target === event.currentTarget) onClose(); }}>
         <div className="reader-summary-content space-y-4">

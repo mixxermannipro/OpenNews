@@ -108,7 +108,7 @@ export function ProfileView({ page, onPage, onBack, onSaved, onHistory, onSource
   );
 
   return (
-    <section className={page === 'profile' ? 'settings-page profile-page' : 'settings-page'}>
+    <section key={page} className={page === 'profile' ? 'screen-entry settings-page profile-page' : 'screen-entry settings-page'}>
       {page !== 'profile' && (
         <button className="choice-pill inline-flex items-center gap-2" onClick={onBack} type="button"><ArrowLeft size={16} /> Zurück</button>
       )}

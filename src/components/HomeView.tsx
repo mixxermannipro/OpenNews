@@ -114,7 +114,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   }
 
   return (
-    <section aria-label="Startseite Nachrichten" className="space-y-5"
+    <section aria-label="Startseite Nachrichten" className="screen-entry space-y-5"
       onTouchStart={event => {
         if (window.scrollY > 1 || isLoading || event.touches.length !== 1) return;
         const { clientX, clientY } = event.touches[0];
@@ -151,7 +151,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       </button>
       <div className="relative">
         {(pull > 0 || gestureRefresh) && (
-          <div className="pull-indicator" role="status" style={{ transform: `translate(-50%, ${gestureRefresh ? 26 : pull}px)` }}>
+          <div className="pull-indicator" role="status" data-ready={(gesture.current?.distance ?? 0) >= pullThreshold} style={{ transform: `translate(-50%, ${gestureRefresh ? 26 : pull}px)` }}>
             {gestureRefresh ? <LoaderCircle size={17} className="animate-spin" aria-label="Nachrichten werden aktualisiert" />
               : <ArrowDown size={17} aria-label="Zum Aktualisieren nach unten ziehen" />}
           </div>
@@ -185,7 +185,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           )}
         />
       ) : (
-        <div className="space-y-5">
+        <div className="feed-content space-y-5" key={selectedCategory}>
           {isToday ? (
             <>
               {lead && <div><HeadlineArticleCard {...cardProps(lead)} lead />{storyDetails(lead)}</div>}

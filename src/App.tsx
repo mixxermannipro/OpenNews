@@ -91,6 +91,9 @@ export default function App() {
     return () => window.removeEventListener('popstate', restore);
   }, []);
   const [preferences, setPreferences] = useLocalStorage<AppPreferences>('opennews_preferences', DEFAULT_PREFERENCES);
+  useLayoutEffect(() => {
+    document.documentElement.dataset.motion = preferences.motion;
+  }, [preferences.motion]);
   const [briefingSettings, setBriefingSettings] = useLocalStorage<DailyBriefingSettings>('opennews_daily_briefing', { enabled: false, time: '07:30' });
   const [homeCategory, setHomeCategory] = useState<HomeTab>(() => resolveHomeTab(preferences.home));
   const retention = resolveRetention(preferences.retention);
@@ -740,7 +743,7 @@ export default function App() {
     <MotionConfig reducedMotion={preferences.motion === 'reduced' ? 'always' : 'user'}>
     <div className="opennews-canvas" data-glass={preferences.glass} data-accent={preferences.accent}
       data-corners={preferences.corners} data-cards={preferences.cards} data-scale={preferences.textScale}
-      data-motion={preferences.motion} data-feed-images={preferences.images}>
+      data-feed-images={preferences.images}>
       {!onboarded ? <Onboarding {...appearance} onFinish={() => setOnboarded(true)} onConfigure={() => {
         setOnboarded(true);
         openProfile('preferences');
@@ -950,6 +953,7 @@ export default function App() {
             sourceLanguage={sources.find(source => source.id === activeArticle.sourceId)?.language}
             translate={autoTranslate && Capacitor.getPlatform() === 'android' && sources.some(source => source.id === activeArticle.sourceId && source.language === 'en')}
             backgroundPlayback={backgroundPlayback}
+            reducedMotion={reducedMotion}
             isBookmarked={normalizedProfile.bookmarkedIds.includes(activeArticle.id)}
             isLiked={normalizedProfile.likedIds.includes(activeArticle.id)}
             isDisliked={normalizedProfile.dislikedIds.includes(activeArticle.id)}
