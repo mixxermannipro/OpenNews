@@ -1,4 +1,6 @@
 import { ArrowLeft, ArrowRight, Bell, Bookmark, BookOpen, ChevronRight, Clapperboard, Compass, History, Layers, Palette, ShieldCheck, SlidersHorizontal, Sparkles, UserRound } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
+import { PWAInstallButton } from './PWAInstallButton';
 import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
 import { DEFAULT_PREFERENCES, EDITIONS, HOME_TAB_LABELS, RETENTION_OPTIONS, TOPICS, resolveHomeTab, resolveRetention, type AppPreferences, type Edition } from '../lib/preferences';
 import type { NewsCategory, ReaderFontFamily, ReaderFontSize, ThemeMode } from '../types/news';
@@ -71,7 +73,7 @@ export function Appearance({ theme, onTheme, preferences, onPreferences }: Appea
 
 export type ProfilePage = 'profile' | 'preferences' | 'appearance' | 'feed' | 'reader' | 'motion' | 'playback' | 'privacy' | 'topics';
 
-export function ProfileView({ page, onPage, onBack, onSaved, onHistory, onSources, onAI, onNotifications, backupControls, backgroundPlayback, onBackgroundPlayback, fontSize, fontFamily, onFontSize, onFontFamily, ...appearance }: AppearanceProps & {
+export function ProfileView({ page, onPage, onBack, onSaved, onHistory, onSources, onAI, onNotifications, backupControls, autoTranslate, onAutoTranslate, backgroundPlayback, onBackgroundPlayback, fontSize, fontFamily, onFontSize, onFontFamily, ...appearance }: AppearanceProps & {
   page: ProfilePage;
   onPage: (page: ProfilePage) => void;
   onBack: () => void;
@@ -81,6 +83,8 @@ export function ProfileView({ page, onPage, onBack, onSaved, onHistory, onSource
   onAI: () => void;
   onNotifications: () => void;
   backupControls: ReactNode;
+  autoTranslate: boolean;
+  onAutoTranslate: (enabled: boolean) => void;
   backgroundPlayback: boolean;
   onBackgroundPlayback: (enabled: boolean) => void;
   fontSize: ReaderFontSize;
@@ -146,6 +150,7 @@ export function ProfileView({ page, onPage, onBack, onSaved, onHistory, onSource
           {link('KI & Personalisierung', <Sparkles />, onAI)}
           {link(labels.privacy, <ShieldCheck />, () => onPage('privacy'))}
         </div>
+        {!Capacitor.isNativePlatform() && <PWAInstallButton />}
       </>}
       {page === 'playback' && (
         <div className="settings-group">
@@ -188,15 +193,24 @@ export function ProfileView({ page, onPage, onBack, onSaved, onHistory, onSource
       {page === 'reader' && <div className="settings-group">
         <PreferenceSelect label="Textgröße im Artikel" value={fontSize} options={{ normal: 'Standard', large: 'Groß', xlarge: 'Sehr groß' }} onChange={onFontSize} />
         <PreferenceSelect label="Schrift im Artikel" value={fontFamily} options={{ sans: 'Systemschrift', serif: 'Serifenschrift' }} onChange={onFontFamily} />
+        {Capacitor.getPlatform() === 'android' && <>
+          <label className="preference-row justify-between">
+            Artikel automatisch auf Deutsch lesen
+            <input type="checkbox" checked={autoTranslate} onChange={event => onAutoTranslate(event.target.checked)} />
+          </label>
+          <p className="px-4 pb-3 text-sm text-[var(--muted)]">
+            Übersetzt englische Artikel auf diesem Gerät. Das Sprachmodell wird beim ersten Einsatz geladen.
+          </p>
+        </>}
       </div>}
       {page === 'motion' && <div className="settings-group">
         <PreferenceSelect label="Animationen" value={preferences.motion} options={{ system: 'Wie im System', reduced: 'Reduziert' }} onChange={motion => onPreferences({ ...preferences, motion })} />
       </div>}
       {page === 'privacy' && <div className="settings-group p-5 space-y-3 leading-relaxed">
-        <p>Deine Einstellungen, Interessen und Leseliste werden auf diesem Gerät gespeichert.</p>
+        <p>Deine Einstellungen, Interessen und Leseliste werden auf diesem Gerät gespeichert. OpenNews braucht dafür kein Konto.</p>
+        <p>Beim Abrufen von Nachrichten verbindet sich OpenNews mit den ausgewählten Quellen. Wenn du eine externe KI verwendest, erhält der Anbieter den Artikeltext für die Analyse.</p>
         {backupControls}
         <Suspense fallback={null}><DiagnosticsSettings /></Suspense>
-        <p>Beim Abrufen von Nachrichten verbindet sich OpenNews mit den ausgewählten Quellen. Wenn du eine externe KI verwendest, erhält der Anbieter den Artikeltext für die Analyse.</p>
       </div>}
       {page === 'topics' && <TopicChoices topics={preferences.topics} onChange={topics => onPreferences({ ...preferences, topics })} />}
     </section>

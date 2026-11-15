@@ -279,21 +279,27 @@ export default function App() {
     [sources, enabledFormats]
   );
 
+  const pushSyncVersion = useRef(0);
   const [pushStatus, setPushStatus] = useState('');
+  const [pushPermissionDenied, setPushPermissionDenied] = useState(false);
+  const [requestingPushPermission, setRequestingPushPermission] = useState(false);
   const pushSourceIds = useMemo(() => activeSources
     .filter(source => pushSources.some(candidate => candidate.id === source.id && candidate.url === source.url))
     .map(source => source.id), [activeSources]);
 
-  const configurePush = useCallback(async (settings: NotificationSettings, prompt = false) => {
+  const configurePush = useCallback(async (settings: NotificationSettings) => {
     if (Capacitor.getPlatform() !== 'android') return;
+    const version = ++pushSyncVersion.current;
     try {
-      const { status } = await NewsPush.configure({ ...settings, sources: pushSourceIds, prompt });
+      const { status } = await NewsPush.configure({ ...settings, sources: pushSourceIds });
+      if (!settings.enabled || version !== pushSyncVersion.current) return;
+      setPushPermissionDenied(status === 'denied');
       setPushStatus(status === 'unconfigured' ? 'Dieser Build hat noch keine Firebase-Verbindung.'
         : status === 'denied' ? 'Erlaube Benachrichtigungen in den Android-Einstellungen.'
         : settings.enabled && !pushSourceIds.length ? 'Aktiviere mindestens eine unterstützte Nachrichtenquelle.'
         : settings.enabled ? 'Android-Push ist für unterstützte Quellen angemeldet.' : '');
     } catch {
-      setPushStatus('Push-Anmeldung gerade nicht möglich.');
+      if (settings.enabled && version === pushSyncVersion.current) setPushStatus('Push-Anmeldung gerade nicht möglich.');
     }
   }, [pushSourceIds]);
 
@@ -644,9 +650,35 @@ export default function App() {
     }
   };
 
+  const handleNotificationSettings = async (next: NotificationSettings) => {
+    if (Capacitor.getPlatform() === 'android' && next.enabled && !notifications.enabled) {
+      setRequestingPushPermission(true);
+      setPushStatus('');
+      try {
+        const { allowed } = await NewsPush.requestAccess();
+        setPushPermissionDenied(!allowed);
+        if (!allowed) {
+          setPushStatus('Erlaube Benachrichtigungen in den Android-Einstellungen.');
+          return;
+        }
+      } catch {
+        setPushStatus('Die Android-Freigabe konnte nicht abgefragt werden.');
+        return;
+      } finally {
+        setRequestingPushPermission(false);
+      }
+    }
+    if (!next.enabled) {
+      pushSyncVersion.current++;
+      setPushPermissionDenied(false);
+      setPushStatus('');
+    }
+    setNotifications(next);
+  };
+
   const handleSendTestNotification = () => {
     if (Capacitor.getPlatform() === 'android') {
-      void configurePush(notifications, true).then(() => NewsPush.test()).catch(() =>
+      void NewsPush.test().catch(() =>
         showAlert('Android hat Benachrichtigungen gesperrt.', 'OpenNews · Test'));
     } else {
       showAlert('Benachrichtigungen sind aktiv.', 'OpenNews · Test');
@@ -814,7 +846,6 @@ export default function App() {
               setReadArticles([]);
               setProfile(previous => ({ ...normalizeProfile(previous), readIds: [] }));
             }}
-            onResetAlgorithm={() => setProfile(previous => resetProfileWeights(normalizeProfile(previous)))}
           />
         )}
 
@@ -849,6 +880,7 @@ export default function App() {
               <p role="status">{backupStatus}</p>
             </div>
           }
+          autoTranslate={autoTranslate} onAutoTranslate={setAutoTranslate}
           backgroundPlayback={backgroundPlayback} onBackgroundPlayback={setBackgroundPlayback}
           fontSize={fontSize} fontFamily={fontFamily} onFontSize={setFontSize} onFontFamily={setFontFamily} />}
 
@@ -863,8 +895,6 @@ export default function App() {
             notifications={notifications}
             briefingSettings={briefingSettings}
             onBriefingSettings={setBriefingSettings}
-            autoTranslate={autoTranslate}
-            onAutoTranslate={setAutoTranslate}
             onAdvancedSources={() => openSettings('overview')}
             onImportSources={imported => {
               const normalized = (url: string) => { try { return new URL(url).href; } catch { return url; } };
@@ -884,10 +914,9 @@ export default function App() {
             onUpdateFormatPrefs={setFormatPrefs}
             onUpdateAIConfig={updateAIConfig}
             pushStatus={pushStatus}
-            onUpdateNotifications={next => {
-              if (!notifications.enabled && next.enabled) void configurePush(next, true);
-              setNotifications(next);
-            }}
+            pushPermissionDenied={pushPermissionDenied}
+            requestingPushPermission={requestingPushPermission}
+            onUpdateNotifications={next => void handleNotificationSettings(next)}
             onSendTestNotification={handleSendTestNotification}
             onResetAlgorithm={() => setProfile(previous => resetProfileWeights(normalizeProfile(previous)))}
             onBackHome={goBack}

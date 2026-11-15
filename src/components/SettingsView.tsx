@@ -21,7 +21,6 @@ import {
   Radio,
   Rss,
   Search,
-  ShieldCheck,
   Sparkles,
   Trash2,
   ArrowLeft,
@@ -39,7 +38,7 @@ import { AI_PROVIDERS, testAIConnection } from '../lib/aiClient';
 import { TopicChoices } from './Preferences';
 import { exportOpml, importOpml } from '../lib/opml';
 import { SourceIcon } from './SourceIcon';
-import { PWAInstallButton } from './PWAInstallButton';
+import { NewsPush } from '../lib/newsPush';
 
 export type SettingsSectionTab = 'overview' | 'feeds' | 'ai' | 'app';
 
@@ -52,9 +51,9 @@ interface SettingsViewProps {
   notifications: NotificationSettings;
   briefingSettings: BriefingSettings;
   onBriefingSettings: (value: BriefingSettings) => void;
-  autoTranslate: boolean;
   pushStatus: string;
-  onAutoTranslate: (enabled: boolean) => void;
+  pushPermissionDenied: boolean;
+  requestingPushPermission: boolean;
   onImportSources: (sources: NewsSource[]) => void;
   onToggleSource: (sourceId: string) => void;
   onAddCustomSource: (source: NewsSource) => void;
@@ -97,9 +96,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   notifications,
   briefingSettings,
   onBriefingSettings,
-  autoTranslate,
   pushStatus,
-  onAutoTranslate,
+  pushPermissionDenied,
+  requestingPushPermission,
   onImportSources,
   onToggleSource,
   onAddCustomSource,
@@ -114,6 +113,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onAdvancedSources,
 }) => {
   const section = initialSection;
+  const [androidSettingsUnavailable, setAndroidSettingsUnavailable] = useState(false);
   const [transferStatus, setTransferStatus] = useState('');
   const [showAISetup, setShowAISetup] = useState(Boolean(aiConfig.apiKey) || aiConfig.provider === 'device');
   const [feedSearch, setFeedSearch] = useState('');
@@ -387,44 +387,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </div>
           </div>
 
-          <div className="liquid-glass rounded-[26px] p-5 space-y-3.5">
-            <div className="flex items-center gap-3">
-              <div className="liquid-glass-subtle flex h-10 w-10 items-center justify-center rounded-full">
-                <ShieldCheck className="h-4 w-4 text-slate-700 dark:text-slate-200" />
-              </div>
-              <h2 className="text-base font-bold text-slate-900 dark:text-white">Datenschutz</h2>
-            </div>
-
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div className="liquid-glass-subtle flex items-start gap-3 rounded-2xl p-3.5">
-                <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#34C759]/20 text-[#34C759]">
-                  <Check className="h-3.5 w-3.5" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                    Alles lokal gespeichert
-                  </p>
-                  <p className="mt-0.5 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-                    Deine Einstellungen bleiben auf deinem Gerät.
-                  </p>
-                </div>
-              </div>
-
-              <div className="liquid-glass-subtle flex items-start gap-3 rounded-2xl p-3.5">
-                <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#34C759]/20 text-[#34C759]">
-                  <Check className="h-3.5 w-3.5" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                    Keine Pflicht-Cloud
-                  </p>
-                  <p className="mt-0.5 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-                    Keine erzwungene Kontoerstellung oder Cloud-Synchronisation.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       )}
 
@@ -817,17 +779,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       )}
 
       {/* SECTION 3: KI & API-KEY */}
-      {section === 'ai' && Capacitor.getPlatform() === 'android' && (
-        <div className="settings-group space-y-2 p-4">
-          <label className="flex items-center justify-between gap-4 text-sm font-semibold">
-            Artikel automatisch auf Deutsch lesen
-            <input type="checkbox" checked={autoTranslate} onChange={event => onAutoTranslate(event.target.checked)} />
-          </label>
-          <p className="text-xs text-slate-600 dark:text-slate-300">
-            Übersetzt englische Artikel beim Öffnen direkt auf diesem Gerät.
-            Das Sprachmodell wird beim ersten Einsatz über WLAN geladen.
+      {section === 'ai' && (
+        <section className="settings-group space-y-3 p-4" aria-labelledby="personalization-heading">
+          <h2 id="personalization-heading" className="font-semibold">Lokale Empfehlungen</h2>
+          <p className="text-sm text-[var(--muted)]">
+            Gelernte Gewichte halbieren sich alle 21 Tage. Beim Zurücksetzen bleiben Lesezeichen, Reaktionen und Verlauf erhalten.
           </p>
-        </div>
+          <button type="button" className="choice-pill" onClick={onResetAlgorithm}>Algorithmus zurücksetzen</button>
+        </section>
       )}
       {section === 'ai' && (
         <div className="liquid-glass rounded-[26px] p-5 space-y-5">
@@ -1024,7 +983,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   </h2>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
                     {Capacitor.getPlatform() === 'android' ? 'Meldungen aus unterstützten Quellen auch bei geschlossener App.'
-                      : 'Hinweise beim Aktualisieren der Nachrichten in der geöffneten App'}
+                      : 'Im Browser erscheinen Hinweise nur beim Aktualisieren in der geöffneten App.'}
                   </p>
                 </div>
               </div>
@@ -1033,6 +992,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 role="switch"
                 aria-checked={notifications.enabled}
                 aria-label="Benachrichtigungen umschalten"
+                disabled={requestingPushPermission}
                 onClick={() => onUpdateNotifications({ ...notifications, enabled: !notifications.enabled })}
                 className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors ${
                   notifications.enabled ? 'bg-[#34C759]' : 'bg-slate-300 dark:bg-slate-700'
@@ -1046,7 +1006,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </button>
             </div>
 
-            {notifications.enabled && pushStatus && <p role="status" className="text-sm">{pushStatus}</p>}
+            {(pushStatus || (pushPermissionDenied && androidSettingsUnavailable)) && (
+              <p role="status" className="text-sm">{pushPermissionDenied && androidSettingsUnavailable
+                ? 'Öffne in Android die App-Infos für OpenNews und wähle Benachrichtigungen.'
+                : pushStatus}</p>
+            )}
+            {pushPermissionDenied && <button type="button" className="choice-pill"
+              onClick={() => {
+                setAndroidSettingsUnavailable(false);
+                void NewsPush.openSettings().catch(() => setAndroidSettingsUnavailable(true));
+              }}>
+              Android-Einstellungen öffnen
+            </button>}
             {notifications.enabled && (
               <div className="space-y-4 border-t border-black/10 pt-3 dark:border-white/10">
                 <label className="preference-row px-0">
@@ -1074,38 +1045,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             )}
           </div>
 
-          <details className="settings-group p-4 space-y-3">
-            <summary className="cursor-pointer font-semibold">Weitere App-Einstellungen</summary>
-          <div className="liquid-glass rounded-[26px] p-5 flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <h2 className="text-base font-bold text-slate-900 dark:text-white">
-                Android &amp; iOS App
-              </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Direkt als PWA installieren oder über Capacitor als native APK/IPA bauen.
-              </p>
-            </div>
-            <PWAInstallButton />
-          </div>
-
-          <div className="liquid-glass rounded-[26px] p-5 flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
-                Lokaler Empfehlungs-Algorithmus
-              </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Gelernte Gewichte halbieren sich alle 21 Tage. Beim Zurücksetzen bleiben Lesezeichen, Reaktionen und Verlauf erhalten.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={onResetAlgorithm}
-              className="liquid-glass-subtle min-h-[44px] rounded-full px-4 text-xs font-semibold text-rose-500 hover:bg-rose-500/10"
-            >
-              Algorithmus zurücksetzen
-            </button>
-          </div>
-          </details>
         </div>
       )}
     </section>
