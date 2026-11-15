@@ -1,6 +1,7 @@
 package io.opennews.app;
 
 import android.Manifest;
+import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
@@ -40,11 +41,16 @@ public class NewsPush extends Plugin {
                 return;
             }
         }
-        permissionResult(call);
+        checkAccess(call);
     }
 
     @PermissionCallback
     private void permissionResult(PluginCall call) {
+        checkAccess(call);
+    }
+
+    @PluginMethod
+    public void checkAccess(PluginCall call) {
         boolean allowed = NotificationManagerCompat.from(getContext()).areNotificationsEnabled();
         call.resolve(new JSObject().put("allowed", allowed));
     }
@@ -52,11 +58,23 @@ public class NewsPush extends Plugin {
     @PluginMethod
     public void openSettings(PluginCall call) {
         String packageName = getContext().getPackageName();
-        Intent intent = Build.VERSION.SDK_INT >= 26
-            ? new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
-            : new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null));
-        getActivity().startActivity(intent);
-        call.resolve();
+        if (Build.VERSION.SDK_INT >= 26) {
+            try {
+                getActivity().startActivity(new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                    .putExtra(Settings.EXTRA_APP_PACKAGE, packageName));
+                call.resolve();
+                return;
+            } catch (ActivityNotFoundException | SecurityException ignored) {
+                // Some Android versions only expose the application details page.
+            }
+        }
+        try {
+            getActivity().startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                Uri.fromParts("package", packageName, null)));
+            call.resolve();
+        } catch (ActivityNotFoundException | SecurityException error) {
+            call.reject("Android-Einstellungen konnten nicht geöffnet werden.", error);
+        }
     }
 
     @PluginMethod

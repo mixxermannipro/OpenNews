@@ -279,6 +279,7 @@ export default function App() {
     [sources, enabledFormats]
   );
 
+  const pushSyncVersion = useRef(0);
   const [pushStatus, setPushStatus] = useState('');
   const [pushPermissionDenied, setPushPermissionDenied] = useState(false);
   const [requestingPushPermission, setRequestingPushPermission] = useState(false);
@@ -288,16 +289,17 @@ export default function App() {
 
   const configurePush = useCallback(async (settings: NotificationSettings) => {
     if (Capacitor.getPlatform() !== 'android') return;
+    const version = ++pushSyncVersion.current;
     try {
       const { status } = await NewsPush.configure({ ...settings, sources: pushSourceIds });
-      if (!settings.enabled) return;
+      if (!settings.enabled || version !== pushSyncVersion.current) return;
       setPushPermissionDenied(status === 'denied');
       setPushStatus(status === 'unconfigured' ? 'Dieser Build hat noch keine Firebase-Verbindung.'
         : status === 'denied' ? 'Erlaube Benachrichtigungen in den Android-Einstellungen.'
         : settings.enabled && !pushSourceIds.length ? 'Aktiviere mindestens eine unterstützte Nachrichtenquelle.'
         : settings.enabled ? 'Android-Push ist für unterstützte Quellen angemeldet.' : '');
     } catch {
-      setPushStatus('Push-Anmeldung gerade nicht möglich.');
+      if (settings.enabled && version === pushSyncVersion.current) setPushStatus('Push-Anmeldung gerade nicht möglich.');
     }
   }, [pushSourceIds]);
 
@@ -667,6 +669,7 @@ export default function App() {
       }
     }
     if (!next.enabled) {
+      pushSyncVersion.current++;
       setPushPermissionDenied(false);
       setPushStatus('');
     }

@@ -113,6 +113,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onAdvancedSources,
 }) => {
   const section = initialSection;
+  const [androidSettingsUnavailable, setAndroidSettingsUnavailable] = useState(false);
   const [transferStatus, setTransferStatus] = useState('');
   const [showAISetup, setShowAISetup] = useState(Boolean(aiConfig.apiKey) || aiConfig.provider === 'device');
   const [feedSearch, setFeedSearch] = useState('');
@@ -1005,9 +1006,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </button>
             </div>
 
-            {pushStatus && <p role="status" className="text-sm">{pushStatus}</p>}
+            {(pushStatus || (pushPermissionDenied && androidSettingsUnavailable)) && (
+              <p role="status" className="text-sm">{pushPermissionDenied && androidSettingsUnavailable
+                ? 'Öffne in Android die App-Infos für OpenNews und wähle Benachrichtigungen.'
+                : pushStatus}</p>
+            )}
             {pushPermissionDenied && <button type="button" className="choice-pill"
-              onClick={() => void NewsPush.openSettings().catch(() => {})}>
+              onClick={() => {
+                setAndroidSettingsUnavailable(false);
+                void NewsPush.openSettings().catch(() => setAndroidSettingsUnavailable(true));
+              }}>
               Android-Einstellungen öffnen
             </button>}
             {notifications.enabled && (
