@@ -1,18 +1,26 @@
 import { useState } from 'react';
+import { NewsPush } from '../lib/newsPush';
 import { DailyBriefing, type DailyBriefingSettings as Settings } from '../lib/dailyBriefing';
 
 export function DailyBriefingSettings({ settings, onChange }: { settings: Settings; onChange: (value: Settings) => void }) {
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
+  const [permissionDenied, setPermissionDenied] = useState(false);
 
   const save = async (next: Settings) => {
     setBusy(true);
+    setPermissionDenied(false);
     try {
+      if (next.enabled && !settings.enabled && !(await NewsPush.requestAccess()).allowed) {
+        setPermissionDenied(true);
+        setStatus('Erlaube Benachrichtigungen in den Android-Einstellungen.');
+        return;
+      }
       await DailyBriefing.configure(next);
       onChange(next);
       setStatus(next.enabled ? 'Der Tagesüberblick ist geplant.' : 'Der Tagesüberblick ist abbestellt.');
     } catch {
-      setStatus('Die Einstellung konnte nicht gespeichert werden. Prüfe die Benachrichtigungen in Android.');
+      setStatus('Die Erinnerung konnte nicht gespeichert werden.');
     } finally {
       setBusy(false);
     }
@@ -32,5 +40,8 @@ export function DailyBriefingSettings({ settings, onChange }: { settings: Settin
         onChange={event => { if (event.target.value) void save({ ...settings, time: event.target.value }); }} />
     </label>
     <p role="status" className="text-sm">{status}</p>
+    {permissionDenied && <button className="choice-pill" type="button" onClick={() => {
+      void NewsPush.openSettings().catch(() => setStatus('Öffne die Benachrichtigungen in den Android-Einstellungen.'));
+    }}>Android-Einstellungen öffnen</button>}
   </section>;
 }

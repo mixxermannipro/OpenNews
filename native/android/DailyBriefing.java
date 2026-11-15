@@ -1,6 +1,5 @@
 package io.opennews.app;
 
-import android.Manifest;
 import android.app.AlarmManager;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -10,20 +9,17 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Build;
+import android.Manifest;
 import androidx.core.app.NotificationCompat;
+import androidx.core.app.NotificationManagerCompat;
 import com.getcapacitor.JSObject;
-import com.getcapacitor.PermissionState;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
-import com.getcapacitor.annotation.Permission;
-import com.getcapacitor.annotation.PermissionCallback;
 import java.util.Calendar;
 
-@CapacitorPlugin(name = "DailyBriefing", permissions = {
-    @Permission(alias = "notifications", strings = { Manifest.permission.POST_NOTIFICATIONS })
-})
+@CapacitorPlugin(name = "DailyBriefing")
 public class DailyBriefing extends Plugin {
     static final String ACTION = "io.opennews.app.DAILY_BRIEFING";
     private static final String STORE = "opennews-briefing";
@@ -31,17 +27,8 @@ public class DailyBriefing extends Plugin {
 
     @PluginMethod
     public void configure(PluginCall call) {
-        if (Boolean.TRUE.equals(call.getBoolean("enabled")) && Build.VERSION.SDK_INT >= 33 &&
-            getPermissionState("notifications") != PermissionState.GRANTED) {
-            requestPermissionForAlias("notifications", call, "permissionResult");
-        } else {
-            save(call);
-        }
-    }
-
-    @PermissionCallback
-    private void permissionResult(PluginCall call) {
-        if (getPermissionState("notifications") != PermissionState.GRANTED) {
+        if (Boolean.TRUE.equals(call.getBoolean("enabled"))
+            && !NotificationManagerCompat.from(getContext()).areNotificationsEnabled()) {
             call.reject("Android hat Benachrichtigungen nicht erlaubt.");
             return;
         }

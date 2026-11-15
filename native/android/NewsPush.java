@@ -1,7 +1,10 @@
 package io.opennews.app;
 
 import android.Manifest;
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Build;
+import android.provider.Settings;
 import androidx.core.app.NotificationManagerCompat;
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
@@ -29,18 +32,35 @@ public class NewsPush extends Plugin {
     private Task<Void> pending = Tasks.forResult(null);
 
     @PluginMethod
-    public void configure(PluginCall call) {
-        if (call.getBoolean("enabled", false) && Build.VERSION.SDK_INT >= 33
-            && getPermissionState("notifications") != PermissionState.GRANTED
-            && call.getBoolean("prompt", false)) {
-            requestPermissionForAlias("notifications", call, "permissionResult");
-            return;
+    public void requestAccess(PluginCall call) {
+        if (Build.VERSION.SDK_INT >= 33) {
+            PermissionState state = getPermissionState("notifications");
+            if (state == PermissionState.PROMPT || state == PermissionState.PROMPT_WITH_RATIONALE) {
+                requestPermissionForAlias("notifications", call, "permissionResult");
+                return;
+            }
         }
-        applySettings(call);
+        permissionResult(call);
     }
 
     @PermissionCallback
     private void permissionResult(PluginCall call) {
+        boolean allowed = NotificationManagerCompat.from(getContext()).areNotificationsEnabled();
+        call.resolve(new JSObject().put("allowed", allowed));
+    }
+
+    @PluginMethod
+    public void openSettings(PluginCall call) {
+        String packageName = getContext().getPackageName();
+        Intent intent = Build.VERSION.SDK_INT >= 26
+            ? new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+            : new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null));
+        getActivity().startActivity(intent);
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void configure(PluginCall call) {
         applySettings(call);
     }
 
@@ -63,7 +83,7 @@ public class NewsPush extends Plugin {
             .putString("from", call.getString("from", "00:00"))
             .putString("until", call.getString("until", "23:59")).apply();
         if (FirebaseApp.getApps(getContext()).isEmpty()) {
-            call.resolve(new JSObject().put("status", "unconfigured"));
+            call.resolve(new JSObject().put("status", enabled && !permitted ? "denied" : "unconfigured"));
             return;
         }
         synchronized (this) {
