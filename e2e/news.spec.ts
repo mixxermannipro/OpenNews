@@ -168,12 +168,18 @@ test('generates an audio briefing on demand and starts speech', async ({ page })
     localStorage.setItem('opennews_ai_config', JSON.stringify({
       provider: 'google', model: 'gemini-flash-latest', apiKey: 'local-test-fixture', autoSummarize: false,
     }));
-    Object.defineProperty(window.speechSynthesis, 'speak', {
-      value: (utterance: SpeechSynthesisUtterance) => {
-        document.documentElement.dataset.spokenBriefing = utterance.text;
+    let paused = false;
+    Object.defineProperties(window.speechSynthesis, {
+      speak: {
+        value: (utterance: SpeechSynthesisUtterance) => {
+          if (!paused) document.documentElement.dataset.spokenBriefing = utterance.text;
+        },
       },
+      paused: { get: () => paused },
+      cancel: { value: () => { delete document.documentElement.dataset.spokenBriefing; } },
+      pause: { value: () => { paused = true; } },
+      resume: { value: () => { paused = false; } },
     });
-    Object.defineProperty(window.speechSynthesis, 'cancel', { value: () => {} });
   });
   let briefingText = '';
   await page.route('**/api/ai/proxy', route => {
@@ -205,9 +211,12 @@ test('generates an audio briefing on demand and starts speech', async ({ page })
   await expect(briefing.getByRole('status')).toHaveText('Wiedergabe pausiert.');
   await briefing.getByRole('button', { name: 'Wiedergabe fortsetzen' }).click();
   await expect(briefing.getByRole('status')).toHaveText('Tagesüberblick läuft.');
-  await page.getByRole('button', { name: 'Wiedergabe stoppen' }).click();
-  await expect(page.getByRole('button', { name: 'Tagesüberblick anhören' })).toBeVisible();
+  await briefing.getByRole('button', { name: 'Wiedergabe pausieren' }).click();
+  await briefing.getByRole('button', { name: 'Wiedergabe stoppen' }).click();
+  await briefing.getByRole('button', { name: 'Tagesüberblick anhören' }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-spoken-briefing', briefingText);
   await page.keyboard.press('Escape');
+  await expect(page.locator('html')).not.toHaveAttribute('data-spoken-briefing');
   await expect(briefing).toBeHidden();
   await expect(trigger).toBeFocused();
 });

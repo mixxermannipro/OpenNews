@@ -29,17 +29,29 @@ export function AudioBriefing({ articles, config, open, onOpen, onClose }: {
   const utterance = useRef<SpeechSynthesisUtterance | null>(null);
   const stopSpeaking = () => {
     if (android) void AndroidSpeech.stop().catch(() => {});
-    else if (utterance.current) window.speechSynthesis.cancel();
+    else if (utterance.current) {
+      window.speechSynthesis.cancel();
+      if (window.speechSynthesis.paused) window.speechSynthesis.resume();
+    }
   };
   useEffect(() => () => {
     request.current++;
     stopSpeaking();
   }, []);
 
+  const stop = () => {
+    request.current++;
+    stopSpeaking();
+    utterance.current = null;
+    setState('idle');
+    setStatus('');
+  };
+
   useLayoutEffect(() => {
     const element = dialog.current;
     if (open && !element?.open) element?.showModal();
     if (!open && element?.open) {
+      if (state !== 'idle') stop();
       element.close();
       trigger.current?.focus({ preventScroll: true });
     }
@@ -61,14 +73,6 @@ export function AudioBriefing({ articles, config, open, onOpen, onClose }: {
   };
 
   const play = async () => {
-    if (state !== 'idle') {
-      request.current++;
-      stopSpeaking();
-      utterance.current = null;
-      setState('idle');
-      setStatus('');
-      return;
-    }
     const current = ++request.current;
     setState('loading');
     setStatus('Tagesüberblick wird erstellt …');
@@ -141,7 +145,7 @@ export function AudioBriefing({ articles, config, open, onOpen, onClose }: {
                 {state === 'playing' ? 'Wiedergabe pausieren' : 'Wiedergabe fortsetzen'}
               </button>
             )}
-            <button className="choice-pill" type="button" onClick={() => void play()}>
+            <button className="choice-pill" type="button" onClick={state === 'idle' ? () => void play() : stop}>
               {state === 'idle' ? 'Tagesüberblick anhören' : state === 'loading' ? 'Erstellung abbrechen' : 'Wiedergabe stoppen'}
             </button>
           </div>}
