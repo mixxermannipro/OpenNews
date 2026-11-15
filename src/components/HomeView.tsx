@@ -145,6 +145,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
         }
       }}
       onTouchCancel={resetPull}>
+      <button type="button" className="choice-pill sr-only focus:not-sr-only"
+        disabled={isLoading} onClick={() => void onRefresh()}>
+        Feeds aktualisieren
+      </button>
       <div className="relative">
         {(pull > 0 || gestureRefresh) && (
           <div className="pull-indicator" role="status" style={{ transform: `translate(-50%, ${gestureRefresh ? 26 : pull}px)` }}>
@@ -174,9 +178,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
           title={isLoading ? 'Nachrichten werden geladen …' : selectedCategory === 'Heute'
             ? 'Heute sind noch keine Meldungen verfügbar'
             : selectedCategory === 'Für dich' ? 'Keine aktuellen Empfehlungen verfügbar' : 'Keine Meldungen verfügbar'}
-          action={!isLoading && (selectedCategory === 'Neueste'
-            ? <button type="button" className="choice-pill" onClick={() => void onRefresh()}>Feeds aktualisieren</button>
-            : <button type="button" className="choice-pill" onClick={() => onSelectCategory('Neueste')}>Zu „Neueste“</button>)}
+          action={!isLoading && selectedCategory !== 'Neueste' && (
+            <button type="button" className="choice-pill" onClick={() => onSelectCategory('Neueste')}>Zu „Neueste“</button>
+          )}
         />
       ) : (
         <div className="space-y-5">
