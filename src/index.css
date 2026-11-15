@@ -510,7 +510,8 @@
 .reader-prose p { text-wrap: pretty; }
 .reader-prose h2 { margin-top: 1.6em; font-weight: 720; line-height: 1.3; text-wrap: balance; }
 
-.reader-summary {
+.reader-summary,
+.briefing-dialog {
   position: fixed;
   inset: 0;
   margin: auto;
@@ -525,14 +526,27 @@
   overscroll-behavior: contain;
 }
 
-.reader-summary[open] {
+.reader-summary[open],
+.briefing-dialog[open] {
   animation: reader-summary-in var(--motion-enter) var(--motion-ease) both;
 }
 
-.reader-summary::backdrop {
+.reader-summary::backdrop,
+.briefing-dialog::backdrop {
   background: var(--scrim);
   animation: reader-summary-dim 220ms ease-out both;
 }
+
+.briefing-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: .375rem;
+  min-height: 44px;
+  padding-inline: .375rem;
+  font-size: .875rem;
+  color: var(--muted);
+}
+.briefing-trigger:hover { color: var(--ink); }
 
 .reader-summary-content {
   padding: 1.25rem;

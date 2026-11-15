@@ -41,9 +41,9 @@ async function openSources(page: Page) {
 
 test('skips onboarding and displays a feed article', async ({ page }) => {
   await enterApp(page);
-  await expect(page.getByText(title, { exact: true }).first()).toBeVisible();
+  await expect(page.getByText(title, { exact: true }).filter({ visible: true }).first()).toBeVisible();
   await page.reload();
-  await expect(page.getByText(title, { exact: true }).first()).toBeVisible();
+  await expect(page.getByText(title, { exact: true }).filter({ visible: true }).first()).toBeVisible();
 });
 
 test('keeps the feed unchanged when returning to an open app', async ({ page }) => {
@@ -94,7 +94,7 @@ test('keeps the feed unchanged when returning to an open app', async ({ page }) 
 
 test('opens a reader and saves the article', async ({ page }) => {
   await enterApp(page);
-  await page.getByText(title, { exact: true }).first().click();
+  await page.getByText(title, { exact: true }).filter({ visible: true }).first().click();
   const reader = page.getByRole('dialog', { name: /Artikel lesen/ });
   await expect(reader).toBeVisible();
   await reader.getByRole('button', { name: 'Artikel speichern' }).click();
@@ -109,7 +109,7 @@ test('opens a reader and saves the article', async ({ page }) => {
   });
   await page.goBack();
   await expect(reader).toBeHidden();
-  await expect(page.getByText(title, { exact: true }).first()).toBeVisible();
+  await expect(page.getByText(title, { exact: true }).filter({ visible: true }).first()).toBeVisible();
   expect(await page.evaluate(() => window.scrollY)).toBe(scrollPosition);
 });
 
@@ -146,7 +146,7 @@ test('opens and closes the full-screen clips view', async ({ page }) => {
 
 test('reads a saved article offline', async ({ page, context }) => {
   await enterApp(page);
-  await page.getByText(title, { exact: true }).first().click();
+  await page.getByText(title, { exact: true }).filter({ visible: true }).first().click();
   const reader = page.getByRole('dialog', { name: /Artikel lesen/ });
   await expect(reader.getByText(/Volltext stammt/).first()).toBeVisible();
   await reader.getByRole('button', { name: 'Offline speichern' }).click();
@@ -159,7 +159,7 @@ test('reads a saved article offline', async ({ page, context }) => {
   await context.setOffline(true);
   await page.getByRole('button', { name: 'Profil', exact: true }).click();
   await page.getByRole('button', { name: 'Gespeichert', exact: true }).click();
-  await page.getByText(title, { exact: true }).first().click();
+  await page.getByText(title, { exact: true }).filter({ visible: true }).first().click();
   await expect(reader.getByText(/Volltext stammt/).first()).toBeVisible();
 });
 
@@ -168,12 +168,18 @@ test('generates an audio briefing on demand and starts speech', async ({ page })
     localStorage.setItem('opennews_ai_config', JSON.stringify({
       provider: 'google', model: 'gemini-flash-latest', apiKey: 'local-test-fixture', autoSummarize: false,
     }));
-    Object.defineProperty(window.speechSynthesis, 'speak', {
-      value: (utterance: SpeechSynthesisUtterance) => {
-        document.documentElement.dataset.spokenBriefing = utterance.text;
+    let paused = false;
+    Object.defineProperties(window.speechSynthesis, {
+      speak: {
+        value: (utterance: SpeechSynthesisUtterance) => {
+          if (!paused) document.documentElement.dataset.spokenBriefing = utterance.text;
+        },
       },
+      paused: { get: () => paused },
+      cancel: { value: () => { delete document.documentElement.dataset.spokenBriefing; } },
+      pause: { value: () => { paused = true; } },
+      resume: { value: () => { paused = false; } },
     });
-    Object.defineProperty(window.speechSynthesis, 'cancel', { value: () => {} });
   });
   let briefingText = '';
   await page.route('**/api/ai/proxy', route => {
@@ -184,11 +190,35 @@ test('generates an audio briefing on demand and starts speech', async ({ page })
   });
   await page.reload();
   await enterApp(page);
-  await page.getByRole('button', { name: 'Tagesüberblick anhören' }).click();
+  await page.setViewportSize({ width: 320, height: 640 });
+  await page.evaluate(() => { document.documentElement.style.fontSize = '125%'; });
+  const tabs = page.getByRole('group', { name: 'Ansicht der Startseite' });
+  const trigger = page.getByRole('button', { name: 'Tagesüberblick', exact: true });
+  for (const tab of ['Heute', 'Für dich', 'Neueste']) {
+    await tabs.getByRole('button', { name: tab, exact: true }).click();
+    await expect(trigger).toBeVisible();
+  }
+  const tabBar = page.locator('[aria-label="Ansicht der Startseite"]');
+  const position = await tabBar.boundingBox();
+  await trigger.click();
+  const briefing = page.getByRole('dialog', { name: 'Tagesüberblick' });
+  await expect(briefing).toBeVisible();
+  expect(await tabBar.boundingBox()).toEqual(position);
+  await briefing.getByRole('button', { name: 'Tagesüberblick anhören' }).click();
   await expect.poll(() => briefingText).not.toBe('');
   await expect(page.locator('html')).toHaveAttribute('data-spoken-briefing', briefingText);
-  await page.getByRole('button', { name: 'Wiedergabe stoppen' }).click();
-  await expect(page.getByRole('button', { name: 'Tagesüberblick anhören' })).toBeVisible();
+  await briefing.getByRole('button', { name: 'Wiedergabe pausieren' }).click();
+  await expect(briefing.getByRole('status')).toHaveText('Wiedergabe pausiert.');
+  await briefing.getByRole('button', { name: 'Wiedergabe fortsetzen' }).click();
+  await expect(briefing.getByRole('status')).toHaveText('Tagesüberblick läuft.');
+  await briefing.getByRole('button', { name: 'Wiedergabe pausieren' }).click();
+  await briefing.getByRole('button', { name: 'Wiedergabe stoppen' }).click();
+  await briefing.getByRole('button', { name: 'Tagesüberblick anhören' }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-spoken-briefing', briefingText);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('html')).not.toHaveAttribute('data-spoken-briefing');
+  await expect(briefing).toBeHidden();
+  await expect(trigger).toBeFocused();
 });
 
 test('migrates old reading history and preserves it across restarts', async ({ browser, baseURL }) => {

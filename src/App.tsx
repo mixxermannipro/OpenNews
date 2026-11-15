@@ -63,6 +63,7 @@ type AppLocation = {
   saved: 'bookmarks' | 'history';
   article: NewsArticle | null;
   summary?: boolean;
+  briefing?: boolean;
 };
 const HOME_LOCATION: AppLocation = { tab: 'home', profile: 'profile', settings: 'overview', saved: 'bookmarks', article: null };
 
@@ -70,7 +71,7 @@ export default function App() {
   const [location, setLocation] = useState<AppLocation>(HOME_LOCATION);
   const { tab: activeTab, settings: settingsSection, profile: profilePage, saved: savedPage, article: activeArticle } = location;
   const navigate = (next: Partial<AppLocation>) => {
-    const destination = { ...location, article: null, summary: false, ...next };
+    const destination = { ...location, article: null, summary: false, briefing: false, ...next };
     if (JSON.stringify(destination) === JSON.stringify(location)) return;
     window.history.pushState({ openNews: destination }, '');
     setLocation(destination);
@@ -91,7 +92,6 @@ export default function App() {
   }, []);
   const [preferences, setPreferences] = useLocalStorage<AppPreferences>('opennews_preferences', DEFAULT_PREFERENCES);
   const [briefingSettings, setBriefingSettings] = useLocalStorage<DailyBriefingSettings>('opennews_daily_briefing', { enabled: false, time: '07:30' });
-  const [openBriefing, setOpenBriefing] = useState(false);
   const [homeCategory, setHomeCategory] = useState<HomeTab>(() => resolveHomeTab(preferences.home));
   const retention = resolveRetention(preferences.retention);
   useEffect(() => {
@@ -517,10 +517,11 @@ export default function App() {
     let active = true;
     const show = () => {
       if (!active) return;
-      setLocation(HOME_LOCATION);
+      const destination = { ...HOME_LOCATION, briefing: true };
       window.history.replaceState(null, '');
+      window.history.pushState({ openNews: destination }, '');
       setHomeCategory('Heute');
-      setOpenBriefing(true);
+      setLocation(destination);
     };
     const listener = DailyBriefing.addListener('open', show);
     void DailyBriefing.getLaunch().then(result => { if (result.open) show(); }).catch(() => {});
@@ -764,9 +765,12 @@ export default function App() {
         {activeTab === 'home' && (
           <HomeView
             stories={readerFeedSnapshot ?? homeSections[homeCategory]}
-            briefing={homeCategory === 'Heute' ? (
-              <Suspense fallback={null}><AudioBriefing articles={homeSections.Heute.map(story => story.lead)} config={aiConfig} open={openBriefing} /></Suspense>
-            ) : null}
+            briefing={(
+              <Suspense fallback={null}>
+                <AudioBriefing articles={homeSections.Heute.map(story => story.lead)} config={aiConfig}
+                  open={Boolean(location.briefing)} onOpen={() => navigate({ briefing: true })} onClose={goBack} />
+              </Suspense>
+            )}
             showHero={preferences.hero}
             selectedCategory={homeCategory}
             onSelectCategory={setHomeCategory}
