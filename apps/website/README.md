@@ -52,8 +52,8 @@ Die Standardkonfiguration ist für die lokale Vorschau bestimmt. Sie enthält ei
 4. In den Produktions-Einstellungen von Pages die bestätigten Werte aus [.env.example](.env.example) hinterlegen. `VITE_WEBSITE_PRIVACY_NOTICE` erhält den fertigen Hinweis zu Hosting und Kontakt als Text. `VITE_IMPRINT_DETAILS` steht für zusätzliche Angaben bereit. Nach der Prüfung `VITE_RELEASE_APPROVED=yes` und `VITE_SITE_STATUS=live` setzen. Der Live-Build prüft, ob die dafür nötigen Angaben vorhanden sind. Er prüft die Inhalte nicht rechtlich.
 5. Lokal oder über eine geschützte Vorschau testen, dann die Veröffentlichung in Pages auslösen. Die `VITE_*`-Werte sind öffentliche Website-Angaben. Zugangsdaten gehören dort nicht hinein.
 
-Den Google-Play-Link erst bei öffentlicher Freigabe als `VITE_PLAY_STORE_URL` setzen. Er muss zum Paket `io.opennews.app` führen. Bis dahin zeigt der Bereich den Teststatus. `VITE_WEB_APP_URL` ist optional und sollte erst auf eine bestätigte öffentliche Web-App zeigen. Freigegebene Social-Links können in `src/content/site.ts` ergänzt werden.
+Den Google-Play-Link erst bei öffentlicher Freigabe als `VITE_PLAY_STORE_URL` setzen. Er muss zum Paket `io.opennews.app` führen. Bis dahin zeigt der Bereich den Teststatus. `VITE_WEB_APP_URL` ist optional und sollte erst auf eine bestätigte öffentliche Web-App zeigen. Der GitHub-Link im Footer lässt sich in `src/content/site.ts` pflegen.
 
 ## Lizenz
 
-Die Produktwebsite einschließlich ihrer Texte und Gestaltung wird ohne allgemeine Nutzungslizenz übernommen. Die Apache-2.0-Lizenz der App gilt für den App-Quellcode. Für Schriften gelten die [beiliegenden OFL-Lizenzen](public/fonts/), für Inhalte Dritter die Rechte der jeweiligen Inhaber.
+Für den eigenen Quellcode, die Texte und die Gestaltung gilt der [Rechtevorbehalt des Projekts](../../LICENSE). Für Schriften gelten die [beiliegenden OFL-Lizenzen](public/fonts/), für Inhalte Dritter die Rechte der jeweiligen Inhaber.

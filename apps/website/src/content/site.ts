@@ -56,5 +56,5 @@ export const site = {
   operator,
   privacyNotice,
   contactEmail: operator.email || 'mixxermannipropvp@gmail.com',
-  social: [] as Array<{ label: string; href: string }>,
+  social: [{ label: 'GitHub', href: 'https://github.com/mixxermannipro/OpenNews' }],
 };
