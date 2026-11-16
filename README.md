@@ -581,7 +581,7 @@ Das Repository ist privat und in einer frühen Alpha. Beiträge klein und prüfb
 | Tagesüberblick | Schlagzeilen ohne Schlüssel, optional mit Anbieter-KI und Systemstimme |
 | Diagnose | lokal verfügbar, Senden optional |
 | Tests | 66 Unit-Tests und 13 Playwright-Browsertests |
-| Lizenz | Apache-2.0 |
+| Eigener Quellcode | Alle Rechte vorbehalten |
 
 ## Lizenz
 
