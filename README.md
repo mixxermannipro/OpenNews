@@ -152,6 +152,11 @@ flowchart LR
 
 ## Projektstruktur
 
+Dieses Repository enthält die App und die [Produktwebsite](apps/website/README.md).
+Die Website hat eigene Abhängigkeiten und einen eigenen Build. Für Cloudflare Pages
+ist `apps/website` das Stammverzeichnis. Die Anleitung im Website-Ordner beschreibt
+die Live-Konfiguration.
+
 Versionierte Ordner und Dateien. Bilddateien sind gruppiert; generierte Ordner stehen darunter.
 
 ```text
@@ -159,7 +164,11 @@ OpenNews/
 ├── .github/
 │   └── workflows/
 │       ├── android-test-apk.yml        # CI: Android-Debug-APK und Pre-Release
-│       └── web-ci.yml                  # CI: Typen, Tests, Build, Web-Budget, E2E
+│       ├── web-ci.yml                  # CI: App-Typen, Tests, Build, Web-Budget, E2E
+│       └── website-ci.yml              # CI: Website-Build und Tests
+│
+├── apps/
+│   └── website/                        # Produktwebsite für Cloudflare Pages
 │
 ├── docs/
 │   ├── screenshots/                    # Aktuelle App-Aufnahmen für diese README
@@ -576,7 +585,7 @@ Das Repository ist privat und in einer frühen Alpha. Beiträge klein und prüfb
 
 ## Lizenz
 
-Der OpenNews-Quellcode steht unter der [Apache License 2.0](LICENSE). Nachrichten, Bilder und Marken Dritter unterliegen den jeweiligen Rechten. Abhängigkeiten behalten ihre eigenen Lizenzen.
+Der Quellcode der OpenNews-App steht unter der [Apache License 2.0](LICENSE). Für die Produktwebsite gelten die [Lizenzhinweise im Website-Ordner](apps/website/README.md#lizenz). Nachrichten, Bilder und Marken Dritter unterliegen den jeweiligen Rechten. Abhängigkeiten behalten ihre eigenen Lizenzen.
 
 ---
 

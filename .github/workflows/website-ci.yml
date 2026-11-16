@@ -1,0 +1,32 @@
+name: Website CI
+
+on:
+  push:
+    paths:
+      - 'apps/website/**'
+      - '.github/workflows/website-ci.yml'
+  pull_request:
+    paths:
+      - 'apps/website/**'
+      - '.github/workflows/website-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  website:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: apps/website
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: apps/website/.nvmrc
+          cache: npm
+          cache-dependency-path: apps/website/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      - run: npm run verify
