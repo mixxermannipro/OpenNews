@@ -411,6 +411,7 @@ test('Play Beta keeps the original link and skips third-party article extraction
   const reader = page.getByRole('dialog', { name: 'Artikel lesen: ' + title });
   await expect(reader.getByRole('link', { name: 'Bei der Quelle weiterlesen' })).toHaveAttribute('href', /https:\/\/example\.org\/news\//);
   await expect(reader.getByText('Dieser Beitrag stammt aus einem simulierten Feed.')).toHaveCount(0);
+  await expect(reader.getByText(/Min\. Lesezeit/)).toHaveCount(0);
   await expect(reader.getByRole('button', { name: 'Artikel speichern' })).toBeVisible();
   expect(extractionRequests).toEqual([]);
 });

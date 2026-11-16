@@ -398,8 +398,10 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
               )}
               <span aria-hidden="true">·</span>
               <span>{formatRelativeTimeDe(article.publishedAt)}</span>
-              <span aria-hidden="true">·</span>
-              <span>{Math.max(1, Math.ceil((paragraphs.join(' ').match(/\S+/g)?.length ?? 0) / 220))} Min. Lesezeit</span>
+              {!PLAY_BETA && <>
+                <span aria-hidden="true">·</span>
+                <span>{Math.max(1, Math.ceil((paragraphs.join(' ').match(/\S+/g)?.length ?? 0) / 220))} Min. Lesezeit</span>
+              </>}
             </div>
 
             <div className={`reader-prose mt-5 space-y-4 ${textSizeClass} ${fontFamily === 'serif' ? 'font-editorial-serif' : ''}`}>
@@ -426,7 +428,13 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
                 <p className="text-sm" role="status">{offlineStatus}</p>
               </div>
             )}
-            {(PLAY_BETA || fullTextUnavailable) && <a href={article.link} target="_blank" rel="noopener noreferrer" className="mt-3 inline-block text-sm underline">Bei der Quelle weiterlesen</a>}
+            {PLAY_BETA ? (
+              <a href={article.link} target="_blank" rel="noopener noreferrer" className="choice-pill mt-3 inline-flex min-h-11 items-center gap-2">
+                <ExternalLink size={16} aria-hidden="true" /> Bei der Quelle weiterlesen
+              </a>
+            ) : fullTextUnavailable && (
+              <a href={article.link} target="_blank" rel="noopener noreferrer" className="mt-3 inline-block text-sm underline">Bei der Quelle weiterlesen</a>
+            )}
             {speechError && <p role="status" className="mt-2 text-sm">Die Sprachausgabe ist gerade nicht verfügbar.</p>}
           </div>
         </div>
