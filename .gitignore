@@ -13,3 +13,10 @@ coverage/
 
 /playwright-report/
 /test-results/
+
+/android/
+*.aab
+*.jks
+*.keystore
+*.p12
+*.pfx

@@ -1,10 +1,21 @@
 # Datenschutzerklärung für OpenNews
 
-**Entwurf für die Android-Veröffentlichung.** Der Betreiber ergänzt vor Freigabe seinen Namen, die Kontaktadresse und die tatsächlichen Angaben zu Hosting, Speicherdauer und eingesetzten Diensten.
+**Entwurf für die Android-Veröffentlichung.**
+
+- Verantwortlicher: **[Name und ladungsfähige Anschrift]**
+- Datenschutzkontakt: **[öffentlich erreichbare E-Mail-Adresse]**
+- Betreiber der Datenschutzseite, Hosting-Standort und Speicherdauer von
+  Zugriffsprotokollen: **[nach Wahl des Hostings eintragen]**
+- Rechtsgrundlagen je Verarbeitung, Empfänger und gegebenenfalls
+  Übermittlungen in Drittländer: **[für den tatsächlichen Betrieb klären]**
+
+Die eckigen Klammern brauchen bestätigte Angaben vor der Veröffentlichung.
+Diese Pflichtangaben ergeben sich aus [Art. 13 DSGVO](https://eur-lex.europa.eu/eli/reg/2016/679/oj/eng/).
 
 ## Daten auf dem Gerät
 
 OpenNews speichert Quellen, Lesezeichen, Reaktionen, Leseverlauf, Interessen und Einstellungen auf dem Gerät. Die App nutzt diese Daten für die Anzeige und Empfehlungen. Du kannst die gelernten Gewichte in der App zurücksetzen. Die Android-Einstellungen können die lokalen App-Daten löschen. Im Browser kannst du die Website-Daten löschen.
+OpenNews deaktiviert die automatische Android-Cloud-Sicherung seiner App-Daten. Eine manuelle Sicherung ist über den Export in den Einstellungen möglich.
 Das Android-Widget speichert je Ansicht einen begrenzten Vorrat an Artikeldaten und seine Auswahl für Thema und Quelle im lokalen App-Speicher. Die periodische Darstellung des Widgets lädt keine Daten aus dem Internet. Das iOS-Widget erhält bis zu drei gekürzte Artikel pro Ansicht über einen gemeinsamen lokalen App-Speicher. Es ruft selbst keine Feeds ab.
 
 
@@ -15,12 +26,18 @@ Die Android-App ruft Feeds und Artikel direkt ab. Beim Abruf können Quellen und
 ## Optionale Funktionen
 
 - **Externe KI.** Wenn du eine KI-Funktion verwendest, erhält der ausgewählte Anbieter den Schlüssel zur Authentifizierung und die für die Anfrage benötigten Textinhalte. Im Web leitet der OpenNews-Server die KI-Anfrage weiter. Die Nutzung und Speicherdauer beim Anbieter richten sich nach dessen Bedingungen.
-- **Android-Übersetzung.** Die App verwendet ML Kit. Benötigte Sprachmodelle werden von Google geladen. Die Übersetzung findet auf dem Gerät statt.
-- **Android-Benachrichtigungen.** Bei eingerichteter Firebase-Konfiguration verwaltet Firebase Cloud Messaging die Zustellung an die App-Installation und ihre abonnierten Themen. Beim Aktivieren von Eilmeldungen oder der täglichen Erinnerung fragt OpenNews über Android nach der Berechtigung. Wenn Android die Benachrichtigungen sperrt, führt die App zu den Android-Einstellungen.
+- **Android-Übersetzung.** Die App verwendet ML Kit. Benötigte Sprachmodelle werden von Google geladen. Die Übersetzung findet auf dem Gerät statt. Google beschreibt Modellabrufe sowie Leistungs- und Nutzungsmetriken des SDK. Die Android-Übersetzung kann unter anderem Geräteinformationen, eine installationsbezogene Kennung und Angaben zur Sprachkonfiguration übertragen. Eingabetext und Übersetzung verbleiben bei dieser Funktion auf dem Gerät. [ML-Kit-Datenschutzhinweise](https://developers.google.com/ml-kit/terms) · [Angaben zu ML Kit Translate](https://developers.google.com/ml-kit/android-data-disclosure)
+- **Android-Benachrichtigungen.** Die vorgesehene erste Android-Beta enthält das SDK mit deaktivierter automatischer Messaging-Initialisierung und wird ohne Firebase-Projektkonfiguration gebaut. Die lokale Tageserinnerung bleibt verfügbar. Bei später eingerichteter Firebase-Konfiguration verwaltet Firebase Cloud Messaging die Zustellung an die App-Installation und ihre abonnierten Themen. Beim Aktivieren von Eilmeldungen oder der täglichen Erinnerung fragt OpenNews über Android nach der Berechtigung. Wenn Android die Benachrichtigungen sperrt, führt die App zu den Android-Einstellungen.
 
 ## Datenschutzkontakt und Betroffenenrechte
 
-Der Betreiber ergänzt hier vor Veröffentlichung einen erreichbaren Datenschutzkontakt und die für den Betrieb geltenden Angaben zu Auskunft, Berichtigung, Löschung und Beschwerde.
+Für eine Anfrage zum Datenschutz nutze den oben genannten Kontakt.
+Je nach Voraussetzungen hast du Rechte auf Auskunft, Berichtigung, Löschung,
+Einschränkung der Verarbeitung und Datenübertragbarkeit. Du kannst dich bei
+einer Datenschutzaufsichtsbehörde beschweren. Bei einwilligungsbasierter
+Verarbeitung kannst du deine Einwilligung für die Zukunft widerrufen. Bei
+einer Verarbeitung aufgrund berechtigter Interessen kann ein Widerspruchsrecht
+bestehen.
 
 ## Freiwillige Fehlerdiagnose
 

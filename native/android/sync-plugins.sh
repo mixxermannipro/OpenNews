@@ -2,6 +2,10 @@
 set -euo pipefail
 cp native/android/*.java android/app/src/main/java/io/opennews/app/
 gradle=android/app/build.gradle
+cp native/android/release-version.gradle android/app/release-version.gradle
+if ! grep -Fxq "apply from: 'release-version.gradle'" "$gradle"; then
+  printf "\napply from: 'release-version.gradle'\n" >> "$gradle"
+fi
 if ! grep -q 'com.google.mlkit:translate' "$gradle"; then
   sed -i "/^dependencies {/a\    implementation 'com.google.mlkit:translate:17.0.3'" "$gradle"
 fi
@@ -14,6 +18,8 @@ if ! grep -q 'com.google.mlkit:genai-summarization' "$gradle"; then
 fi
 
 manifest=android/app/src/main/AndroidManifest.xml
+# Keep Android cloud backups from copying app data such as reading history.
+sed -i 's/android:allowBackup="true"/android:allowBackup="false"/' "$manifest"
 if ! grep -q 'DailyBriefing' "$manifest"; then
   sed -i '/<\/application>/e cat native/android/briefing-manifest.xml' "$manifest"
 fi

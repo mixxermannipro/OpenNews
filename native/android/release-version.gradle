@@ -1,0 +1,11 @@
+// Use the web app version in every Android build. Play uploads pass an explicit code.
+def packageJson = new groovy.json.JsonSlurper().parse(rootProject.file('../package.json'))
+def releaseCode = providers.gradleProperty('openNewsVersionCode').orElse('1').get()
+if (!(releaseCode ==~ /[1-9][0-9]{0,9}/) || releaseCode.toLong() > 2100000000) {
+    throw new GradleException('openNewsVersionCode must be an integer from 1 to 2100000000')
+}
+
+android.defaultConfig {
+    versionName packageJson.version
+    versionCode releaseCode.toInteger()
+}

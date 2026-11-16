@@ -1,14 +1,51 @@
 # Android für Google Play vorbereiten
 
-Der Katalogname lautet **OpenNews**. Das Android-Paket heißt `io.opennews.app`. Eine kurze Store-Beschreibung lautet: „RSS, Artikel und Videos aus deinen Quellen in einer App.“ Die ausführliche Beschreibung kann die Ansichten Heute und Für dich, eigene RSS-Quellen, Lesezeichen und die optionale KI mit eigenem Schlüssel nennen.
+Der Katalogname lautet **OpenNews**. Das Android-Paket heißt `io.opennews.app`. Die deutschen und englischen Beschreibungen stehen im [Store-Entwurf](play-store-listing.md).
 
 ## Signiertes Android App Bundle erzeugen
 
-1. Node.js 22, Java 21 und das Android SDK für API 36 bereitstellen. Dann `npm ci`, `npm run lint`, `npm test` und `npm run build` ausführen.
-2. Falls `android/` fehlt, `npx cap add android` ausführen. Danach `npm run android:sync`. Die generierte Android-Konfiguration bleibt lokal.
-3. In `android/app/build.gradle` im Block `defaultConfig` die veröffentlichte Versionsbezeichnung als `versionName` setzen. Für `versionCode` eine ganze Zahl größer als bei jedem bisherigen hochgeladenen Paket wählen. `targetSdkVersion` muss mindestens 36 sein.
-4. In Android Studio **Build → Generate Signed Bundle / APK → Android App Bundle** öffnen. Den Android-Release-Build mit dem Upload-Schlüssel signieren. Schlüsseldatei und Passwort außerhalb des Projekts sicher verwahren. Play App Signing in der Play Console für die Signatur der ausgelieferten APKs einrichten.
-5. Das erzeugte AAB (Android App Bundle) und die verwendete Git-Revision dokumentieren. Vor dem Upload die Signatur mit `jarsigner -verify -strict <datei.aab>` prüfen. Bei selbst signierten Upload-Zertifikaten die dabei gemeldete Vertrauenskette separat prüfen und den Zertifikatfingerabdruck mit dem auf Play hinterlegten Upload-Zertifikat vergleichen.
+Voraussetzungen unter Linux sind Node.js 22, ein vollständiges JDK 21,
+Android SDK und Build Tools für API 36, ImageMagick und `flock`.
+Mit `npm ci` und den Prüfungen aus der README beginnen. `JAVA_HOME` und
+`ANDROID_HOME` müssen auf das JDK bzw. Android SDK zeigen.
+
+Beim ersten echten Paket einen dauerhaften Upload-Schlüssel erzeugen. Das
+Passwort am Terminal eingeben. Schlüsseldatei und Wiederherstellungskopie
+außerhalb des Projekts schützen. Das Passwort im Passwortmanager ablegen.
+Google Play verwaltet später den Schlüssel, mit dem es die installierbaren
+Pakete signiert. Der lokale Upload-Schlüssel dient zur Anmeldung des Pakets.
+
+```sh
+umask 077
+mkdir -p "$HOME/.local/share/opennews-signing"
+export OPENNEWS_UPLOAD_KEYSTORE="$HOME/.local/share/opennews-signing/upload.p12"
+export OPENNEWS_UPLOAD_ALIAS=opennews-upload
+keytool -genkeypair -storetype PKCS12 -keystore "$OPENNEWS_UPLOAD_KEYSTORE" \
+  -alias "$OPENNEWS_UPLOAD_ALIAS" -keyalg RSA -keysize 2048 -validity 10000
+```
+
+Für jedes Paket von einem sauberen Checkout aus arbeiten. Für den ersten
+Play-Upload kann der Versionscode 1 verwendet werden, sofern er in Play
+Console frei ist. Für weitere Uploads eine Zahl über dem höchsten bereits
+verwendeten Code wählen. `versionName` stammt aus `package.json`.
+
+```sh
+npm run android:release -- 1
+```
+
+Der Befehl erzeugt und synchronisiert das Android-Projekt, baut das
+Release-Bundle, fragt das Passwort verdeckt ab und prüft die Signatur mit
+`jarsigner -verify -strict` gegen das gewählte Upload-Zertifikat. Er legt das
+geprüfte Paket unter `build/android-release/OpenNews-1.aab` ab und gibt den
+SHA-256-Zertifikatfingerabdruck aus. Einen bereits vorhandenen Versionscode
+überschreibt er am Ausgabeort nicht. Im PR prüft GitHub denselben Weg mit einem
+Einmalschlüssel. Das Paket aus dieser Prüfung bleibt auf dem Runner.
+
+Für den vorgeschlagenen ersten Beta-Build einen frischen Android-Baum ohne
+`android/app/google-services.json` verwenden. Das Firebase-SDK bleibt derzeit
+im Paket. Android-Cloud-Backups sind deaktiviert. Greife für eine manuelle
+Sicherung auf die Exportfunktion in der App zurück. Vor dem finalen Datensicherheitsformular das Update- und
+Netzwerkverhalten des konkreten Buildstands prüfen.
 
 ## Freigabe protokollieren
 
@@ -47,12 +84,28 @@ Starte anschließend ein Android-Gerät oder einen Emulator mit 16-KB-Seiten. `a
 - Beide Manifeste enthalten Internet, Netzwerkstatus, Benachrichtigungen, Neustart-Empfang, AICore-Dienstbindung, Wake-Lock, Firebase-Empfang und eine paketinterne Receiver-Berechtigung.
 - Das angeschlossene Samsung meldet 4.096 Byte Seitengröße. Der 16-KB-Laufzeittest, das signierte Upload-Paket und der Play-Vorabtestbericht stehen aus.
 
+### Lokaler Vorlauf auf `main` vom 16. November 2026
+
+- Ausgangspunkt `23d2157`. Android-Sync und Manifest-Zusammenführung erfolgreich:
+  Paket `io.opennews.app`, Minimum API 24, Ziel-API 36, Name `0.1.0-alpha.1`,
+  probeweise Code 17. Die acht oben genannten Berechtigungen waren vorhanden.
+  `allowBackup=false` wurde im zusammengeführten Manifest geprüft.
+- Mit einem temporären PKCS12-Schlüssel bestand ein Probe-Archiv nach dem
+  Signieren die strenge Signaturprüfung. Der lokale Paketbau scheiterte mit
+  `invalid source release: 21`, da lokal JDK 17 für Gradle verfügbar war.
+- Typprüfung, 66 Unit-Tests, Web-Build und 13 Playwright-Tests waren erfolgreich.
+  Playwright nutzt vorbereitete Feeds. Das 60-Sekunden-Ziel aus #141 wurde
+  damit nicht gemessen. Zum Zeitpunkt der Prüfung war kein Gerät verbunden.
+- Ausstehend sind die Abnahme am endgültigen signierten Paket, die Laufzeit
+  mit 16-KB-Seitengröße, Neuinstallation und Update aus Google Play und der
+  Play-Vorabtestbericht.
+
 ## Store-Eintrag und Test
 
 - Die [Datenschutzerklärung](datenschutz.md) mit dem tatsächlichen Betreiber, Datenschutzkontakt und den eingesetzten Diensten vervollständigen. Unter einer dauerhaften öffentlichen HTTPS-Adresse bereitstellen und aus der App verlinken.
 - Datensicherheit, Inhaltsbewertung und die für Nachrichten-Apps geltenden Angaben in Play Console ausfüllen. Firebase und Übersetzung anhand des tatsächlichen Release-Builds prüfen.
 - Aktuelle Aufnahmen für Heute, Entdecken, Leser und Video auf einem Testgerät ohne persönliche Daten erstellen. Die [README-Aufnahmen](../README.md#screenshots) zeigen die Web-App im Handyformat und dienen als Referenz für die Motive.
 - Vor Veröffentlichung mindestens Installation, Aktualisierung, Feed-Abruf, Leser, Offline-Verhalten, Benachrichtigungsberechtigung und die Übersetzung prüfen. Bei neuen persönlichen Entwicklerkonten gelten für die Produktionsfreigabe gegebenenfalls 12 Tester über 14 aufeinanderfolgende Tage.
-- Die Rechte für die Volltextanzeige vor Veröffentlichung prüfen. Die Debug-Pipeline liefert ausschließlich Testpakete für die Abnahme.
+- Die Rechte für die Volltextanzeige, Feed-Teaser, Bilder, Marken- und Quellendarstellung und Store-Aufnahmen vor der Verteilung prüfen. § 87g UrhG unterscheidet Hyperlinks und sehr kurze Auszüge von anderen Nutzungen. Ein öffentlich erreichbarer Feed allein belegt keine Freigabe für Volltexte oder Bilder. Vor der Beta die freigegebenen Nutzungen bestätigen und bei Bedarf die Anzeige auf Quellenangabe und Original-Link begrenzen. [§ 87g UrhG](https://www.gesetze-im-internet.de/urhg/__87g.html) Die Debug-Pipeline liefert ausschließlich Testpakete für die Abnahme.
 
 Quellen: [Android-Zielversionen](https://support.google.com/googleplay/android-developer/answer/11926878), [Play App Signing](https://support.google.com/googleplay/android-developer/answer/9842756), [Datensicherheit](https://support.google.com/googleplay/android-developer/answer/10787469), [Testvorgaben](https://support.google.com/googleplay/android-developer/answer/14151465).
