@@ -25,8 +25,8 @@ Die Android-App ruft Feeds und Artikel direkt ab. Beim Abruf können Quellen und
 
 ## Optionale Funktionen
 
-- **Externe KI.** Wenn du eine KI-Funktion verwendest, erhält der ausgewählte Anbieter den Schlüssel zur Authentifizierung und die für die Anfrage benötigten Textinhalte. Im Web leitet der OpenNews-Server die KI-Anfrage weiter. Die Nutzung und Speicherdauer beim Anbieter richten sich nach dessen Bedingungen.
-- **Android-Übersetzung.** Die App verwendet ML Kit. Benötigte Sprachmodelle werden von Google geladen. Die Übersetzung findet auf dem Gerät statt. Google beschreibt Modellabrufe sowie Leistungs- und Nutzungsmetriken des SDK. Die Android-Übersetzung kann unter anderem Geräteinformationen, eine installationsbezogene Kennung und Angaben zur Sprachkonfiguration übertragen. Eingabetext und Übersetzung verbleiben bei dieser Funktion auf dem Gerät. [ML-Kit-Datenschutzhinweise](https://developers.google.com/ml-kit/terms) · [Angaben zu ML Kit Translate](https://developers.google.com/ml-kit/android-data-disclosure)
+- **Externe KI.** Wenn du eine externe KI konfigurierst, erhält der ausgewählte Dienst bei einer Anfrage den Schlüssel zur Authentifizierung (falls gesetzt) und die dafür benötigten Textinhalte. Mit aktivierter automatischer Zusammenfassung kann die Anfrage beim Öffnen eines Artikels erfolgen. Zur Auswahl stehen Google Gemini, OpenAI, Anthropic, Mistral AI sowie OpenRouter oder ein selbst eingetragener kompatibler Dienst. Im Web leitet der OpenNews-Server Anfragen weiter. Die Nutzung und Speicherdauer beim gewählten Dienst richten sich nach dessen Bedingungen.
+- **Android-Übersetzung.** Die App verwendet ML Kit. Benötigte Sprachmodelle werden von Google geladen. Die Übersetzung findet auf dem Gerät statt. Google beschreibt Modellabrufe sowie Leistungs- und Nutzungsmetriken des SDK. Die Android-Übersetzung kann unter anderem Geräteinformationen, eine installationsbezogene Kennung und Angaben zur Sprachkonfiguration übertragen. Google nennt für die Übersetzung auch Firebase Remote Config und Firebase Installations zur Diagnose. Das betrifft ML Kit unabhängig von der Konfiguration von Firebase Cloud Messaging für Eilmeldungen. Eingabetext und Übersetzung verbleiben bei dieser Funktion auf dem Gerät. [ML-Kit-Datenschutzhinweise](https://developers.google.com/ml-kit/terms) · [Angaben zu ML Kit Translate](https://developers.google.com/ml-kit/android-data-disclosure)
 - **Android-Benachrichtigungen.** Die vorgesehene erste Android-Beta enthält das SDK mit deaktivierter automatischer Messaging-Initialisierung und wird ohne Firebase-Projektkonfiguration gebaut. Die lokale Tageserinnerung bleibt verfügbar. Bei später eingerichteter Firebase-Konfiguration verwaltet Firebase Cloud Messaging die Zustellung an die App-Installation und ihre abonnierten Themen. Beim Aktivieren von Eilmeldungen oder der täglichen Erinnerung fragt OpenNews über Android nach der Berechtigung. Wenn Android die Benachrichtigungen sperrt, führt die App zu den Android-Einstellungen.
 
 ## Datenschutzkontakt und Betroffenenrechte
@@ -66,7 +66,7 @@ Artikelauswahl befristet auf dem Gerät gespeichert.
 Bei **Auf diesem Gerät** verarbeitet Gemini Nano Artikeltexte lokal. Chrome
 benötigt die Prompt API, Android die ML-Kit-Schnittstelle und einen passenden
 AICore-Dienst. Beim erstmaligen Start kann ein Modell-Download anfallen.
-Android unterstützt hier längere englische Artikel und einen Stichpunkt.
+Android unterstützt hier längere englische Artikel und einen Stichpunkt. Google nennt für die Diagnose und Nutzungsanalyse von ML Kit GenAI unter anderem Kennungen sowie Sprach- und Leistungsdaten. [Angaben zu ML Kit GenAI](https://developers.google.com/ml-kit/android-data-disclosure#genai)
 
 Die Android-Erinnerung für den Tagesüberblick wird auf dem Gerät geplant.
 Uhrzeit, Einwilligung und die zuletzt geladene Schlagzeile bleiben lokal.
