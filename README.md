@@ -434,7 +434,7 @@ Im statischen Browserbetrieb kann Anthropic direkt mit dem in der App hinterlegt
 
 ## Android
 
-Mit `npm run android:release -- <versionCode>` erzeugst du ein lokal signiertes AAB für Google Play. Die [Android-Release-Anleitung](docs/android-release.md) beschreibt den Upload-Schlüssel, die Paketprüfung und den Testkanal. Die Schritte für den Kontoinhaber stehen in [PLAY_STORE_NEXT_STEPS.md](docs/PLAY_STORE_NEXT_STEPS.md). Unter **Profil → Kontakt und Feedback** kannst du eine freiwillige Rückmeldung per E-Mail verfassen.
+Mit `npm run android:release -- <versionCode>` erzeugst du ein lokal signiertes AAB für Google Play. Die [Android-Release-Anleitung](docs/android-release.md) beschreibt den Upload-Schlüssel, die Paketprüfung und den Testkanal. Die Schritte für den Kontoinhaber stehen in [PLAY_STORE_NEXT_STEPS.md](docs/PLAY_STORE_NEXT_STEPS.md). Der Play-Beta-Build zeigt Titel, Quellen und Original-Links. Volltexte, Publisher-Logos und fremde Artikelbilder fehlen dort bis zur Klärung der Rechte. Unter **Profil → Kontakt und Feedback** kannst du eine freiwillige Rückmeldung per E-Mail verfassen.
 
 Die App ist eine Capacitor-WebView mit `CapacitorHttp` (Feed- und KI-Aufrufe direkt auf dem Gerät), nativem Zurück-Knopf, `ArticleShare`-Plugin, Systemstimme für den Tagesüberblick, lokaler Übersetzung über ML Kit, Firebase-Nachrichten und synchronisierten Systemleisten. Das Widget „OpenNews Top-Themen“ zeigt je nach Größe bis zu drei Meldungen. Die große Ansicht bietet einen Bildaufmacher und Reiter für **Heute**, **Für dich** und **Neueste**. [Bedienung und Größen](docs/android-widget.md)
 

@@ -21,7 +21,7 @@ Das Android-Widget speichert je Ansicht einen begrenzten Vorrat an Artikeldaten 
 
 ## Abruf von Nachrichten und Medien
 
-Die Android-App ruft Feeds und Artikel direkt ab. Beim Abruf können Quellen und Medienanbieter deine IP-Adresse und technische Verbindungsdaten sehen. Die Web-App verwendet für Feed- und Volltextabrufe einen OpenNews-Server. Der Server verarbeitet dafür die angeforderten Adressen und die zur Verbindung nötigen Daten. Eingebettete YouTube-Videos stellen eine Verbindung zu YouTube her. Die Artikelansicht verlinkt auch zur Originalquelle.
+Die Android-App ruft Feeds direkt ab. In der Play-Beta zeigt der Reader Titel, Quelle, Datum und einen Link zum Original. Die App ruft in dieser Variante keinen Artikelvolltext nach. Medien öffnen beim jeweiligen Anbieter. Beim Abruf können Quellen und Medienanbieter deine IP-Adresse und technische Verbindungsdaten sehen. Die Web-App verwendet für Feed- und Volltextabrufe einen OpenNews-Server. Der Server verarbeitet dafür die angeforderten Adressen und die zur Verbindung nötigen Daten. Eingebettete YouTube-Videos in anderen OpenNews-Builds stellen eine Verbindung zu YouTube her. Die Artikelansicht verlinkt auch zur Originalquelle.
 
 ## Optionale Funktionen
 

@@ -9,3 +9,7 @@ android.defaultConfig {
     versionName packageJson.version
     versionCode releaseCode.toInteger()
 }
+
+if (providers.gradleProperty('openNewsPlayBeta').isPresent()) {
+    android.aaptOptions.ignoreAssetsPattern += ':source-icons'
+}

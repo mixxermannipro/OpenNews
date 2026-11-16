@@ -17,7 +17,7 @@ aktuelle Meldungen nach deinen Interessen. **Neueste** zeigt, was zuletzt
 veröffentlicht wurde.
 
 Füge eigene RSS-Feeds hinzu und öffne Beiträge in einer ruhigen
-Leseansicht mit Link zur Originalquelle. Speichere Artikel für später oder
+Übersicht mit Quelle, Datum und Link zur Originalseite. Speichere Artikel für später oder
 lass dir den Tagesüberblick vorlesen. Das Android-Widget bringt Schlagzeilen
 direkt auf deinen Startbildschirm.
 
@@ -37,8 +37,8 @@ you an overview of the day's stories. **For you** brings forward recent
 stories that match your interests. **Latest** shows the most recently
 published stories first.
 
-Add your own RSS feeds and open stories in a reader with a link to the
-original source. Save articles for later or listen to the daily briefing.
+Add your own RSS feeds and see each story’s source, date and link to the
+original page. Save articles for later or listen to the daily briefing.
 The Android widget brings headlines to your home screen.
 
 You can start reading without an account. Your selected sources, bookmarks

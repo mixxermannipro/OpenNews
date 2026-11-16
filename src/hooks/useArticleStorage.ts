@@ -40,7 +40,9 @@ function apply<T>(previous: T, update: Update<T>): T {
   return typeof update === 'function' ? (update as (previous: T) => T)(previous) : update;
 }
 
-export function useArticleStorage<T>(key: string, initialValue: T) {
+const identity = <T,>(value: T) => value;
+
+export function useArticleStorage<T>(key: string, initialValue: T, normalize: (value: T) => T = identity) {
   const initial = useRef(initialValue);
   const pending = useRef<Update<T>[]>([]);
   const loaded = useRef(false);
@@ -72,11 +74,11 @@ export function useArticleStorage<T>(key: string, initialValue: T) {
       if (cancelled) return;
       loaded.current = true;
       for (const update of pending.current.splice(0)) value = apply(value, update);
-      setSnapshot({ value, ready });
+      setSnapshot({ value: normalize(value), ready });
     };
     void initialize();
     return () => { cancelled = true; };
-  }, [key]);
+  }, [key, normalize]);
 
   useEffect(() => {
     if (!snapshot.ready) return;
@@ -98,9 +100,9 @@ export function useArticleStorage<T>(key: string, initialValue: T) {
     }
     setSnapshot(previous => {
       const value = apply(previous.value, next);
-      return Object.is(value, previous.value) ? previous : { ...previous, value };
+      return Object.is(value, previous.value) ? previous : { ...previous, value: normalize(value) };
     });
-  }, []);
+  }, [normalize]);
 
   return [snapshot.value, update, failed, loaded.current] as const;
 }

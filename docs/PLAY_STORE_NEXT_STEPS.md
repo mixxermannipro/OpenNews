@@ -23,7 +23,7 @@ freigeben möchtest. Die 25 US-Dollar sind laut deiner Angabe bereits bezahlt.
    **Monitor and improve → Policy and programs → App content → Privacy policy**
    die URL eintragen. Dort auch **Data safety**, **Content ratings**,
    **Target audience and content**, **Ads**, **App access** und
-   **News and magazine apps** anhand des geprüften Pakets ausfüllen.
+   **News and magazine apps** anhand des geprüften Pakets und der [vorbereiteten Angaben](android-release.md#play-console--vorbereitung-der-angaben) ausfüllen.
    OpenNews als Nachrichtenaggregator beschreiben.
    [Pflichtangaben](https://support.google.com/googleplay/android-developer/answer/9859455)
    · [Nachrichten-Deklaration](https://support.google.com/googleplay/android-developer/answer/16189314)
@@ -37,8 +37,9 @@ freigeben möchtest. Die 25 US-Dollar sind laut deiner Angabe bereits bezahlt.
 4. **Internen Test starten.** Unter **Test and release → Testing → Internal
    testing → Testers** eine kleine Liste vertrauenswürdiger Google-Konten
    pflegen. Unter **Releases → Create new release** Play App Signing
-   einrichten und das endgültig signierte AAB aus dem
-   [Release-Verfahren](android-release.md) hochladen. Unter **Test and
+   einrichten und den freigegebenen lokalen Kandidaten
+   `build/android-release/OpenNews-2.aab` aus dem
+   [Freigabeprotokoll](android-release.md#signierter-kandidat-vom-16-november-2026) hochladen. Unter **Test and
    release → Setup → App signing** das Upload-Zertifikat mit dem lokalen
    SHA-256-Fingerabdruck abgleichen. Dann **Next → Start rollout to Internal
    testing** und den Anmeldelink teilen. Benötigt werden AAB,

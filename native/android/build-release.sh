@@ -41,8 +41,8 @@ if [[ ! -d android ]]; then
   npm run build
   npx cap add android
 fi
-npm run android:sync
-(cd android && ./gradlew :app:bundleRelease "-PopenNewsVersionCode=$version_code" --no-daemon)
+VITE_OPENNEWS_PLAY_BETA=1 npm run android:sync
+(cd android && ./gradlew :app:bundleRelease "-PopenNewsVersionCode=$version_code" -PopenNewsPlayBeta --no-daemon)
 
 unsigned_bundle=android/app/build/outputs/bundle/release/app-release.aab
 work_dir=$(mktemp -d build/android-release/.signing.XXXXXXXX)

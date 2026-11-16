@@ -9,7 +9,8 @@ Android SDK und Build Tools für API 36, ImageMagick und `flock`.
 Mit `npm ci` und den Prüfungen aus der README beginnen. `JAVA_HOME` und
 `ANDROID_HOME` müssen auf das JDK bzw. Android SDK zeigen.
 
-Beim ersten echten Paket einen dauerhaften Upload-Schlüssel erzeugen. Das
+Den vorhandenen dauerhaften Upload-Schlüssel für weitere Pakete verwenden.
+Nur bei einer neuen Einrichtung einen Upload-Schlüssel erzeugen. Das
 Passwort am Terminal eingeben. Schlüsseldatei und Wiederherstellungskopie
 außerhalb des Projekts schützen. Das Passwort im Passwortmanager ablegen.
 Google Play verwaltet später den Schlüssel, mit dem es die installierbaren
@@ -102,12 +103,79 @@ Starte anschließend ein Android-Gerät oder einen Emulator mit 16-KB-Seiten. `a
   mit 16-KB-Seitengröße, Neuinstallation und Update aus Google Play und der
   Play-Vorabtestbericht.
 
+### Signierter Kandidat vom 16. November 2026
+
+| Prüfung | Ergebnis |
+| --- | --- |
+| Build | `f5b3ba2`, Linux, Temurin JDK 21.0.13, lokales Android SDK |
+| Paket | `build/android-release/OpenNews-2.aab`, `io.opennews.app`, `0.1.0-alpha.1`, Versionscode 2, Ziel-API 36 |
+| SHA-256 des AAB | `a483f4046ffdadd60a9ec5ef8517b7311855d1f4cac97a05094ffeb466a3c063` |
+| SHA-256 des öffentlichen Upload-Zertifikats | `CB:A9:22:4B:39:A6:C4:FC:6B:50:E0:13:59:8E:83:6D:AE:8B:F1:15:A4:45:A5:F4:43:2F:EE:13:89:01:07:59` |
+| Signatur und Struktur | `jarsigner -verify -strict` mit Upload-Zertifikat und `bundletool validate` bestanden |
+| 16-KB-Paketprüfung | `PAGE_ALIGNMENT_16K`, ZIP-Ausrichtung der daraus erzeugten APK und ELF-`LOAD`-Ausrichtung für `arm64-v8a` und `x86_64` bestanden |
+| Zusammengeführtes Manifest | Acht erwartete Berechtigungen, Android-Cloud-Sicherung deaktiviert, Firebase Messaging ohne automatische Initialisierung. Im Paket fehlt eine Firebase-Projekt-ID. |
+| Inhalt | Konzeptdateien aus der Konzeptphase fehlen im Paket. Versionscode 2 ersetzt den früheren lokalen Kandidaten 1. |
+
+Der Upload-Schlüssel liegt außerhalb des Repositorys und das Passwort im
+System-Schlüsselspeicher. Den Zugriff auf beides bei einem Rechnerwechsel
+erhalten. Das APK aus `bundletool` verwendet für die lokale Prüfung den
+Debug-Schlüssel. Google Play signiert seine APKs später selbst.
+Der Abgleich in der Play Console und der Play-Vorabtestbericht bleiben offen.
+
 ## Store-Eintrag und Test
 
 - Die [Datenschutzerklärung](datenschutz.md) mit dem tatsächlichen Betreiber, Datenschutzkontakt und den eingesetzten Diensten vervollständigen. Unter einer dauerhaften öffentlichen HTTPS-Adresse bereitstellen und aus der App verlinken.
-- Datensicherheit, Inhaltsbewertung und die für Nachrichten-Apps geltenden Angaben in Play Console ausfüllen. Firebase und Übersetzung anhand des tatsächlichen Release-Builds prüfen.
+- Datensicherheit, Inhaltsbewertung und die für Nachrichten-Apps geltenden Angaben in Play Console anhand der folgenden Vorbereitung ausfüllen.
 - Aktuelle Aufnahmen für Heute, Entdecken, Leser und Video auf einem Testgerät ohne persönliche Daten erstellen. Die [README-Aufnahmen](../README.md#screenshots) zeigen die Web-App im Handyformat und dienen als Referenz für die Motive.
 - Vor Veröffentlichung mindestens Installation, Aktualisierung, Feed-Abruf, Leser, Offline-Verhalten, Benachrichtigungsberechtigung und die Übersetzung prüfen. Bei neuen persönlichen Entwicklerkonten gelten für die Produktionsfreigabe gegebenenfalls 12 Tester über 14 aufeinanderfolgende Tage.
 - Die Rechte für die Volltextanzeige, Feed-Teaser, Bilder, Marken- und Quellendarstellung und Store-Aufnahmen vor der Verteilung prüfen. § 87g UrhG unterscheidet Hyperlinks und sehr kurze Auszüge von anderen Nutzungen. Ein öffentlich erreichbarer Feed allein belegt keine Freigabe für Volltexte oder Bilder. Vor der Beta die freigegebenen Nutzungen bestätigen und bei Bedarf die Anzeige auf Quellenangabe und Original-Link begrenzen. [§ 87g UrhG](https://www.gesetze-im-internet.de/urhg/__87g.html) Die Debug-Pipeline liefert ausschließlich Testpakete für die Abnahme.
 
 Quellen: [Android-Zielversionen](https://support.google.com/googleplay/android-developer/answer/11926878), [Play App Signing](https://support.google.com/googleplay/android-developer/answer/9842756), [Datensicherheit](https://support.google.com/googleplay/android-developer/answer/10787469), [Testvorgaben](https://support.google.com/googleplay/android-developer/answer/14151465).
+
+## Fremde Inhalte im Play-Build
+
+Die Bedingungen der Stichprobe tragen keine allgemeine Freigabe für eine
+Android-App, die fremde Volltexte, Logos oder Bilder ausliefert. Tagesschau
+beschreibt die Einbindung auf Websites und schließt Archivierung aus.
+The Guardian nennt den privaten, nichtkommerziellen Gebrauch im Rahmen
+seiner Bedingungen. Handelsblatt verlangt für kommerzielle Feed-Nutzung
+eine ausdrückliche Genehmigung. [Tagesschau](https://www.tagesschau.de/rssfeed-ts-104.html)
+· [The Guardian](https://www.theguardian.com/help/feeds)
+· [Handelsblatt](https://www.handelsblatt.com/rss-feeds/)
+
+Der Play-Build wird deshalb mit einer eingeschränkten Darstellung gebaut.
+Er zeigt Titel, Quelle, Datum und Original-Link. Er speichert und exportiert
+keine Artikelvolltexte oder Bilder, lädt keine Volltexte nach und enthält
+keine Publisher-Logos. Medien lassen sich beim Anbieter öffnen. Diese
+Einschränkung ist keine Freigabe der Feed-Nutzung. Vor einer Verteilung die
+Zulässigkeit von Feed-Abruf, Schlagzeilen, lokalem Zwischenspeicher und
+Store-Aufnahmen je vorkonfigurierter Quelle bestätigen. Bei Unsicherheit
+die betreffende Quelle aus dem voreingestellten Angebot nehmen.
+Die [Vorbereitung der Beta](beta-product-validation.md) richtet sich
+entsprechend auf den Schlagzeilen- und Link-Ablauf.
+
+## Play Console – Vorbereitung der Angaben
+
+- **App access.** Der Nachrichtenkern lässt sich ohne Konto, Abo oder
+  eigenen Schlüssel prüfen. Optionale externe KI bleibt konfigurierbar.
+- **News and magazine apps.** Nachrichtenaggregator. Quellenname und
+  Original-Link sind sichtbar. Der bestätigte Kontakt steht im Profil.
+- **Data safety.** Für einen ausschließlich internen Test ist das Formular
+  laut Google ausgenommen. Vor dem geschlossenen Test anhand des
+  konkreten Pakets ausfüllen. Quellenwahl, Lesezeichen, Verlauf und
+  Personalisierung werden auf dem Gerät gespeichert. Manuelle Exporte,
+  E-Mail-Feedback und die Standortwahl für die Datenschutzseite separat
+  berücksichtigen. [Google-Hilfe zur Datensicherheit](https://support.google.com/googleplay/android-developer/answer/10787469)
+- **Übertragungen prüfen.** Anbieter von Feeds, Bildern und Medien
+  können Verbindungsdaten erhalten. Bei externer KI kommen je nach Funktion
+  Artikel- und Auswahlinhalte sowie eingegebene Fragen hinzu. Das
+  Formular muss auch die Diagnose- und Nutzungsdaten der ML-Kit-SDKs
+  berücksichtigen. Fehlende Firebase-Push-Projektkonfiguration lässt die
+  ML-Kit-Datenflüsse unberührt. Vor einer pauschalen Aussage zur
+  Verschlüsselung sämtliche unterstützten Abrufwege einschließlich
+  eigener Feed-Adressen und eigener KI-Endpunkte prüfen.
+  [ML-Kit-Angaben](https://developers.google.com/ml-kit/android-data-disclosure)
+- **Content ratings und Ads.** Den Fragebogen anhand des tatsächlichen
+  Angebots beantworten. Drittinhalte und eingebettete Videoplayer
+  in die Prüfung einbeziehen. Die Altersfreigabe ergibt sich aus dem
+  Fragebogen.
