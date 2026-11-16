@@ -385,3 +385,17 @@ test('keeps notification and personalization settings in their own groups on the
   await page.getByRole('button', { name: 'KI & Personalisierung', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Algorithmus zurücksetzen' })).toBeVisible();
 });
+
+test('offers an email contact for voluntary beta feedback and privacy requests', async ({ page }) => {
+  await enterApp(page);
+  await page.getByRole('button', { name: 'Profil', exact: true }).click();
+
+  const contact = 'mixxermannipropvp@gmail.com';
+  await expect(page.getByRole('link', { name: 'Kontakt und Feedback' })).toHaveAttribute(
+    'href', 'mailto:' + contact + '?subject=OpenNews%20Beta',
+  );
+
+  await page.getByRole('button', { name: 'Einstellungen', exact: true }).click();
+  await page.getByRole('button', { name: 'Datenschutz', exact: true }).click();
+  await expect(page.getByRole('link', { name: contact })).toHaveAttribute('href', 'mailto:' + contact);
+});

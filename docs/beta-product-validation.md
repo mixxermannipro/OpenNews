@@ -46,7 +46,7 @@ Eine Telefonnummer wird für die Teilnahme von OpenNews nicht erhoben.
   ob und warum du die App geöffnet hast. Wenn du wiederkehrst, markiere
   welchen Reiter du genutzt und ob du den Tagesüberblick gefunden oder
   angehört hast. Die Rücklaufzahl mit auswerten.
-- **Fehler:** Private Rückmeldung über den Feedback-Kanal des Testtracks.
+- **Fehler:** Private Rückmeldung über **Profil → Kontakt und Feedback** oder den Feedback-Kanal des Testtracks.
   Bitte um App-Version, Android-Version, Gerätetyp, Schritte, erwartetes
   und beobachtetes Ergebnis. Screenshots sind freiwillig. Persönliche
   Daten, API-Schlüssel und Zugangsdaten vor dem Teilen entfernen.
@@ -58,8 +58,6 @@ Eine Telefonnummer wird für die Teilnahme von OpenNews nicht erhoben.
   nächsten Rollout beheben und erneut prüfen.
 
 Teilnehmerliste in Play Console pflegen. Im Repo nur anonymisierte
-Ergebnisse und reproduzierbare Fehler dokumentieren. Ein in der App
-erreichbarer Feedback-Kontakt bleibt Teil von #141 und braucht die
-bestätigte öffentliche Support-Adresse.
+Ergebnisse und reproduzierbare Fehler dokumentieren.
 
 [Google Play zu geschlossenen Tests](https://support.google.com/googleplay/android-developer/answer/14151465)

@@ -3,7 +3,7 @@
 **Entwurf für die Android-Veröffentlichung.**
 
 - Verantwortlicher: **[Name und ladungsfähige Anschrift]**
-- Datenschutzkontakt: **[öffentlich erreichbare E-Mail-Adresse]**
+- Datenschutzkontakt: **mixxermannipropvp@gmail.com**
 - Betreiber der Datenschutzseite, Hosting-Standort und Speicherdauer von
   Zugriffsprotokollen: **[nach Wahl des Hostings eintragen]**
 - Rechtsgrundlagen je Verarbeitung, Empfänger und gegebenenfalls
@@ -38,6 +38,14 @@ einer Datenschutzaufsichtsbehörde beschweren. Bei einwilligungsbasierter
 Verarbeitung kannst du deine Einwilligung für die Zukunft widerrufen. Bei
 einer Verarbeitung aufgrund berechtigter Interessen kann ein Widerspruchsrecht
 bestehen.
+
+## Kontakt und Beta-Feedback
+
+**Profil → Kontakt und Feedback** öffnet einen Entwurf in deinem
+E-Mail-Programm. OpenNews fügt den Betreff „OpenNews Beta“ ein. Text und
+Anhänge bestimmst du selbst. Der Betreiber verarbeitet deine E-Mail-Adresse
+und deine Nachricht zur Bearbeitung deiner Anfrage. **[Rechtsgrundlage und
+Speicherdauer für Support-Nachrichten ergänzen.]**
 
 ## Freiwillige Fehlerdiagnose
 

@@ -12,10 +12,10 @@ freigeben möchtest. Die 25 US-Dollar sind laut deiner Angabe bereits bezahlt.
    Eingaben sind `OpenNews`, Paket `io.opennews.app` falls abgefragt,
    Standardsprache Deutsch (Deutschland), Typ **App**, **Free**. Google
    erhält Identitätsnachweise direkt von dir. Für die Unterlagen brauchst du
-   eine öffentliche Support-E-Mail. [App einrichten](https://support.google.com/googleplay/android-developer/answer/9859152)
+   die bereits bestätigte Support-E-Mail `mixxermannipropvp@gmail.com`. [App einrichten](https://support.google.com/googleplay/android-developer/answer/9859152)
 2. **Betreiber und Inhalte bestätigen.** Gib den Namen und die
-   ladungsfähige Anschrift des Betreibers, den Datenschutzkontakt, die
-   Support-E-Mail und die geplante öffentliche Website an. Bestätige
+   ladungsfähige Anschrift des Betreibers und die geplante öffentliche
+   Website an. Die bestätigte E-Mail dient auch als Datenschutzkontakt. Bestätige
    Startländer, die Zielgruppe und die Entscheidung zu fremden Volltexten,
    Bildern, Publisher-Logos und eingebetteten Medien. Die Angaben fließen in
    den finalen [Datenschutztext](datenschutz.md) und die
