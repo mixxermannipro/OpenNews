@@ -21,6 +21,25 @@ waren 0 von 6 Quellen erfolgreich. Der nächste lieferte 138 Beiträge von
 Das ist eine einzelne Web-Messung mit übersprungener Einrichtung. Der
 Android-Abruf und die Ursache des leeren ersten Blocks sind separat zu prüfen.
 
+## Android-Prüfung am 16. November 2026
+
+- Auf einem frischen Pixel-7-Emulator mit Android 16 (API 36) und
+  `16384` Byte Seitengröße installierte das aus Kandidat 2 erzeugte
+  APK erfolgreich. Nach 8,8 Sekunden ab App-Start, einschließlich
+  Überspringen der Einrichtung und erster Prüfung der Anzeige, waren
+  aktuelle Meldungen von Handelsblatt, Tagesschau und Deutschlandfunk
+  sichtbar. Geprüft wurde ein einzelner Erststart mit WLAN.
+- Auf einem Emulator mit 4.096 Byte wurden Heute, Für dich, Neueste,
+  Reader, Android-Zurück, Entdecken und die Profileinstellungen
+  einschließlich Kontakt getestet.
+- Auf demselben 16-KB-Emulator blieb ein Lesezeichen beim Update von
+  Kandidat 2 auf 3 erhalten. Nach einem Neustart ohne Netz ließen sich
+  der gespeicherte Titel und der Link weiterhin anzeigen. Nach dem
+  weiteren Update auf Kandidat 4 startete die App auf 16 KB und öffnete
+  dasselbe Lesezeichen mit dem neuen Original-Link.
+- Die Play-Verteilung mit Google-App-Signatur, der Play-Vorabtestbericht
+  und der vollständige Testplan aus #125 folgen separat.
+
 ## Interner Test
 
 Mit wenigen vertrauten Testern beginnen. Neu installieren und später

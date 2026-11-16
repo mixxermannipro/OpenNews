@@ -38,7 +38,7 @@ freigeben möchtest. Die 25 US-Dollar sind laut deiner Angabe bereits bezahlt.
    testing → Testers** eine kleine Liste vertrauenswürdiger Google-Konten
    pflegen. Unter **Releases → Create new release** Play App Signing
    einrichten und den freigegebenen lokalen Kandidaten
-   `build/android-release/OpenNews-2.aab` aus dem
+   `build/android-release/OpenNews-4.aab` aus dem
    [Freigabeprotokoll](android-release.md#signierter-kandidat-vom-16-november-2026) hochladen. Unter **Test and
    release → Setup → App signing** das Upload-Zertifikat mit dem lokalen
    SHA-256-Fingerabdruck abgleichen. Dann **Next → Start rollout to Internal

@@ -107,17 +107,20 @@ Starte anschließend ein Android-Gerät oder einen Emulator mit 16-KB-Seiten. `a
 
 | Prüfung | Ergebnis |
 | --- | --- |
-| Build | `f5b3ba2`, Linux, Temurin JDK 21.0.13, lokales Android SDK |
-| Paket | `build/android-release/OpenNews-2.aab`, `io.opennews.app`, `0.1.0-alpha.1`, Versionscode 2, Ziel-API 36 |
-| SHA-256 des AAB | `a483f4046ffdadd60a9ec5ef8517b7311855d1f4cac97a05094ffeb466a3c063` |
+| Build | `9f6d0de`, Linux, Temurin JDK 21.0.13, lokales Android SDK |
+| Paket | `build/android-release/OpenNews-4.aab`, `io.opennews.app`, `0.1.0-alpha.1`, Versionscode 4, Ziel-API 36 |
+| SHA-256 des AAB | `f5492fda5d2ec041c8101e01c3b94bb1331d53b86551d75342ed6af3422c8dcb` |
 | SHA-256 des öffentlichen Upload-Zertifikats | `CB:A9:22:4B:39:A6:C4:FC:6B:50:E0:13:59:8E:83:6D:AE:8B:F1:15:A4:45:A5:F4:43:2F:EE:13:89:01:07:59` |
 | Signatur und Struktur | `jarsigner -verify -strict` mit Upload-Zertifikat und `bundletool validate` bestanden |
 | 16-KB-Paketprüfung | `PAGE_ALIGNMENT_16K`, ZIP-Ausrichtung der daraus erzeugten APK und ELF-`LOAD`-Ausrichtung für `arm64-v8a` und `x86_64` bestanden |
 | Zusammengeführtes Manifest | Acht erwartete Berechtigungen, Android-Cloud-Sicherung deaktiviert, Firebase Messaging ohne automatische Initialisierung. Im Paket fehlt eine Firebase-Projekt-ID. |
-| Inhalt | Konzeptdateien aus der Konzeptphase fehlen im Paket. Versionscode 2 ersetzt den früheren lokalen Kandidaten 1. |
+| Android-Laufzeit | APK aus Kandidat 4 auf einem API-36-Emulator mit 16.384 Byte gestartet. Das Lesezeichen des vorherigen Kandidaten ließ sich öffnen. Siehe [Android-Prüfung](beta-product-validation.md#android-prüfung-am-16-november-2026). |
+| Inhalt | Konzeptdateien und Publisher-Logos fehlen im Paket. Versionscode 4 ersetzt die früheren lokalen Kandidaten. |
 
 Der Upload-Schlüssel liegt außerhalb des Repositorys und das Passwort im
-System-Schlüsselspeicher. Den Zugriff auf beides bei einem Rechnerwechsel
+System-Schlüsselspeicher. Das öffentliche Zertifikat für den Abgleich
+liegt unter `build/android-release/OpenNews-upload-certificate.pem`.
+Den Zugriff auf Schlüsseldatei und Passwort bei einem Rechnerwechsel
 erhalten. Das APK aus `bundletool` verwendet für die lokale Prüfung den
 Debug-Schlüssel. Google Play signiert seine APKs später selbst.
 Der Abgleich in der Play Console und der Play-Vorabtestbericht bleiben offen.
@@ -151,6 +154,9 @@ Einschränkung ist keine Freigabe der Feed-Nutzung. Vor einer Verteilung die
 Zulässigkeit von Feed-Abruf, Schlagzeilen, lokalem Zwischenspeicher und
 Store-Aufnahmen je vorkonfigurierter Quelle bestätigen. Bei Unsicherheit
 die betreffende Quelle aus dem voreingestellten Angebot nehmen.
+Der Web-KI-Proxy prüft eigene Ziele als öffentliche HTTPS-Adressen und
+prüft die Adressen bei der DNS-Auflösung erneut. POST-Anfragen folgen
+keinen Weiterleitungen. Die URL-Regeln sind durch Unit-Tests abgedeckt.
 Die [Vorbereitung der Beta](beta-product-validation.md) richtet sich
 entsprechend auf den Schlagzeilen- und Link-Ablauf.
 

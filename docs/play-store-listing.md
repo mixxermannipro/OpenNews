@@ -50,12 +50,13 @@ and personalisation stay on your device.
   512 × 512 px. Grafikdatei vor Upload gegen die Store-Vorschau prüfen.
 - [Feature-Grafik](play-store-assets/feature-graphic.png): 1024 × 500 px,
   PNG ohne Transparenz. Für beide Sprachen verwendbar.
-- Telefon-Aufnahmen des finalen Android-Builds: Heute mit aktuellem Inhalt,
-  eigene Quellen unter Entdecken, Artikelansicht mit sichtbarer Herkunft
-  und Widget. Die [vorhandenen Aufnahmen](screenshots/) sind Referenzen.
-  Für beide Listings lokalisierte Bildschirmtexte aufnehmen, wenn der
-  geprüfte Build beide Sprachen anbietet. Den finalen Satz nach der
-  Inhaltsfreigabe erzeugen. Keine persönlichen Daten und keine
-  Drittlogos oder Artikelbilder als Werbemotiv ohne geprüfte Freigabe.
+- Vier Telefon-Aufnahmen aus Android 16, Versionscode 4, liegen lokal
+  unter `build/android-release/screenshots-v4/` (1080 × 2400 px).
+  Motive sind Heute, Entdecken, Reader und Profil. Vor dem Store-Upload
+  die Nutzungsrechte für sichtbare Fremdinhalte abgleichen. Verwende
+  vorrangig die Ansichten mit freigegebenen Inhalten und ohne persönliche
+  Daten. Für den englischen Store-Eintrag die Sprache der unveränderten
+  App-Anzeige berücksichtigen.
+
 
 [Google-Vorgaben für Grafiken](https://support.google.com/googleplay/android-developer/answer/9866151)
