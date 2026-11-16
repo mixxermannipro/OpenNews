@@ -190,7 +190,6 @@ OpenNews/
 │       └── OpenNewsWidget.swift
 │
 ├── public/
-│   ├── assets/aistudio/                # Design-Mockups aus der Konzeptphase
 │   ├── apple-touch-icon.png
 │   ├── icon.svg
 │   ├── logo.png
@@ -521,6 +520,8 @@ Meldet der Server zu viele Anfragen, warte vor der nächsten Feed-Aktualisierung
 | Web-Budget schlägt fehl | Start-JavaScript über 170 KiB gzip | Importe aufteilen oder Abhängigkeit prüfen |
 
 ## Dokumentation
+
+Die [Design-Entwürfe aus der Konzeptphase](docs/design-mockups/aistudio/) liegen bei der Dokumentation.
 
 | Datei | Inhalt |
 | --- | --- |
