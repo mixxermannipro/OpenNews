@@ -1,5 +1,7 @@
 import { Play, Volume2, VolumeX } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { extractYouTubeId } from '../lib/contentIdentity';
+import { PLAY_BETA } from '../lib/playBeta';
 import type { PlayableMedia } from '../lib/articleMedia';
 
 export function MediaPlayer({ media, title, poster, background, autoPlay = false, clip = false, muted = false, onToggleMute, onEngaged }: {
@@ -98,6 +100,13 @@ export function MediaPlayer({ media, title, poster, background, autoPlay = false
   }
   const embedSource = embedParams.size ? media.url + '?' + embedParams : media.url;
 
+  if (PLAY_BETA) {
+    const youtubeId = media.type === 'youtube' ? extractYouTubeId(media.url) : undefined;
+    const providerUrl = youtubeId ? `https://www.youtube.com/watch?v=${youtubeId}` : media.url;
+    return <a href={providerUrl} target="_blank" rel="noopener noreferrer" className="grid h-full min-h-11 place-items-center px-4 text-center text-white underline">
+      Beim Anbieter öffnen
+    </a>;
+  }
   return (
     <div className={media.type === 'audio' ? 'w-full' : 'relative h-full w-full bg-black'}>
       {media.type === 'youtube' ? (

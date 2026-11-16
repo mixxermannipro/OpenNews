@@ -1,3 +1,4 @@
+import { PLAY_BETA } from '../lib/playBeta';
 import { TranscriptSummary } from './TranscriptSummary';
 import { resolveSummaryStyle, SUMMARY_STYLES } from '../lib/summaryStyles';
 import { ArticlePerspectives } from './ArticlePerspectives';
@@ -263,6 +264,7 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
   };
 
   useEffect(() => {
+    if (PLAY_BETA) return;
     let cancelled = false;
     const controller = new AbortController();
     setLoadingFullText(true);
@@ -396,8 +398,10 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
               )}
               <span aria-hidden="true">·</span>
               <span>{formatRelativeTimeDe(article.publishedAt)}</span>
-              <span aria-hidden="true">·</span>
-              <span>{Math.max(1, Math.ceil((paragraphs.join(' ').match(/\S+/g)?.length ?? 0) / 220))} Min. Lesezeit</span>
+              {!PLAY_BETA && <>
+                <span aria-hidden="true">·</span>
+                <span>{Math.max(1, Math.ceil((paragraphs.join(' ').match(/\S+/g)?.length ?? 0) / 220))} Min. Lesezeit</span>
+              </>}
             </div>
 
             <div className={`reader-prose mt-5 space-y-4 ${textSizeClass} ${fontFamily === 'serif' ? 'font-editorial-serif' : ''}`}>
@@ -416,7 +420,7 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
                 ? <h2 key={index}>{paragraph}</h2> : <p key={index}>{paragraph}</p>)}
             </div>
             {loadingFullText && <p role="status" className="mt-3 text-sm text-slate-500 dark:text-slate-400">Artikeltext wird geladen …</p>}
-            {!Capacitor.isNativePlatform() && 'caches' in window && !article.linkIsFeed && (
+            {!PLAY_BETA && !Capacitor.isNativePlatform() && 'caches' in window && !article.linkIsFeed && (
               <div className="mt-4 space-y-2">
                 <button type="button" className="choice-pill" disabled={offlineBusy || loadingFullText} onClick={() => void saveOffline()}>
                   {offlineSaved ? 'Offline-Kopie entfernen' : 'Offline speichern'}
@@ -424,14 +428,20 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
                 <p className="text-sm" role="status">{offlineStatus}</p>
               </div>
             )}
-            {fullTextUnavailable && <a href={article.link} target="_blank" rel="noopener noreferrer" className="mt-3 inline-block text-sm underline">Bei der Quelle weiterlesen</a>}
+            {PLAY_BETA ? (
+              <a href={article.link} target="_blank" rel="noopener noreferrer" className="choice-pill mt-3 inline-flex min-h-11 items-center gap-2">
+                <ExternalLink size={16} aria-hidden="true" /> Bei der Quelle weiterlesen
+              </a>
+            ) : fullTextUnavailable && (
+              <a href={article.link} target="_blank" rel="noopener noreferrer" className="mt-3 inline-block text-sm underline">Bei der Quelle weiterlesen</a>
+            )}
             {speechError && <p role="status" className="mt-2 text-sm">Die Sprachausgabe ist gerade nicht verfügbar.</p>}
           </div>
         </div>
         <div className="reader-actions" aria-label="Artikelaktionen"
           data-scroll-hidden={actionsHidden && !showSummary && !shareFeedback}>
-          <button ref={summaryButton} type="button" className="glass-icon" aria-label="Zusammenfassung"
-            aria-haspopup="dialog" aria-controls="reader-summary" onClick={onOpenSummary}><Sparkles size={19} /></button>
+          {!PLAY_BETA && <button ref={summaryButton} type="button" className="glass-icon" aria-label="Zusammenfassung"
+            aria-haspopup="dialog" aria-controls="reader-summary" onClick={onOpenSummary}><Sparkles size={19} /></button>}
           <button type="button" className="glass-icon" aria-label={isLiked ? 'Gefällt mir entfernen' : 'Gefällt mir'}
             aria-pressed={isLiked} onClick={() => onToggleLike(article)}><Heart size={19} fill={isLiked ? 'currentColor' : 'none'} /></button>
           <button type="button" className="glass-icon" aria-label={isBookmarked ? 'Lesezeichen entfernen' : 'Artikel speichern'}

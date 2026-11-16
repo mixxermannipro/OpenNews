@@ -37,6 +37,7 @@ import {
 } from './lib/personalization';
 import { articleIdentity, buildHomeSections, distinctArticles, mergeFeedArticles, pruneFeedArticles } from './lib/newsFeed';
 import { trackNavigationScroll } from './lib/scrollNavigation';
+import { articlesForBuild, savedArticlesForBuild } from './lib/playBeta';
 import { useArticleStorage } from './hooks/useArticleStorage';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { ViewStatus } from './components/ViewStatus';
@@ -200,7 +201,7 @@ export default function App() {
 
   const [cachedLiveArticles, setCachedLiveArticles, cachedStorageFailed, cachedStorageReady] = useArticleStorage<NewsArticle[]>(
     'opennews_cached_articles',
-    []
+    [], articlesForBuild
   );
   const [feedRateLimited, setFeedRateLimited] = useState(false);
   const [readerFeedSnapshot, setReaderFeedSnapshot] = useState<ReturnType<typeof buildHomeSections>[HomeTab] | null>(null);
@@ -217,11 +218,11 @@ export default function App() {
   }, []);
   const [savedArticles, setSavedArticles, savedStorageFailed] = useArticleStorage<Record<string, NewsArticle>>(
     'opennews_saved_articles',
-    {}
+    {}, savedArticlesForBuild
   );
   const refresh = useRef<AbortController | null>(null);
   const [isLoadingFeeds, setIsLoadingFeeds] = useState(false);
-  const [readArticles, setReadArticles, historyStorageFailed] = useArticleStorage<NewsArticle[]>('opennews_read_articles', []);
+  const [readArticles, setReadArticles, historyStorageFailed] = useArticleStorage<NewsArticle[]>('opennews_read_articles', [], articlesForBuild);
   useEffect(() => {
     if (cachedStorageFailed || savedStorageFailed || historyStorageFailed) recordDiagnostic('storage-failed');
   }, [cachedStorageFailed, savedStorageFailed, historyStorageFailed]);
@@ -402,7 +403,7 @@ export default function App() {
       checkForAlert(articles);
       setCachedLiveArticles(previous => controller.signal.aborted
         ? previous
-        : mergeFeedArticles(previous, articles, latestRetention.current, now));
+        : mergeFeedArticles(previous, articlesForBuild(articles), latestRetention.current, now));
     };
 
     const recordResults = (results: FeedResult[]) => {

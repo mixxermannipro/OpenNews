@@ -190,7 +190,6 @@ OpenNews/
 │       └── OpenNewsWidget.swift
 │
 ├── public/
-│   ├── assets/aistudio/                # Design-Mockups aus der Konzeptphase
 │   ├── apple-touch-icon.png
 │   ├── icon.svg
 │   ├── logo.png
@@ -435,14 +434,14 @@ Im statischen Browserbetrieb kann Anthropic direkt mit dem in der App hinterlegt
 
 ## Android
 
-Der [Android-Veröffentlichungspfad](docs/android-release.md) enthält die Abnahme für signiertes Paket, Versionierung, Datenschutzseite und Play-Testkanal.
+Mit `npm run android:release -- <versionCode>` erzeugst du ein lokal signiertes AAB für Google Play. Die [Android-Release-Anleitung](docs/android-release.md) beschreibt den Upload-Schlüssel, die Paketprüfung und den Testkanal. Die Schritte für den Kontoinhaber stehen in [PLAY_STORE_NEXT_STEPS.md](docs/PLAY_STORE_NEXT_STEPS.md). Der Play-Beta-Build zeigt Titel, Quellen und Original-Links. Volltexte, Publisher-Logos und fremde Artikelbilder fehlen dort bis zur Klärung der Rechte. Unter **Profil → Kontakt und Feedback** kannst du eine freiwillige Rückmeldung per E-Mail verfassen.
 
 Die App ist eine Capacitor-WebView mit `CapacitorHttp` (Feed- und KI-Aufrufe direkt auf dem Gerät), nativem Zurück-Knopf, `ArticleShare`-Plugin, Systemstimme für den Tagesüberblick, lokaler Übersetzung über ML Kit, Firebase-Nachrichten und synchronisierten Systemleisten. Das Widget „OpenNews Top-Themen“ zeigt je nach Größe bis zu drei Meldungen. Die große Ansicht bietet einen Bildaufmacher und Reiter für **Heute**, **Für dich** und **Neueste**. [Bedienung und Größen](docs/android-widget.md)
 
 **CI:** Zwei Workflows laufen bei Pull Requests gegen `main`:
 
 - **Web CI** (`web-ci.yml`): Typprüfung, 66 Unit-Tests, Build, JavaScript-Budget und 13 Browsertests mit Playwright.
-- **OpenNews Android Test APK** (`android-test-apk.yml`): bei Änderungen an `src/**`, `scripts/**`, `native/android/**`, `public/**` und Build-Dateien sowie manuell über **Actions → Run workflow**. Richtet Node 22 und JDK 21 ein, prüft Typen, führt Unit-Tests und Build aus, erzeugt das Android-Projekt, baut `assembleDebug`, lädt die APK als Artefakt (7 Tage) hoch und veröffentlicht bei manuellem Lauf ein privates Pre-Release `v0.1.0-alpha.<Run-Nummer>`.
+- **OpenNews Android Test APK** (`android-test-apk.yml`): bei Änderungen an `src/**`, `scripts/**`, `native/android/**`, `public/**` und Build-Dateien sowie manuell über **Actions → Run workflow**. Richtet Node 22 und JDK 21 ein, prüft Typen, führt Unit-Tests und Build aus, erzeugt das Android-Projekt, baut `assembleDebug`, lädt die APK als Artefakt (7 Tage) hoch, prüft bei Pull Requests den AAB-Bau mit einem Einmalschlüssel und veröffentlicht bei manuellem Lauf ein privates Pre-Release `v0.1.0-alpha.<Run-Nummer>`.
 
 **Lokal:**
 
@@ -521,6 +520,8 @@ Meldet der Server zu viele Anfragen, warte vor der nächsten Feed-Aktualisierung
 | Web-Budget schlägt fehl | Start-JavaScript über 170 KiB gzip | Importe aufteilen oder Abhängigkeit prüfen |
 
 ## Dokumentation
+
+Die [Design-Entwürfe aus der Konzeptphase](docs/design-mockups/aistudio/) liegen bei der Dokumentation.
 
 | Datei | Inhalt |
 | --- | --- |

@@ -385,3 +385,33 @@ test('keeps notification and personalization settings in their own groups on the
   await page.getByRole('button', { name: 'KI & Personalisierung', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Algorithmus zurücksetzen' })).toBeVisible();
 });
+
+test('offers an email contact for voluntary beta feedback and privacy requests', async ({ page }) => {
+  await enterApp(page);
+  await page.getByRole('button', { name: 'Profil', exact: true }).click();
+
+  const contact = 'mixxermannipropvp@gmail.com';
+  await expect(page.getByRole('link', { name: 'Kontakt und Feedback' })).toHaveAttribute(
+    'href', 'mailto:' + contact + '?subject=OpenNews%20Beta',
+  );
+
+  await page.getByRole('button', { name: 'Einstellungen', exact: true }).click();
+  await page.getByRole('button', { name: 'Datenschutz', exact: true }).click();
+  await expect(page.getByRole('link', { name: contact })).toHaveAttribute('href', 'mailto:' + contact);
+});
+
+test('Play Beta keeps the original link and skips third-party article extraction', async ({ page }) => {
+  test.skip(process.env.VITE_OPENNEWS_PLAY_BETA !== '1', 'Requires the Play Beta build');
+  await enterApp(page);
+  const extractionRequests: string[] = [];
+  page.on('request', request => {
+    if (request.url().includes('/api/article/extract?')) extractionRequests.push(request.url());
+  });
+  await page.getByText(title, { exact: true }).filter({ visible: true }).first().click();
+  const reader = page.getByRole('dialog', { name: 'Artikel lesen: ' + title });
+  await expect(reader.getByRole('link', { name: 'Bei der Quelle weiterlesen' })).toHaveAttribute('href', /https:\/\/example\.org\/news\//);
+  await expect(reader.getByText('Dieser Beitrag stammt aus einem simulierten Feed.')).toHaveCount(0);
+  await expect(reader.getByText(/Min\. Lesezeit/)).toHaveCount(0);
+  await expect(reader.getByRole('button', { name: 'Artikel speichern' })).toBeVisible();
+  expect(extractionRequests).toEqual([]);
+});

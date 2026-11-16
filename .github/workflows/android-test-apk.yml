@@ -71,6 +71,20 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
 
+      - name: Verify release signing with a disposable key
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          umask 077
+          export OPENNEWS_UPLOAD_KEYSTORE="$RUNNER_TEMP/opennews-ci-upload.p12"
+          export OPENNEWS_UPLOAD_ALIAS=opennews-ci
+          export OPENNEWS_CI_KEY_PASSWORD="$(openssl rand -hex 32)"
+          trap 'rm -f -- "$OPENNEWS_UPLOAD_KEYSTORE"' EXIT
+          keytool -genkeypair -storetype PKCS12 -keystore "$OPENNEWS_UPLOAD_KEYSTORE" \
+            -storepass:env OPENNEWS_CI_KEY_PASSWORD -alias "$OPENNEWS_UPLOAD_ALIAS" \
+            -keyalg RSA -keysize 2048 -validity 30 -dname 'CN=OpenNews CI only'
+          npm run android:release -- 1 <<< "$OPENNEWS_CI_KEY_PASSWORD"
+
       - name: Save APK for PR review
         uses: actions/upload-artifact@v4
         with:

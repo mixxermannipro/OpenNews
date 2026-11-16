@@ -46,6 +46,7 @@ export default defineConfig(() => {
           ],
         },
         workbox: {
+          globIgnores: process.env.VITE_OPENNEWS_PLAY_BETA === '1' ? ['**/source-icons/**'] : [],
           globPatterns: ['**/*.{js,css,html,ico,png,svg,jpg,webp,woff,woff2}'],
         },
         devOptions: {
