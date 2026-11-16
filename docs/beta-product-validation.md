@@ -11,6 +11,16 @@
 | Inhalte (#131) | News-Quellen, Artikelansicht und Original-Link sind vorhanden. | Rechte für Volltext, Feed-Teaser, Bilder, Logos und Store-Aufnahmen separat klären. Öffentliche Web-Bereitstellung hat eine eigene Server-Abnahme. |
 | Weitere Themen (#44, #45, #72, #133) | iOS, Monetarisierung, breiter Ranking-Vergleich und weitergehende Clip-Änderungen sind offen. | Nach der Android-Beta priorisieren. Konkrete Befunde, die Lesen oder Erstnutzung wesentlich stören, in #125 oder #141 aufnehmen. |
 
+## Vorprüfung mit echten Feeds
+
+Am 16. November 2026 lud ein frisches Brave-Profil im Handyformat die lokal
+gestartete Web-App mit echten Feeds. Nach **1,1 Sekunden** erschien eine
+Tagesschau-Meldung vom selben Morgen (07:18 Uhr MEZ). Im ersten Feed-Block
+waren 0 von 6 Quellen erfolgreich. Der nächste lieferte 138 Beiträge von
+6 Quellen, davon 124 mit Veröffentlichung in den vorherigen 24 Stunden.
+Das ist eine einzelne Web-Messung mit übersprungener Einrichtung. Der
+Android-Abruf und die Ursache des leeren ersten Blocks sind separat zu prüfen.
+
 ## Interner Test
 
 Mit wenigen vertrauten Testern beginnen. Neu installieren und später

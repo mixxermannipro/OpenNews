@@ -94,8 +94,10 @@ Starte anschließend ein Android-Gerät oder einen Emulator mit 16-KB-Seiten. `a
   Signieren die strenge Signaturprüfung. Der lokale Paketbau scheiterte mit
   `invalid source release: 21`, da lokal JDK 17 für Gradle verfügbar war.
 - Typprüfung, 66 Unit-Tests, Web-Build und 13 Playwright-Tests waren erfolgreich.
-  Playwright nutzt vorbereitete Feeds. Das 60-Sekunden-Ziel aus #141 wurde
-  damit nicht gemessen. Zum Zeitpunkt der Prüfung war kein Gerät verbunden.
+  Die automatisierten Playwright-Tests nutzen vorbereitete Feeds. Der
+  [separate Web-Vorlauf mit echten Feeds](beta-product-validation.md#vorprüfung-mit-echten-feeds)
+  ersetzt die Android-Messung für #141 nicht. Zum Zeitpunkt der Prüfung war
+  kein Gerät verbunden.
 - Ausstehend sind die Abnahme am endgültigen signierten Paket, die Laufzeit
   mit 16-KB-Seitengröße, Neuinstallation und Update aus Google Play und der
   Play-Vorabtestbericht.
