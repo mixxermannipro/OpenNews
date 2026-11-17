@@ -50,6 +50,7 @@ test('Darstellung folgt dem System, speichert die Auswahl und respektiert reduzi
 test('Kontakt, Datenschutz und Impressum sind eigene Seiten', async ({ page }) => {
   await page.goto('/');
   const footer = page.getByRole('navigation', { name: 'Weitere Links' });
+  await expect(footer.getByRole('link', { name: 'GitHub' })).toHaveCount(0);
   for (const [label, path] of [['Kontakt', 'kontakt'], ['Datenschutz', 'datenschutz'], ['Impressum', 'impressum']]) {
     await footer.getByRole('link', { name: label, exact: true }).click();
     expect(new URL(page.url()).pathname).toBe(`/${path}/`);

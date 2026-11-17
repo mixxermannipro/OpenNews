@@ -27,8 +27,14 @@ const operator = {
 };
 
 const publicUrl = httpsUrl('VITE_SITE_URL');
-if (publicUrl && publicUrl !== new URL(publicUrl).origin + '/') {
-  throw new Error('VITE_SITE_URL braucht die Basisadresse der Website ohne Unterpfad');
+if (publicUrl) {
+  const url = new URL(publicUrl);
+  if (!url.hostname.replace(/\.$/, '').includes('.')) {
+    throw new Error('VITE_SITE_URL braucht einen Hostnamen mit mindestens einem Punkt, zum Beispiel xyz.pages.dev');
+  }
+  if (publicUrl !== url.origin + '/') {
+    throw new Error('VITE_SITE_URL braucht die Basisadresse der Website ohne Unterpfad');
+  }
 }
 
 const privacyNotice = read('VITE_WEBSITE_PRIVACY_NOTICE');
@@ -55,6 +61,6 @@ export const site = {
   webAppUrl: httpsUrl('VITE_WEB_APP_URL'),
   operator,
   privacyNotice,
-  contactEmail: operator.email || 'mixxermannipropvp@gmail.com',
-  social: [{ label: 'GitHub', href: 'https://github.com/mixxermannipro/OpenNews' }],
+  contactEmail: operator.email,
+  social: [],
 };

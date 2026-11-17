@@ -15,6 +15,18 @@ test('default configuration is a preview without a placeholder URL or store link
   assert.equal(isPreview, true);
   assert.equal(site.url, null);
   assert.equal(site.playStoreUrl, null);
+  assert.equal(site.contactEmail, '');
+  assert.deepEqual(site.social, []);
+});
+
+test('the website address must have a dotted hostname', () => {
+  const invalid = readSite({ VITE_SITE_URL: 'https://opennews/' });
+  assert.equal(invalid.status, 1);
+  assert.match(invalid.stderr, /VITE_SITE_URL.*Punkt/);
+
+  const valid = readSite({ VITE_SITE_URL: 'https://preview.example.com/' });
+  assert.equal(valid.status, 0, valid.stderr);
+  assert.equal(JSON.parse(valid.stdout).site.url, 'https://preview.example.com');
 });
 
 test('production needs confirmed details and accepts the official app package only', () => {

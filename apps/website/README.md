@@ -38,7 +38,7 @@ GitHub in Cloudflare unter **Workers & Pages → Create application → Pages �
 | Build-Ausgabe | `dist` |
 | Node.js | `.nvmrc` wählt Node 22. Optional `NODE_VERSION` auf eine aktuelle 22.x-Version setzen. |
 
-Pages weist dem Projekt eine HTTPS-Adresse unter `.pages.dev` zu. Diese exakte Adresse oder die eigene Produktionsdomain als `VITE_SITE_URL` setzen. So erhalten die kanonischen Links, Social-Vorschauen, strukturierten Daten und die Sitemap die richtige Domain. Änderungen an `apps/website/` auf `main` starten bei aktivierter Git-Integration einen neuen Build. Die Website braucht weder Datenbank noch API.
+Pages weist dem Projekt eine HTTPS-Adresse unter `.pages.dev` zu. Diese exakte Adresse oder die eigene Produktionsdomain als `VITE_SITE_URL` setzen. Der Hostname muss mindestens einen Punkt enthalten, zum Beispiel `xyz.pages.dev`. Die Adresse darf keinen Unterpfad enthalten. So erhalten die kanonischen Links, Social-Vorschauen, strukturierten Daten und die Sitemap die richtige Domain. Änderungen an `apps/website/` auf `main` starten bei aktivierter Git-Integration einen neuen Build. Die Website braucht weder Datenbank noch API.
 
 [Cloudflare-Anleitung für Git-Integration](https://developers.cloudflare.com/pages/get-started/git-integration/) · [Build-Einstellungen](https://developers.cloudflare.com/pages/configuration/build-configuration/) · [Node-Version](https://developers.cloudflare.com/pages/configuration/build-image/)
 
@@ -46,13 +46,13 @@ Pages weist dem Projekt eine HTTPS-Adresse unter `.pages.dev` zu. Diese exakte A
 
 Die Standardkonfiguration ist für die lokale Vorschau bestimmt. Sie enthält eine Vorschau-Kennzeichnung auf den Rechteseiten und ein `noindex`-Signal. `noindex` verhindert keine Zugriffe. Cloudflare-Vorschauen bei Bedarf mit Cloudflare Access schützen oder deaktivieren.
 
-1. Den Namen des Betreibers, die ladungsfähige Anschrift, die öffentliche E-Mail-Adresse und gegebenenfalls weitere Pflichtangaben bestätigen. Der aktuell vorbereitete Kontakt stammt aus der App-Dokumentation.
-2. Den Datenschutzhinweis für das echte Hosting und die Bearbeitung von Kontaktanfragen vervollständigen. Dazu gehören nach anwendbaren Anforderungen unter anderem Verantwortlicher, die Datenflüsse und Empfänger bei Cloudflare, Zwecke, Rechtsgrundlagen, Speicherdauer, mögliche internationale Übermittlungen und Betroffenenrechte. Die App-Übersicht auf der Datenschutzseite beschreibt die wichtigsten Unterschiede. Vor einem Store-Launch zusätzlich die vollständigen App-Datenschutzhinweise prüfen und veröffentlichen.
+1. Den Namen des Betreibers, die ladungsfähige Anschrift, die öffentliche E-Mail-Adresse und gegebenenfalls weitere Pflichtangaben bestätigen. Die E-Mail-Adresse über `VITE_CONTACT_EMAIL` setzen. Ohne diese Angabe erscheint auf Kontakt und Datenschutz ein Hinweis.
+2. Den Entwurf auf der Datenschutzseite anhand der mit `TODO(Manuel)` markierten Punkte vervollständigen. Dazu gehören der Verantwortliche und die Angaben zum Hosting und zur Bearbeitung von Kontaktanfragen. Die App-Übersicht auf der Datenschutzseite beschreibt die wichtigsten Unterschiede. Vor einem Store-Launch zusätzlich die vollständigen App-Datenschutzhinweise prüfen und veröffentlichen.
 3. App-Aufnahmen in `public/screenshots/` und das daraus erstellte Social-Bild `public/og/opennews.jpg` vor der öffentlichen Nutzung prüfen. Die Aufnahmen stammen aus der Entwicklung und enthalten teilweise Inhalte Dritter. Bei fehlender Freigabe durch Aufnahmen mit freigegebenen Inhalten ersetzen und das Social-Bild neu erstellen. Die geplante Play-Beta verlinkt auf die Originale und unterscheidet sich in der Darstellung von den Entwicklungsaufnahmen.
 4. In den Produktions-Einstellungen von Pages die bestätigten Werte aus [.env.example](.env.example) hinterlegen. `VITE_WEBSITE_PRIVACY_NOTICE` erhält den fertigen Hinweis zu Hosting und Kontakt als Text. `VITE_IMPRINT_DETAILS` steht für zusätzliche Angaben bereit. Nach der Prüfung `VITE_RELEASE_APPROVED=yes` und `VITE_SITE_STATUS=live` setzen. Der Live-Build prüft, ob die dafür nötigen Angaben vorhanden sind. Er prüft die Inhalte nicht rechtlich.
 5. Lokal oder über eine geschützte Vorschau testen, dann die Veröffentlichung in Pages auslösen. Die `VITE_*`-Werte sind öffentliche Website-Angaben. Zugangsdaten gehören dort nicht hinein.
 
-Den Google-Play-Link erst bei öffentlicher Freigabe als `VITE_PLAY_STORE_URL` setzen. Er muss zum Paket `io.opennews.app` führen. Bis dahin zeigt der Bereich den Teststatus. `VITE_WEB_APP_URL` ist optional und sollte erst auf eine bestätigte öffentliche Web-App zeigen. Der GitHub-Link im Footer lässt sich in `src/content/site.ts` pflegen.
+Den Google-Play-Link erst bei öffentlicher Freigabe als `VITE_PLAY_STORE_URL` setzen. Er muss zum Paket `io.opennews.app` führen. Bis dahin zeigt der Bereich den Teststatus. `VITE_WEB_APP_URL` ist optional und sollte erst auf eine bestätigte öffentliche Web-App zeigen.
 
 ## Lizenz
 

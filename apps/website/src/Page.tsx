@@ -125,7 +125,8 @@ function Home() {
 
 function Legal({ path }: { path: Exclude<Route, '/'> }) {
   const { operator } = site;
-  const email = <a href={`mailto:${site.contactEmail}`}>{site.contactEmail}</a>;
+  const email = site.contactEmail ? <a href={`mailto:${site.contactEmail}`}>{site.contactEmail}</a> : null;
+  const emailPending = 'Die öffentliche Kontaktadresse wird vor der Veröffentlichung ergänzt.';
   let title: string;
   let content: ReactNode;
   if (path === '/impressum/') {
@@ -140,7 +141,21 @@ function Legal({ path }: { path: Exclude<Route, '/'> }) {
     title = 'Datenschutz';
     content = <>
       <h2>Diese Website</h2>
-      {isPreview ? <p>Diese Vorschau speichert nur deine manuell gewählte Darstellung im Browser. Die Angaben zum öffentlichen Hosting und zum Verantwortlichen werden vor der Veröffentlichung ergänzt.</p> : <>
+      {isPreview ? <>
+        <p>Diese Vorschau speichert deine manuell gewählte Darstellung im Browser. Mit der Auswahl „System“ entfernst du diese Einstellung wieder.</p>
+        <h3>Verantwortlicher</h3>
+        <p><strong>TODO(Manuel)</strong> Name und Anschrift des Verantwortlichen ergänzen.</p>
+        <h3>Hosting bei Cloudflare Pages</h3>
+        <p>Beim Aufruf stellt Cloudflare Pages die Website bereit. Cloudflare verarbeitet dabei technische Daten wie deine IP-Adresse. Der Hoster kann Zugriffe in Server-Protokollen erfassen, etwa mit der aufgerufenen Seite und dem Zeitpunkt.</p>
+        <p><strong>TODO(Manuel)</strong> Tatsächliche Protokollierung, Speicherdauer, Rechtsgrundlage und mögliche Übermittlung in andere Länder vor der Veröffentlichung klären.</p>
+        <h3>Kontaktaufnahme per E-Mail</h3>
+        <p>Wenn du uns schreibst, verwenden wir deine E-Mail-Adresse und den Inhalt deiner Nachricht, um dein Anliegen zu bearbeiten und dir zu antworten. Wir speichern die Nachricht, bis dein Anliegen erledigt ist, soweit keine gesetzlichen Aufbewahrungspflichten gelten.</p>
+        <p><strong>TODO(Manuel)</strong> Öffentliche E-Mail-Adresse und Rechtsgrundlage für die Bearbeitung von Anfragen ergänzen.</p>
+        <h3>Deine Rechte</h3>
+        <p>Du kannst Auskunft über deine personenbezogenen Daten verlangen und falsche Daten berichtigen lassen. Unter den gesetzlichen Voraussetzungen kannst du die Löschung oder Einschränkung der Verarbeitung verlangen, deine Daten übertragen lassen oder der Verarbeitung widersprechen. Eine erteilte Einwilligung kannst du für die Zukunft widerrufen.</p>
+        <h3>Beschwerde bei einer Aufsichtsbehörde</h3>
+        <p>Wenn du glaubst, dass deine Daten rechtswidrig verarbeitet werden, kannst du dich bei einer Datenschutzaufsichtsbehörde beschweren. Das ist zum Beispiel bei der Behörde an deinem Wohnort möglich.</p>
+      </> : <>
         <p>Verantwortlich ist der im <a href="/impressum/">Impressum</a> genannte Betreiber.</p>
         <p>Eine manuell gewählte Darstellung speichert die Website im lokalen Speicher deines Browsers. Mit der Auswahl „System“ entfernst du diese Einstellung wieder.</p>
         <p className="notice-text">{site.privacyNotice}</p>
@@ -148,11 +163,11 @@ function Legal({ path }: { path: Exclude<Route, '/'> }) {
       <h2>Die OpenNews-App</h2>
       <p>Quellen, Interessen, Leseverlauf, Lesezeichen und Einstellungen sind auf deinem Gerät gespeichert. Du kannst die Interessen zurücksetzen und die Daten im Browser oder in den Android-Einstellungen löschen.</p>
       <p>Android ruft Feeds direkt ab. Die Web-App nutzt dafür einen OpenNews-Server. Quellen und externe Medien können beim Aufruf technische Verbindungsdaten erhalten. Optionale Dienste wie externe KI oder Android-Übersetzung haben eigene Datenflüsse.</p>
-      <h2>Datenschutzkontakt</h2><p>Fragen zur Website oder App kannst du an {email} richten.</p>
+      <h2>Datenschutzkontakt</h2><p>{email ? <>Fragen zur Website oder App kannst du an {email} richten.</> : emailPending}</p>
     </>;
   } else if (path === '/kontakt/') {
     title = 'Kontakt';
-    content = <><p>Hast du Feedback zu OpenNews, Fragen zur Veröffentlichung oder ein Datenschutzanliegen? Schreib an {email}.</p>
+    content = <><p>Hast du Feedback zu OpenNews, Fragen zur Veröffentlichung oder ein Datenschutzanliegen? {email ? <>Schreib an {email}.</> : emailPending}</p>
       <p>Wenn du einen Fehler meldest, helfen das Gerät, die App-Version und eine kurze Beschreibung, wie der Fehler auftritt.</p></>;
   } else {
     title = 'Seite nicht gefunden';
@@ -177,7 +192,6 @@ export function Page({ path }: { path: Route }) {
       <nav aria-label="Weitere Links">
         <a href="/kontakt/">Kontakt</a><a href="/datenschutz/">Datenschutz</a><a href="/impressum/">Impressum</a>
         <a href="/#download">App-Status</a>
-        {site.social.map(link => <a href={link.href} key={link.href}>{link.label}</a>)}
       </nav>
       <label hidden>Darstellung <select id="theme"><option value="system">System</option><option value="dark">Dunkel</option><option value="light">Hell</option></select></label>
     </footer>
