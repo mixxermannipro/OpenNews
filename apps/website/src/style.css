@@ -138,9 +138,15 @@ details p { padding: 0 1.5rem 1rem .15rem; }
 .prose { max-width: 46rem; min-height: 50vh; padding-block: clamp(3rem, 8vw, 7rem); overflow-wrap: anywhere; }
 .prose h1 { font-size: clamp(3rem, 7vw, 5.5rem); margin-bottom: 1.8rem; }
 .prose h2 { font: 700 1.25rem Schibsted, sans-serif; margin: 2rem 0 .6rem; }
+.prose h3 { font: 700 1.05rem Schibsted, sans-serif; margin: 1.4rem 0 .4rem; }
+.prose ul { margin: .5rem 0 1rem 1.25rem; padding: 0; color: var(--muted); }
+.prose li { margin-bottom: .35rem; }
 .prose p + p { margin-top: 1rem; }
 .prose address { font-style: normal; }
+.notice-section + .notice-section { margin-top: 1.25rem; }
 .notice-text { white-space: pre-wrap; }
+.legal-meta { margin-bottom: 1.5rem; font-size: .9rem; }
+.legal-meta code { font-size: .85em; }
 
 @media (max-width: 52rem) {
   .hero { gap: 2rem; }

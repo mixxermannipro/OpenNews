@@ -5,7 +5,7 @@ export const faqItems = [
   },
   {
     question: 'Ist OpenNews kostenlos?',
-    answer: 'Die Android-Beta ist kostenlos vorgesehen. Sollte später ein kostenpflichtiges Zusatzangebot dazukommen, wird es vorab beschrieben.',
+    answer: 'OpenNews ist für Android kostenlos verfügbar. Sollte später ein kostenpflichtiges Zusatzangebot dazukommen, wird es vorab klar beschrieben.',
   },
   {
     question: 'Kann ich eigene Nachrichtenquellen hinzufügen?',
@@ -21,7 +21,7 @@ export const faqItems = [
   },
   {
     question: 'Welche Plattformen werden unterstützt?',
-    answer: 'OpenNews gibt es als Web-App und als Android-Testversion. Die Web-App lässt sich mit einem unterstützten Browser installieren. Eine öffentliche iOS-Version gibt es derzeit nicht.',
+    answer: 'OpenNews gibt es als Web-App und für Android. Die Web-App lässt sich mit einem unterstützten Browser installieren. Eine öffentliche iOS-Version gibt es derzeit nicht.',
   },
   {
     question: 'Wie verarbeitet OpenNews Nutzerdaten?',

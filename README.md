@@ -357,7 +357,7 @@ NODE_ENV=production npm start
 | `npm run preview` | `vite preview` | Statischen Build ansehen (ohne API) |
 | `npm run lint` | `tsc --noEmit` | TypeScript-Typprüfung |
 | `npm test` | `node --import tsx --test src/lib/*.test.ts` | 66 Unit-Tests |
-| `npm run test:e2e` | `playwright test` | 13 Browsertests gegen den Produktionsbuild |
+| `npm run test:e2e` | `playwright test` | 15 Browsertests (14 Standard, 1 Play-Beta mit `VITE_OPENNEWS_PLAY_BETA=1`) |
 | `npm run push:worker` | `tsx scripts/push-news.ts` | Android-Push aus den Standardquellen senden |
 | `node scripts/check-web-budget.mjs` | Node | Prüft das Start-JavaScript gegen 170 KiB gzip |
 | `npm run clean` | `rm -rf dist server.js` | Build-Artefakte entfernen |
@@ -580,12 +580,12 @@ Das Repository ist privat und in einer frühen Alpha. Beiträge klein und prüfb
 | BYOK-KI | Beta, abhängig von Anbieter und Schlüssel |
 | Tagesüberblick | Schlagzeilen ohne Schlüssel, optional mit Anbieter-KI und Systemstimme |
 | Diagnose | lokal verfügbar, Senden optional |
-| Tests | 66 Unit-Tests und 13 Playwright-Browsertests |
+| Tests | 66 Unit-Tests und 15 Playwright-Browsertests (14 Standard, 1 Play-Beta) |
 | Eigener Quellcode | Alle Rechte vorbehalten |
 
 ## Lizenz
 
-Der Quellcode der OpenNews-App steht unter der [Apache License 2.0](LICENSE). Für die Produktwebsite gelten die [Lizenzhinweise im Website-Ordner](apps/website/README.md#lizenz). Nachrichten, Bilder und Marken Dritter unterliegen den jeweiligen Rechten. Abhängigkeiten behalten ihre eigenen Lizenzen.
+Für den eigenen Quellcode und die Produktwebsite gelten der [Rechtevorbehalt in LICENSE](LICENSE) und die [Lizenzhinweise im Website-Ordner](apps/website/README.md#lizenz). Nachrichten, Bilder und Marken Dritter unterliegen den jeweiligen Rechten. Abhängigkeiten behalten ihre eigenen Lizenzen.
 
 ---
 

@@ -1,9 +1,11 @@
 # Deine nächsten Schritte in Google Play Console
 
-Stand 16. November 2026. Die Pfade beziehen sich auf die englische Oberfläche,
+Stand 19. November 2026. Die Pfade beziehen sich auf die englische Oberfläche,
 damit du die Bezeichnungen in der verlinkten Google-Hilfe wiederfindest.
-Führe die Schritte zur Verteilung erst aus, wenn du den jeweiligen Test
-freigeben möchtest. Die 25 US-Dollar sind laut deiner Angabe bereits bezahlt.
+Schritte 1–4 sowie die Vorbereitung von Schritt 5 (Länder/Regionen, Testerliste,
+Release `0.1.0-alpha.1` mit `4.aab` und Versionshinweisen) sind in Google Play Console
+bereits ausgefüllt und gespeichert. Offen bleibt nur die finale Einreichung zur
+Überprüfung und anschließend der 14-tägige geschlossene Test mit mindestens 12 Testern.
 
 1. **Konto bestätigen und App anlegen.** Öffne **Home → Dashboard** und
    erledige offene Verifizierungsaufgaben von Google. Falls Google einen

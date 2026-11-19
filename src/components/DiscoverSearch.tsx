@@ -67,7 +67,7 @@ export const DiscoverSearch: React.FC<DiscoverSearchProps> = ({
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Nachrichten, Themen, Quellen"
           aria-label="Nachrichten, Themen und Quellen durchsuchen"
-          className="preference-input w-full rounded-full py-3.5 pl-11 pr-4 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/60 dark:text-white"
+          className="preference-input discover-search-input w-full rounded-full text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/60 dark:text-white"
         />
       </form>
       {!query.trim() && recent.length > 0 && (
