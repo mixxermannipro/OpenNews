@@ -240,6 +240,10 @@
   color: var(--ink);
 }
 
+.discover-search-input {
+  padding: .875rem 1rem .875rem 2.75rem;
+}
+
 .choice-pill { font-weight: 600; font-size: .875rem; }
 .choice-pill[aria-pressed="true"], .primary-action {
   background: var(--accent);

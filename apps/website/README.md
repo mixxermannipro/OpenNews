@@ -12,7 +12,7 @@ npm ci
 npm run dev
 ```
 
-Die Vorschau läuft unter [localhost:4321](http://localhost:4321). Der Produktionsbuild erzeugt HTML für die Startseite, Kontakt, Datenschutz, Impressum und die Fehlerseite. Die Feed-Auswahl und die FAQ funktionieren im Browser auch ohne JavaScript. JavaScript speichert die gewählte Darstellung lokal. Bilder und Schriften liegen im eigenen Projekt.
+Die Vorschau läuft unter [localhost:4321](http://localhost:4321). Der Produktionsbuild erzeugt HTML für die Startseite, Kontakt, Datenschutz, Impressum und die Fehlerseite sowie `_redirects` für englische Pfade wie `/privacy`, `/imprint` und `/contact`. Auf der Datenschutzseite werden `VITE_WEBSITE_PRIVACY_NOTICE` strukturiert mit Überschriften und Links sowie ein englischer Datenschutz-Überblick ausgegeben. Die Feed-Auswahl und die FAQ funktionieren im Browser auch ohne JavaScript. JavaScript speichert die gewählte Darstellung lokal. Bilder und Schriften liegen im eigenen Projekt.
 
 ```sh
 npx playwright install chromium

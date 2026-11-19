@@ -3,6 +3,39 @@ import { faqItems } from './content/faq.ts';
 import type { Route } from './content/meta.ts';
 import { isPreview, site } from './content/site.ts';
 
+const LINK_RE = /((?:https:\/\/)?(?:cloudflare\.com|policies\.google\.com|developers\.google\.com|lda\.bayern\.de|opennews-app\.pages\.dev)[^\s),]*[a-zA-Z0-9/#?=_-])/g;
+
+function linkify(text: string): ReactNode[] {
+  const parts: ReactNode[] = [];
+  let lastIndex = 0;
+  for (const match of text.matchAll(LINK_RE)) {
+    const start = match.index ?? 0;
+    if (start > lastIndex) parts.push(text.slice(lastIndex, start));
+    const token = match[0];
+    const href = token.startsWith('https://') ? token : `https://${token}`;
+    parts.push(<a key={`${start}-${token}`} href={href} target="_blank" rel="noopener noreferrer">{token}</a>);
+    lastIndex = start + token.length;
+  }
+  if (lastIndex < text.length) parts.push(text.slice(lastIndex));
+  return parts;
+}
+
+function NoticeBlocks({ text }: { text: string }) {
+  const blocks = text.split(/\n{2,}/).map(block => block.trim()).filter(Boolean);
+  return <>
+    {blocks.map((block, index) => {
+      const lines = block.split('\n');
+      if (lines.length >= 2 && lines[0].length <= 80 && !lines[0].endsWith('.')) {
+        return <section key={index} className="notice-section">
+          <h3>{lines[0]}</h3>
+          <p>{linkify(lines.slice(1).join(' '))}</p>
+        </section>;
+      }
+      return <p key={index} className="notice-text">{linkify(block)}</p>;
+    })}
+  </>;
+}
+
 function Arrow() {
   return <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M4 12h15m-6-6 6 6-6 6" /></svg>;
 }
@@ -47,7 +80,7 @@ function FeedDemo() {
         {feeds.map(feed => <div className="feed-shot" data-feed={feed.id} key={feed.id}>
           <AppImage file={feed.id} alt={feed.alt} />
         </div>)}
-        <figcaption>Aufnahmen aus der Entwicklung</figcaption>
+        <figcaption>Ansichten: Heute, Für dich und Neueste</figcaption>
       </figure>
     </div>
   </section>;
@@ -63,17 +96,17 @@ function Features() {
         <p>Entdecke Themen und Redaktionen. Wähle deine Quellen aus oder füge einen eigenen RSS-Feed hinzu.</p>
       </article>
       <article>
-        <div className="feature-image"><AppImage file="artikel" alt="Artikelansicht eines Entwicklungsbuilds mit Quelle, Überschrift und Lesezeichen" /></div>
+        <div className="feature-image"><AppImage file="artikel" alt="Artikelansicht mit Quelle, Überschrift und Lesezeichen" /></div>
         <h3>Später in Ruhe lesen.</h3>
-        <p>Merk dir interessante Meldungen für später. In der geplanten Play-Beta führt die Artikelansicht mit Titel, Quelle und Datum zum Original.</p>
+        <p>Merk dir interessante Meldungen für später. In der Play-Version führt die Artikelansicht mit Titel, Quelle und Datum direkt zum Original.</p>
       </article>
       <article>
-        <div className="feature-image"><AppImage file="medien" alt="Video- und Audioübersicht mit Vorschauen aus der Entwicklung" /></div>
+        <div className="feature-image"><AppImage file="medien" alt="Video- und Audioübersicht aus abonnierten Quellen" /></div>
         <h3>Nachrichten als Video und Audio.</h3>
-        <p>Finde Videos, Clips und Audiobeiträge aus deinen Quellen. In der geplanten Play-Beta öffnen sie sich bei den jeweiligen Anbietern.</p>
+        <p>Finde Videos, Clips und Audiobeiträge aus deinen Quellen. In der Play-Version öffnen sie sich direkt bei den jeweiligen Anbietern.</p>
       </article>
     </div>
-    <p className="capture-note">App-Aufnahmen aus der Entwicklung</p>
+    <p className="capture-note">App-Ansichten auf Android</p>
     <div className="widget-feature">
       <AppImage file="widget" alt="Android-Widget mit Schlagzeilen und auswählbaren Ansichten" widget />
       <div><h3>Dein Überblick auf dem Startbildschirm.</h3>
@@ -92,7 +125,7 @@ function Home() {
       </div>
       <figure className="hero-stage">
         <AppImage file="heute" alt="OpenNews auf einem Smartphone mit der Ansicht Heute" priority />
-        <figcaption>OpenNews in der Entwicklung</figcaption>
+        <figcaption>OpenNews für Android</figcaption>
       </figure>
     </section>
     <FeedDemo />
@@ -115,7 +148,7 @@ function Home() {
     <section className="download" id="download">
       <div className="wrap"><img src="/icon-192.png" width="76" height="76" alt="" loading="lazy" />
         <h2>OpenNews für Android.</h2>
-        <p>{site.playStoreUrl ? 'OpenNews ist über Google Play erhältlich.' : 'OpenNews befindet sich im Test und ist noch nicht öffentlich bei Google Play verfügbar.'}</p>
+        <p>{site.playStoreUrl ? 'OpenNews ist über Google Play erhältlich.' : 'OpenNews befindet sich aktuell im geschlossenen Test bei Google Play.'}</p>
         {site.playStoreUrl && <a className="button primary" href={site.playStoreUrl}>Bei Google Play öffnen <Arrow /></a>}
         {site.webAppUrl && <a className="text-link" href={site.webAppUrl}>Web-App öffnen <Arrow /></a>}
       </div>
@@ -132,7 +165,8 @@ function Legal({ path }: { path: Exclude<Route, '/'> }) {
   if (path === '/impressum/') {
     title = 'Impressum';
     content = isPreview ? <p>Die bestätigten Betreiberangaben werden vor der Veröffentlichung ergänzt. Fragen kannst du über die <a href="/kontakt/">Kontaktseite</a> stellen.</p> : <>
-      <h2>Betreiber der Website</h2>
+      <p className="legal-meta">App-Paket: <code>io.opennews.app</code></p>
+      <h2>Betreiber der Website und App</h2>
       <address>{operator.name}<br />{operator.street}<br />{operator.postalCode} {operator.city}<br />{operator.country}</address>
       <h2>Kontakt</h2><p>{email}{operator.phone && <><br />{operator.phone}</>}</p>
       {operator.additionalDetails && <p className="notice-text">{operator.additionalDetails}</p>}
@@ -140,6 +174,7 @@ function Legal({ path }: { path: Exclude<Route, '/'> }) {
   } else if (path === '/datenschutz/') {
     title = 'Datenschutz';
     content = <>
+      <p className="legal-meta">Package ID: <code>io.opennews.app</code> · Stand / Effective Date: 2026-11-19</p>
       <h2>Diese Website</h2>
       {isPreview ? <>
         <p>Diese Vorschau speichert deine manuell gewählte Darstellung im Browser. Mit der Auswahl „System“ entfernst du diese Einstellung wieder.</p>
@@ -158,17 +193,29 @@ function Legal({ path }: { path: Exclude<Route, '/'> }) {
       </> : <>
         <p>Verantwortlich ist der im <a href="/impressum/">Impressum</a> genannte Betreiber.</p>
         <p>Eine manuell gewählte Darstellung speichert die Website im lokalen Speicher deines Browsers. Mit der Auswahl „System“ entfernst du diese Einstellung wieder.</p>
-        <p className="notice-text">{site.privacyNotice}</p>
+        <NoticeBlocks text={site.privacyNotice} />
       </>}
       <h2>Die OpenNews-App</h2>
       <p>Quellen, Interessen, Leseverlauf, Lesezeichen und Einstellungen sind auf deinem Gerät gespeichert. Du kannst die Interessen zurücksetzen und die Daten im Browser oder in den Android-Einstellungen löschen.</p>
       <p>Android ruft Feeds direkt ab. Die Web-App nutzt dafür einen OpenNews-Server. Quellen und externe Medien können beim Aufruf technische Verbindungsdaten erhalten. Optionale Dienste wie externe KI oder Android-Übersetzung haben eigene Datenflüsse.</p>
       <h2>Datenschutzkontakt</h2><p>{email ? <>Fragen zur Website oder App kannst du an {email} richten.</> : emailPending}</p>
+      <h2>English – Privacy Policy</h2>
+      <p><strong>OpenNews</strong> (<code>io.opennews.app</code>) is built around local-first news reading. It requires no user account, displays no advertising, and does not sell or track your reading habits.</p>
+      <ul>
+        <li><strong>On-device storage:</strong> Selected feeds, bookmarks, reactions, reading history, personalisation weights, widget state and optional diagnostic logs stay locally on your device. Android cloud backups are disabled; manual backups are user-initiated exports.</li>
+        <li><strong>Feed &amp; media connections:</strong> On Android, RSS feeds and linked transcripts are fetched directly by your device. In the Play version, articles show headline, source, date and a link to the original publisher. Opening links or media connects directly to the respective provider under their privacy policy.</li>
+        <li><strong>Optional on-device &amp; external AI:</strong> On-device Android translation and local summarisation use Google ML Kit (which may download language models and send installation-scoped technical diagnostics to Google). External AI providers (such as Google Gemini, OpenAI, Anthropic, Mistral AI, OpenRouter or custom endpoints) are only contacted when you explicitly configure and trigger them.</li>
+        <li><strong>Deletion &amp; contact:</strong> Reset interests or clear reading history inside OpenNews settings, or remove all app data via Android system settings. Privacy &amp; GDPR inquiries: {email ?? emailPending} (Operator details in <a href="/impressum/">Imprint</a>).</li>
+      </ul>
     </>;
   } else if (path === '/kontakt/') {
     title = 'Kontakt';
-    content = <><p>Hast du Feedback zu OpenNews, Fragen zur Veröffentlichung oder ein Datenschutzanliegen? {email ? <>Schreib an {email}.</> : emailPending}</p>
-      <p>Wenn du einen Fehler meldest, helfen das Gerät, die App-Version und eine kurze Beschreibung, wie der Fehler auftritt.</p></>;
+    content = <>
+      <p className="legal-meta">App-Paket: <code>io.opennews.app</code></p>
+      <p>Hast du Feedback zu OpenNews, Fragen zur Veröffentlichung oder ein Datenschutzanliegen? {email ? <>Schreib an {email}.</> : emailPending}</p>
+      <p>Wenn du einen Fehler meldest, helfen das Gerät, die App-Version und eine kurze Beschreibung, wie der Fehler auftritt.</p>
+      <p>Informationen zum Betreiber findest du im <a href="/impressum/">Impressum</a>, Hinweise zur Datenverarbeitung im <a href="/datenschutz/">Datenschutz</a>.</p>
+    </>;
   } else {
     title = 'Seite nicht gefunden';
     content = <p>Hier gibt es keine Seite. Auf der <a href="/">Startseite</a> findest du den App-Einblick und den aktuellen Download-Status.</p>;

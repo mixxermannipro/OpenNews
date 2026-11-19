@@ -13,6 +13,9 @@ test('prerendered pages and social assets exist', () => {
     assert.match(html, /<h1>/);
   }
   assert.ok(readFileSync('dist/og/opennews.jpg').length > 0);
+  assert.match(readFileSync('dist/_redirects', 'utf8'), /^\/privacy \/datenschutz\/ 301/m);
+  assert.match(readFileSync('dist/datenschutz/index.html', 'utf8'), /English – Privacy Policy/);
+  assert.match(readFileSync('dist/datenschutz/index.html', 'utf8'), /io\.opennews\.app/);
   const robots = readFileSync('dist/robots.txt', 'utf8');
   const sitemap = readFileSync('dist/sitemap.xml', 'utf8');
   if (home.includes('content="noindex, nofollow"')) {

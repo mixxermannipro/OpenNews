@@ -6,6 +6,8 @@ import { DEFAULT_PREFERENCES, EDITIONS, HOME_TAB_LABELS, RETENTION_OPTIONS, TOPI
 import type { NewsCategory, ReaderFontFamily, ReaderFontSize, ThemeMode } from '../types/news';
 
 const SUPPORT_EMAIL = 'mixxermannipropvp@gmail.com';
+const PRIVACY_URL = 'https://opennews-app.pages.dev/datenschutz/';
+const IMPRINT_URL = 'https://opennews-app.pages.dev/impressum/';
 const DiagnosticsSettings = lazy(() => import('./DiagnosticsSettings').then(module => ({ default: module.DiagnosticsSettings })));
 
 interface AppearanceProps {
@@ -216,6 +218,10 @@ export function ProfileView({ page, onPage, onBack, onSaved, onHistory, onSource
         <p>Deine Einstellungen, Interessen und Leseliste werden auf diesem Gerät gespeichert. OpenNews braucht dafür kein Konto.</p>
         <p>Beim Abrufen von Nachrichten verbindet sich OpenNews mit den ausgewählten Quellen. Wenn du eine externe KI verwendest, erhält der Anbieter den Artikeltext für die Analyse.</p>
         <p>Datenschutzkontakt <a className="break-all underline" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a></p>
+        <p className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+          <a className="underline" href={PRIVACY_URL} target="_blank" rel="noopener noreferrer">Vollständige Datenschutzerklärung</a>
+          <a className="underline" href={IMPRINT_URL} target="_blank" rel="noopener noreferrer">Impressum</a>
+        </p>
         {backupControls}
         <Suspense fallback={null}><DiagnosticsSettings /></Suspense>
       </div>}

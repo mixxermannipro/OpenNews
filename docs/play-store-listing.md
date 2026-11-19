@@ -11,18 +11,18 @@ Das Android-Paket heißt `io.opennews.app`. Die Beta ist kostenlos.
 
 **Vollständige Beschreibung**
 
-OpenNews bündelt die Nachrichten deiner gewählten Quellen. Unter **Heute**
-siehst du die Meldungen des Tages auf einen Blick. **Für dich** ordnet
-aktuelle Meldungen nach deinen Interessen. **Neueste** zeigt, was zuletzt
-veröffentlicht wurde.
+OpenNews bündelt Nachrichten aus deinen gewählten Quellen – ohne Werbung, ohne Konto und ohne Tracking.
 
-Füge eigene RSS-Feeds hinzu und öffne Beiträge in einer ruhigen
-Übersicht mit Quelle, Datum und Link zur Originalseite. Speichere Artikel für später oder
-lass dir den Tagesüberblick vorlesen. Das Android-Widget bringt Schlagzeilen
-direkt auf deinen Startbildschirm.
+HIGHLIGHTS
+• Drei klare Ansichten: „Heute“ für wichtige Meldungen, „Für dich“ nach deinen Interessen und „Neueste“ chronologisch
+• Eigene Quellen & RSS-Feeds hinzufügen sowie Abos per OPML importieren und exportieren
+• Ruhige Artikelansicht mit Überschrift, Quelle, Datum und direktem Link zur Originalquelle
+• Artikel für später speichern oder den Tagesüberblick vorlesen lassen
+• Android-Widget für Top-Schlagzeilen direkt auf deinem Startbildschirm
+• Optionale Vor-Ort-Übersetzung englischer Artikel und frei konfigurierbare KI-Funktionen mit eigenem Schlüssel
 
-Für den Einstieg brauchst du kein Konto. Deine Quellenauswahl, Lesezeichen
-und Personalisierung bleiben auf deinem Gerät.
+DATENSCHUTZ IM FOKUS
+Deine Quellenauswahl, Lesezeichen, dein Leseverlauf und die Personalisierung bleiben auf deinem Gerät. Für den Einstieg ist kein Konto nötig.
 
 ## English
 
@@ -32,17 +32,18 @@ und Personalisierung bleiben auf deinem Gerät.
 
 **Full description**
 
-OpenNews brings together news from the sources you follow. **Today** gives
-you an overview of the day's stories. **For you** brings forward recent
-stories that match your interests. **Latest** shows the most recently
-published stories first.
+OpenNews brings together news from the sources you follow — with no ads, no account and no tracking.
 
-Add your own RSS feeds and see each story’s source, date and link to the
-original page. Save articles for later or listen to the daily briefing.
-The Android widget brings headlines to your home screen.
+HIGHLIGHTS
+• Three clear views: "Today" for key stories, "For you" tailored to your interests and "Latest" in chronological order
+• Discover topics and publishers, add your own RSS feeds, and import or export OPML lists
+• Clean article overview with headline, source attribution, publication date and direct link to the original
+• Save articles for later or listen to your daily briefing read aloud
+• Android home screen widget for top headlines
+• Optional on-device translation for English articles and bring-your-own-key AI tools
 
-You can start reading without an account. Your selected sources, bookmarks
-and personalisation stay on your device.
+PRIVACY FIRST
+Your selected sources, bookmarks, reading history and personalisation stay on your device. No account is required to start reading.
 
 ## Grafik und Telefon-Screenshots
 
