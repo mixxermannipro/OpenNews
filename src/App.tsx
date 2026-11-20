@@ -35,9 +35,8 @@ import {
   toggleArticleDislike,
   toggleArticleLike,
 } from './lib/personalization';
-import { articleIdentity, buildHomeSections, distinctArticles, mergeFeedArticles, pruneFeedArticles } from './lib/newsFeed';
+import { articleIdentity, buildHomeSections, distinctArticles, hydrateArticles, mergeFeedArticles, pruneFeedArticles } from './lib/newsFeed';
 import { trackNavigationScroll } from './lib/scrollNavigation';
-import { articlesForBuild, savedArticlesForBuild } from './lib/playBeta';
 import { useArticleStorage } from './hooks/useArticleStorage';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { ViewStatus } from './components/ViewStatus';
@@ -201,7 +200,7 @@ export default function App() {
 
   const [cachedLiveArticles, setCachedLiveArticles, cachedStorageFailed, cachedStorageReady] = useArticleStorage<NewsArticle[]>(
     'opennews_cached_articles',
-    [], articlesForBuild
+    []
   );
   const [feedRateLimited, setFeedRateLimited] = useState(false);
   const [readerFeedSnapshot, setReaderFeedSnapshot] = useState<ReturnType<typeof buildHomeSections>[HomeTab] | null>(null);
@@ -218,11 +217,11 @@ export default function App() {
   }, []);
   const [savedArticles, setSavedArticles, savedStorageFailed] = useArticleStorage<Record<string, NewsArticle>>(
     'opennews_saved_articles',
-    {}, savedArticlesForBuild
+    {}
   );
   const refresh = useRef<AbortController | null>(null);
   const [isLoadingFeeds, setIsLoadingFeeds] = useState(false);
-  const [readArticles, setReadArticles, historyStorageFailed] = useArticleStorage<NewsArticle[]>('opennews_read_articles', [], articlesForBuild);
+  const [readArticles, setReadArticles, historyStorageFailed] = useArticleStorage<NewsArticle[]>('opennews_read_articles', []);
   useEffect(() => {
     if (cachedStorageFailed || savedStorageFailed || historyStorageFailed) recordDiagnostic('storage-failed');
   }, [cachedStorageFailed, savedStorageFailed, historyStorageFailed]);
@@ -403,7 +402,16 @@ export default function App() {
       checkForAlert(articles);
       setCachedLiveArticles(previous => controller.signal.aborted
         ? previous
-        : mergeFeedArticles(previous, articlesForBuild(articles), latestRetention.current, now));
+        : mergeFeedArticles(previous, articles, latestRetention.current, now));
+      setSavedArticles(previous => {
+        if (controller.signal.aborted) return previous;
+        const current = Object.values(previous);
+        const hydrated = hydrateArticles(current, articles);
+        return hydrated === current
+          ? previous
+          : Object.fromEntries(hydrated.map(article => [article.id, article]));
+      });
+      setReadArticles(previous => controller.signal.aborted ? previous : hydrateArticles(previous, articles));
     };
 
     const recordResults = (results: FeedResult[]) => {
@@ -458,7 +466,7 @@ export default function App() {
         setIsLoadingFeeds(false);
       }
     }
-  }, [activeSources, cachedStorageReady, checkForAlert, setCachedLiveArticles, setFeedHealth]);
+  }, [activeSources, cachedStorageReady, checkForAlert, setCachedLiveArticles, setFeedHealth, setReadArticles, setSavedArticles]);
 
   const fetchLatest = useRef(fetchLiveFeeds);
   useEffect(() => { fetchLatest.current = fetchLiveFeeds; }, [fetchLiveFeeds]);

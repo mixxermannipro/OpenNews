@@ -131,34 +131,18 @@ Der Abgleich in der Play Console und der Play-Vorabtestbericht bleiben offen.
 - Datensicherheit, Inhaltsbewertung und die für Nachrichten-Apps geltenden Angaben in Play Console anhand der folgenden Vorbereitung ausfüllen.
 - Aktuelle Aufnahmen für Heute, Entdecken, Leser und Video auf einem Testgerät ohne persönliche Daten erstellen. Die [README-Aufnahmen](../README.md#screenshots) zeigen die Web-App im Handyformat und dienen als Referenz für die Motive.
 - Vor Veröffentlichung mindestens Installation, Aktualisierung, Feed-Abruf, Leser, Offline-Verhalten, Benachrichtigungsberechtigung und die Übersetzung prüfen. Bei neuen persönlichen Entwicklerkonten gelten für die Produktionsfreigabe gegebenenfalls 12 Tester über 14 aufeinanderfolgende Tage.
-- Die Rechte für die Volltextanzeige, Feed-Teaser, Bilder, Marken- und Quellendarstellung und Store-Aufnahmen vor der Verteilung prüfen. § 87g UrhG unterscheidet Hyperlinks und sehr kurze Auszüge von anderen Nutzungen. Ein öffentlich erreichbarer Feed allein belegt keine Freigabe für Volltexte oder Bilder. Vor der Beta die freigegebenen Nutzungen bestätigen und bei Bedarf die Anzeige auf Quellenangabe und Original-Link begrenzen. [§ 87g UrhG](https://www.gesetze-im-internet.de/urhg/__87g.html) Die Debug-Pipeline liefert ausschließlich Testpakete für die Abnahme.
+- Die Rechte für die Volltextanzeige, Feed-Teaser, Bilder, Marken- und Quellendarstellung und Store-Aufnahmen vor der öffentlichen Verteilung beachten. [§ 87g UrhG](https://www.gesetze-im-internet.de/urhg/__87g.html) Die Debug-Pipeline liefert ausschließlich Testpakete für die Abnahme.
 
 Quellen: [Android-Zielversionen](https://support.google.com/googleplay/android-developer/answer/11926878), [Play App Signing](https://support.google.com/googleplay/android-developer/answer/9842756), [Datensicherheit](https://support.google.com/googleplay/android-developer/answer/10787469), [Testvorgaben](https://support.google.com/googleplay/android-developer/answer/14151465).
 
-## Fremde Inhalte im Play-Build
+## Inhalte im Play-Build
 
-Die Bedingungen der Stichprobe tragen keine allgemeine Freigabe für eine
-Android-App, die fremde Volltexte, Logos oder Bilder ausliefert. Tagesschau
-beschreibt die Einbindung auf Websites und schließt Archivierung aus.
-The Guardian nennt den privaten, nichtkommerziellen Gebrauch im Rahmen
-seiner Bedingungen. Handelsblatt verlangt für kommerzielle Feed-Nutzung
-eine ausdrückliche Genehmigung. [Tagesschau](https://www.tagesschau.de/rssfeed-ts-104.html)
-· [The Guardian](https://www.theguardian.com/help/feeds)
-· [Handelsblatt](https://www.handelsblatt.com/rss-feeds/)
-
-Der Play-Build wird deshalb mit einer eingeschränkten Darstellung gebaut.
-Er zeigt Titel, Quelle, Datum und Original-Link. Er speichert und exportiert
-keine Artikelvolltexte oder Bilder, lädt keine Volltexte nach und enthält
-keine Publisher-Logos. Medien lassen sich beim Anbieter öffnen. Diese
-Einschränkung ist keine Freigabe der Feed-Nutzung. Vor einer Verteilung die
-Zulässigkeit von Feed-Abruf, Schlagzeilen, lokalem Zwischenspeicher und
-Store-Aufnahmen je vorkonfigurierter Quelle bestätigen. Bei Unsicherheit
-die betreffende Quelle aus dem voreingestellten Angebot nehmen.
+Der Play-Build wird mit dem vollen Funktionsumfang gebaut: Er zeigt Feed-Teaser, Vorschaubilder und Quellen-Logos, lädt im Artikelreader nach Möglichkeit den Artikelvolltext nach, spielt Audio-, Video- und YouTube-Medien direkt in der App ab und bietet die Zusammenfassung sowie den Link zur Originalquelle an.
 Der Web-KI-Proxy prüft eigene Ziele als öffentliche HTTPS-Adressen und
 prüft die Adressen bei der DNS-Auflösung erneut. POST-Anfragen folgen
 keinen Weiterleitungen. Die URL-Regeln sind durch Unit-Tests abgedeckt.
 Die [Vorbereitung der Beta](beta-product-validation.md) richtet sich
-entsprechend auf den Schlagzeilen- und Link-Ablauf.
+auf den gesamten Lese- und Medienablauf.
 
 ## Play Console – Vorbereitung der Angaben
 

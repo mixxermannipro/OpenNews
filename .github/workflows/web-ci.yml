@@ -24,6 +24,3 @@ jobs:
       - run: node scripts/check-web-budget.mjs
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
-      - run: npm run test:e2e -- --grep 'Play Beta keeps'
-        env:
-          VITE_OPENNEWS_PLAY_BETA: '1'
