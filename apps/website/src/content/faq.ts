@@ -20,8 +20,8 @@ export const faqItems = [
     answer: 'Du kannst OpenNews ohne Anmeldung verwenden. Für eine manuelle Sicherung kannst du deine Einstellungen exportieren.',
   },
   {
-    question: 'Welche Plattformen werden unterstützt?',
-    answer: 'OpenNews gibt es als Web-App und für Android. Die Web-App lässt sich mit einem unterstützten Browser installieren. Eine öffentliche iOS-Version gibt es derzeit nicht.',
+    question: 'Welche Plattformen und Sprachen werden unterstützt?',
+    answer: 'OpenNews läuft als Web-App direkt im Browser (auch als installierbare PWA) und als Android-App. Die Oberfläche unterstützt sechs Sprachen: Deutsch, Englisch, Französisch, Spanisch, Italienisch und Portugiesisch.',
   },
   {
     question: 'Wie verarbeitet OpenNews Nutzerdaten?',
