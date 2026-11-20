@@ -6,6 +6,7 @@ export default defineConfig({
   workers: 2,
   use: {
     baseURL: 'http://localhost:3099',
+    locale: 'de-DE',
     viewport: { width: 1280, height: 900 },
     launchOptions: { executablePath: process.env.OPENNEWS_TEST_BROWSER || undefined },
   },

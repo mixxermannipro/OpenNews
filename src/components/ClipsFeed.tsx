@@ -385,12 +385,12 @@ export function ClipsFeed({
               >
                 {/* Stage wrapper: full-bleed on mobile; 9:16 card + external right Action Rail on desktop */}
                 <div className="relative flex h-full w-full items-center justify-center md:h-auto md:w-auto md:items-end md:gap-4">
-                  <div className="clips-stage relative h-full w-full overflow-hidden bg-black md:aspect-[9/16] md:h-[min(calc(100dvh-5.5rem),50rem)] md:w-auto md:rounded-[28px] md:border md:border-white/15 md:shadow-2xl">
+                  <div className={`clips-stage relative h-full w-full overflow-hidden bg-black md:aspect-[9/16] md:h-[min(calc(100dvh-5.5rem),50rem)] md:w-auto md:rounded-[28px] md:border md:border-white/15 md:shadow-2xl ${isYouTube ? "md:min-w-[calc(200px_+_2px)]" : ""}`}>
                   {/* Video / YouTube Layer */}
                   <div
                     className={
                       isYouTube && isActive
-                        ? 'absolute inset-x-0 top-[calc(4rem+env(safe-area-inset-top))] bottom-[calc(9.5rem+env(safe-area-inset-bottom))] bg-black md:top-0 md:bottom-36'
+                        ? 'absolute inset-x-0 top-[calc(4rem+env(safe-area-inset-top))] bottom-[calc(9.5rem+env(safe-area-inset-bottom))] bg-black md:top-0 md:bottom-[clamp(0px,calc(100%_-_200px),9rem)]'
                         : 'absolute inset-0 bg-black'
                     }
                   >
