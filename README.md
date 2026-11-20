@@ -380,7 +380,7 @@ NODE_ENV=production npm start
 | `npm start` | `tsx server.ts` | Express starten; mit `NODE_ENV=production` aus `dist/` |
 | `npm run preview` | `vite preview` | Statischen Build ansehen (ohne API) |
 | `npm run lint` | `tsc --noEmit` | TypeScript-Typprüfung |
-| `npm test` | `node --import tsx --test src/lib/*.test.ts` | 99 Unit-Tests |
+| `npm test` | `node --import tsx --test src/lib/*.test.ts` | 106 Unit-Tests |
 | `npm run test:e2e` | `playwright test` | 14 Browsertests |
 | `npm run push:worker` | `tsx scripts/push-news.ts` | Android-Push aus den Standardquellen senden |
 | `node scripts/check-web-budget.mjs` | Node | Prüft das Start-JavaScript gegen 170 KiB gzip |
@@ -473,10 +473,10 @@ Mit `npm run android:release -- <versionCode>` erzeugst du ein lokal signiertes 
 
 Die App ist eine Capacitor-WebView mit `CapacitorHttp` (Feed- und KI-Aufrufe direkt auf dem Gerät), nativem Zurück-Knopf, `ArticleShare`-Plugin, Systemstimme für den Tagesüberblick, lokaler Übersetzung über ML Kit, Firebase-Nachrichten und synchronisierten Systemleisten. Das Android-Widget **OpenNews-Feed** zeigt einen scrollbaren Nachrichtenfeed in der Größe, die du auf dem Startbildschirm einstellst. Bei mehr Platz erscheinen Reiter für **Heute**, **Für dich** und **Neueste** sowie ein Aufmacher. Je Widget kannst du unabhängig filtern und Layout, Farbmodus, Bilder und Kurztexte wählen. [Bedienung und Größen](docs/android-widget.md)
 
-**CI:** Zwei Workflows laufen bei Pull Requests gegen `main`:
+**CI:** Die App-Prüfungen laufen bei Pull Requests gegen `main`.
 
-- **Web CI** (`web-ci.yml`): Typprüfung, 99 Unit-Tests, Build, JavaScript-Budget und 14 Browsertests mit Playwright.
-- **OpenNews Android Test APK** (`android-test-apk.yml`): bei Änderungen an `src/**`, `scripts/**`, `native/android/**`, `public/**` und Build-Dateien sowie manuell über **Actions → Run workflow**. Richtet Node 22 und JDK 21 ein, prüft Typen, führt Unit-Tests und Build aus, erzeugt das Android-Projekt, baut `assembleDebug`, lädt die APK als Artefakt (7 Tage) hoch, prüft bei Pull Requests den AAB-Bau mit einem Einmalschlüssel und veröffentlicht bei manuellem Lauf ein privates Pre-Release `v0.1.0-alpha.<Run-Nummer>`.
+- **Web CI** (`web-ci.yml`): Typprüfung, 106 Unit-Tests, Build, JavaScript-Budget und 14 Browsertests mit Playwright.
+- **OpenNews Android Test APK** (`android-test-apk.yml`): bei Änderungen an `src/**`, `scripts/**`, `native/android/**`, `public/**` und Build-Dateien sowie manuell über **Actions → Run workflow**. Richtet Node 22 und JDK 21 ein, prüft Typen, führt Unit-Tests und Build aus, erzeugt das Android-Projekt, baut `assembleDebug`, prüft, dass die APK vorhanden ist, lädt sie bei verfügbarem GitHub-Speicher als Artefakt (7 Tage) hoch, prüft bei Pull Requests den AAB-Bau mit einem Einmalschlüssel und veröffentlicht bei manuellem Lauf ein privates Pre-Release `v0.1.0-alpha.<Run-Nummer>`.
 
 **Lokal:**
 
@@ -606,7 +606,7 @@ Das Repository ist privat und in einer frühen Alpha. Beiträge klein und prüfb
 | BYOK-KI | Beta, abhängig von Anbieter und Schlüssel |
 | Tagesüberblick | Lokal synthetisiertes Themen-Briefing mit Vorlesen 2.0, optional mit Anbieter-KI |
 | Diagnose | lokal verfügbar, Senden optional |
-| Tests | 99 Unit-Tests und 14 Playwright-Browsertests |
+| Tests | 106 Unit-Tests und 14 Playwright-Browsertests |
 | Eigener Quellcode | Alle Rechte vorbehalten |
 
 ## Lizenz

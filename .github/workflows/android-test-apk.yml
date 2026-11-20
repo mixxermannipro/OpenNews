@@ -70,6 +70,7 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
+          test -s app/build/outputs/apk/debug/app-debug.apk
 
       - name: Verify release signing with a disposable key
         if: github.event_name == 'pull_request'
@@ -86,6 +87,8 @@ jobs:
           npm run android:release -- 1 <<< "$OPENNEWS_CI_KEY_PASSWORD"
 
       - name: Save APK for PR review
+        # The build checks the APK above. Uploading it for review also needs account storage.
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
         uses: actions/upload-artifact@v4
         with:
           name: OpenNews-Android-Debug
