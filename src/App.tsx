@@ -1048,7 +1048,7 @@ export default function App() {
       <header className="app-header hidden md:block" inert={activeArticle ? true : undefined}>
         <div className="app-header-inner">
           <button type="button" className="brand" onClick={() => (activeTab === 'home' ? scrollToTop() : navigate({ tab: 'home' }))}>
-            <img src="/logo.png" alt="" /> OpenNews
+            <img src={`${import.meta.env.BASE_URL}logo.png`} alt="" /> OpenNews
           </button>
           <nav aria-label={t('navMainAria')} className="hidden items-center gap-1.5 md:flex">
             {navItems.map(item => {

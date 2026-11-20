@@ -31,12 +31,14 @@ GitHub in Cloudflare unter **Workers & Pages → Create application → Pages �
 | Repository | `mixxermannipro/OpenNews` |
 | Produktionsbranch | `main` |
 | Vorschau-Deployments | Deaktivieren, wenn die Vorschau privat bleiben soll |
-| Build-Watch-Pfade | `apps/website/**` |
-| Framework-Preset | React (Vite) |
-| Stammverzeichnis | `apps/website` |
-| Build-Befehl | `npm run build` |
-| Build-Ausgabe | `dist` |
+| Build-Watch-Pfade | `apps/website/**`, `src/**`, `functions/**`, `index.html`, `package.json`, `vite.config.ts` |
+| Framework-Preset | Keine / Benutzerdefiniert |
+| Stammverzeichnis | `/` (Repository-Stamm für Website + Web-App unter `/app/`) |
+| Build-Befehl | `npm run build:pages` |
+| Build-Ausgabe | `dist-pages` |
 | Node.js | `.nvmrc` wählt Node 22. Optional `NODE_VERSION` auf eine aktuelle 22.x-Version setzen. |
+
+Mit `npm run build:pages` landet die statische Produktwebsite unter `/` und die komplette OpenNews-Web-App unter `/app/`. Die API-Endpunkte (`/api/*` für RSS-Abruf, Feed-Suche, Artikel-Extraktion, Transkripte und BYOK-KI-Proxy) laufen über Cloudflare Pages Functions (`functions/api/[[path]].ts`) im kostenlosen Free-Tarif. `VITE_WEB_APP_URL` kann auf `https://opennews-app.pages.dev/app` gesetzt werden.
 
 Pages weist dem Projekt eine HTTPS-Adresse unter `.pages.dev` zu. Diese exakte Adresse oder die eigene Produktionsdomain als `VITE_SITE_URL` setzen. Der Hostname muss mindestens einen Punkt enthalten, zum Beispiel `xyz.pages.dev`. Die Adresse darf keinen Unterpfad enthalten. So erhalten die kanonischen Links, Social-Vorschauen, strukturierten Daten und die Sitemap die richtige Domain. Änderungen an `apps/website/` auf `main` starten bei aktivierter Git-Integration einen neuen Build. Die Website braucht weder Datenbank noch API.
 
