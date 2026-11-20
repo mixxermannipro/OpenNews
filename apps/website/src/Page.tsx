@@ -92,18 +92,18 @@ function Features() {
     <div className="feature-spread">
       <article>
         <div className="feature-image"><AppImage file="entdecken" alt="Entdecken-Ansicht mit Suche und Themen wie Politik und Technologie" /></div>
-        <h3>Deine Quellen bestimmen.</h3>
-        <p>Entdecke Themen und Redaktionen. Wähle deine Quellen aus oder füge einen eigenen RSS-Feed hinzu.</p>
+        <h3>Deine Quellen &amp; 6 Sprachen.</h3>
+        <p>Entdecke Themen und Redaktionen aus mehreren Ländern – auf Deutsch, Englisch, Französisch, Spanisch, Italienisch und Portugiesisch – oder füge eigene RSS-Feeds hinzu.</p>
       </article>
       <article>
         <div className="feature-image"><AppImage file="artikel" alt="Artikelansicht mit Quelle, Überschrift und Lesezeichen" /></div>
         <h3>Später in Ruhe lesen.</h3>
-        <p>Merk dir interessante Meldungen für später. In der Play-Version führt die Artikelansicht mit Titel, Quelle und Datum direkt zum Original.</p>
+        <p>Merk dir interessante Meldungen für später. In der Web-App und lokalen Version hilft dir auf Wunsch eine KI-Einordnung; im Play-Store-Build führt der Link direkt zum Original.</p>
       </article>
       <article>
         <div className="feature-image"><AppImage file="medien" alt="Video- und Audioübersicht aus abonnierten Quellen" /></div>
-        <h3>Nachrichten als Video und Audio.</h3>
-        <p>Finde Videos, Clips und Audiobeiträge aus deinen Quellen. In der Play-Version öffnen sie sich direkt bei den jeweiligen Anbietern.</p>
+        <h3>Clips, Videos und Audio.</h3>
+        <p>Finde Kurzclips, Videos und Audiobeiträge aus deinen Quellen – mit durchlaufendem Mini-Audio-Player im Web und direktem Abruf beim Anbieter.</p>
       </article>
     </div>
     <p className="capture-note">App-Ansichten auf Android</p>
@@ -120,12 +120,22 @@ function Home() {
     <section className="wrap hero">
       <div className="hero-copy">
         <h1>Deine Nachrichten.<br />Deine Quellen.<br /><em>Dein Überblick.</em></h1>
-        <p>Wähle, von wem du Nachrichten liest. OpenNews bündelt deine Quellen und zeigt dir, was heute wichtig ist und was dich interessiert.</p>
-        <div className="actions"><a className="button primary" href="#einblick">App ansehen <Arrow /></a><a className="text-link" href="#download">Verfügbarkeit</a></div>
+        <p>Wähle, von wem du Nachrichten liest. OpenNews bündelt deine Quellen in sechs Sprachen und zeigt dir, was heute wichtig ist und was dich interessiert – auf Android und direkt im Browser.</p>
+        <div className="actions">
+          {site.webAppUrl ? (
+            <>
+              <a className="button primary" href={site.webAppUrl}>Web-App öffnen <Arrow /></a>
+              <a className="text-link" href="#einblick">App ansehen</a>
+            </>
+          ) : (
+            <a className="button primary" href="#einblick">App ansehen <Arrow /></a>
+          )}
+          <a className="text-link" href="#download">Verfügbarkeit</a>
+        </div>
       </div>
       <figure className="hero-stage">
         <AppImage file="heute" alt="OpenNews auf einem Smartphone mit der Ansicht Heute" priority />
-        <figcaption>OpenNews für Android</figcaption>
+        <figcaption>OpenNews für Web &amp; Android</figcaption>
       </figure>
     </section>
     <FeedDemo />
@@ -147,10 +157,12 @@ function Home() {
     </section>
     <section className="download" id="download">
       <div className="wrap"><img src="/icon-192.png" width="76" height="76" alt="" loading="lazy" />
-        <h2>OpenNews für Android.</h2>
-        <p>{site.playStoreUrl ? 'OpenNews ist über Google Play erhältlich.' : 'OpenNews befindet sich aktuell im geschlossenen Test bei Google Play.'}</p>
-        {site.playStoreUrl && <a className="button primary" href={site.playStoreUrl}>Bei Google Play öffnen <Arrow /></a>}
-        {site.webAppUrl && <a className="text-link" href={site.webAppUrl}>Web-App öffnen <Arrow /></a>}
+        <h2>OpenNews für Web &amp; Android.</h2>
+        <p>{site.playStoreUrl ? 'OpenNews ist als Web-App im Browser und über Google Play erhältlich.' : 'Die Web-App läuft direkt im Browser. Die Android-App befindet sich aktuell im geschlossenen Test bei Google Play.'}</p>
+        <div className="actions">
+          {site.webAppUrl && <a className="button primary" href={site.webAppUrl}>Web-App im Browser öffnen <Arrow /></a>}
+          {site.playStoreUrl && <a className={site.webAppUrl ? 'text-link' : 'button primary'} href={site.playStoreUrl}>Bei Google Play öffnen <Arrow /></a>}
+        </div>
       </div>
     </section>
   </>;
@@ -231,7 +243,11 @@ export function Page({ path }: { path: Route }) {
       <nav aria-label="Hauptnavigation">
         <a href="/#funktionen">Funktionen</a><a href="/#datenschutz">Datenschutz</a><a href="/#faq">FAQ</a>
       </nav>
-      <a className="button nav-action" href="/#download">App-Status <Arrow /></a>
+      {site.webAppUrl ? (
+        <a className="button nav-action" href={site.webAppUrl}>Web-App <Arrow /></a>
+      ) : (
+        <a className="button nav-action" href="/#download">App-Status <Arrow /></a>
+      )}
     </div></header>
     <main id="inhalt" tabIndex={-1}>{path === '/' ? <Home /> : <Legal path={path} />}</main>
     <footer className="wrap footer">
