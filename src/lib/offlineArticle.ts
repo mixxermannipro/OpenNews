@@ -23,13 +23,16 @@ export async function storeOfflineArticle(link: string, paragraphs: string[], he
   data.set('text', JSON.stringify({ paragraphs, headingIndexes }));
   if (imageUrl) {
     try {
-      const response = await fetch(imageUrl, { signal: AbortSignal.timeout(4000), credentials: 'omit' });
-      if (response.ok && /^image\/(jpeg|png|webp|gif|avif)(;|$)/i.test(response.headers.get('content-type') ?? '')) {
-        const image = await response.blob();
-        if (image.size <= 2 * 1024 * 1024) data.set('image', image);
+      const resolvedImageUrl = new URL(imageUrl, location.origin);
+      if (resolvedImageUrl.origin === location.origin) {
+        const response = await fetch(resolvedImageUrl.href, { signal: AbortSignal.timeout(4000), credentials: 'omit' });
+        if (response.ok && /^image\/(jpeg|png|webp|gif|avif)(;|$)/i.test(response.headers.get('content-type') ?? '')) {
+          const image = await response.blob();
+          if (image.size <= 2 * 1024 * 1024) data.set('image', image);
+        }
       }
     } catch {
-      // Publishers may block cross-origin downloads. The article stays readable.
+      // Non-fatal: the article text stays readable offline even without an image.
     }
   }
   const cache = await caches.open(CACHE);

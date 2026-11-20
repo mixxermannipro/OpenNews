@@ -1,8 +1,12 @@
 import React, { useMemo } from 'react';
-import { Search } from 'lucide-react';
+import { Check, Plus, Search, X } from 'lucide-react';
 import type { NewsArticle, NewsSource, PersonalizationProfile } from '../types/news';
 import { useLocalStorage } from '../hooks/useLocalStorage';
+import { searchAndFilterSources } from '../lib/sourceSearch';
+import { useI18n } from '../lib/i18n';
 import { CompactArticleCard } from './ArticleCards';
+import { SourceIcon } from './SourceIcon';
+import { ViewStatus } from './ViewStatus';
 
 interface DiscoverSearchProps {
   articles: NewsArticle[];
@@ -16,7 +20,14 @@ interface DiscoverSearchProps {
   onToggleLike: (article: NewsArticle) => void;
 }
 
-const SUGGESTED_TERMS = ['Europa', 'KI', 'Bundestag', 'Energie', 'Wirtschaft', 'NASA', 'Tagesschau'];
+const SUGGESTED_BY_LANG = {
+  de: ['Europa', 'KI', 'Wirtschaft', 'NASA', 'Tagesschau', 'Le Monde', 'BBC'],
+  en: ['Europe', 'AI', 'Economy', 'NASA', 'BBC', 'The Guardian', 'Tech'],
+  fr: ['Europe', 'IA', 'Économie', 'Le Monde', 'France 24', 'NASA', 'Science'],
+  es: ['Europa', 'IA', 'Economía', 'El País', 'BBC Mundo', 'NASA', 'Tech'],
+  it: ['Europa', 'IA', 'Economia', 'ANSA', 'Il Post', 'NASA', 'Tech'],
+  pt: ['Europa', 'IA', 'Economia', 'Público', 'Folha', 'NASA', 'Tech'],
+} as const;
 
 export const DiscoverSearch: React.FC<DiscoverSearchProps> = ({
   articles,
@@ -29,6 +40,7 @@ export const DiscoverSearch: React.FC<DiscoverSearchProps> = ({
   onToggleBookmark,
   onToggleLike,
 }) => {
+  const { lang, locale, t, categoryLabel } = useI18n();
   const [recent, setRecent] = useLocalStorage<string[]>('opennews_recent_searches', []);
   const remember = (value: string) => {
     const term = value.trim();
@@ -48,103 +60,135 @@ export const DiscoverSearch: React.FC<DiscoverSearchProps> = ({
     );
   }, [articles, query]);
 
-  const term = query.trim().toLowerCase();
-  const matchingSources = term ? sources.filter(source =>
-    [source.name, source.category, source.description].some(value => value.toLowerCase().includes(term))
-  ) : [];
+  const term = query.trim();
+  const matchingSources = useMemo(
+    () => (term ? searchAndFilterSources(sources, { query: term, locale }).slice(0, 12) : []),
+    [sources, term, locale],
+  );
+
+  const suggestedTerms = SUGGESTED_BY_LANG[lang] ?? SUGGESTED_BY_LANG.de;
 
   return (
     <div className="space-y-4">
-      <form className="relative" role="search" onSubmit={event => {
-        event.preventDefault();
-        remember(query);
-        event.currentTarget.querySelector('input')?.blur();
-      }}>
-        <Search className="pointer-events-none absolute left-4 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-slate-400" />
+      <form
+        className="relative"
+        role="search"
+        onSubmit={event => {
+          event.preventDefault();
+          remember(query);
+          event.currentTarget.querySelector('input')?.blur();
+        }}
+      >
+        <Search className="pointer-events-none absolute left-4 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--muted)]" aria-hidden="true" />
         <input
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Nachrichten, Themen, Quellen"
-          aria-label="Nachrichten, Themen und Quellen durchsuchen"
-          className="preference-input discover-search-input w-full rounded-full text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/60 dark:text-white"
+          placeholder={t('discoverSearchPlaceholder')}
+          aria-label={t('discoverSearchPlaceholder')}
+          className={`preference-input discover-search-input w-full rounded-full text-sm text-[var(--ink)] placeholder:text-[var(--muted)] ${query ? 'pr-12' : ''}`}
         />
+        {query && (
+          <button
+            type="button"
+            onClick={() => setQuery('')}
+            aria-label={t('clear')}
+            className="absolute right-1 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full text-[var(--muted)] transition-colors hover:text-[var(--ink)]"
+          >
+            <X className="h-4 w-4" aria-hidden="true" />
+          </button>
+        )}
       </form>
+
       {!query.trim() && recent.length > 0 && (
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-2">
-            <h2 className="text-lg font-semibold">Letzte Suchen</h2>
-            <button type="button" className="choice-pill" onClick={() => setRecent([])}>Alle löschen</button>
+            <h2 className="text-base font-bold tracking-tight">{t('discoverRecent')}</h2>
+            <button type="button" className="choice-pill text-xs" onClick={() => setRecent([])}>{t('discoverClearRecent')}</button>
           </div>
           <div className="flex flex-wrap gap-2">
-            {recent.map(term => <button key={term} type="button" className="choice-pill" onClick={() => { setQuery(term); remember(term); }}>{term}</button>)}
+            {recent.map(savedTerm => (
+              <button
+                key={savedTerm}
+                type="button"
+                className="choice-pill"
+                onClick={() => { setQuery(savedTerm); remember(savedTerm); }}
+              >
+                {savedTerm}
+              </button>
+            ))}
           </div>
         </div>
       )}
 
       <div className="no-scrollbar flex items-center gap-2 overflow-x-auto pb-1">
-        {SUGGESTED_TERMS.map((term) => (
+        {suggestedTerms.map((suggested) => (
           <button
-            key={term}
+            key={suggested}
             type="button"
-            onClick={() => { setQuery(term === query ? '' : term); if (term !== query) remember(term); }}
-            className={`min-h-[38px] shrink-0 rounded-full px-3.5 py-1.5 text-xs font-medium transition ${
-              query === term
-                ? 'bg-[#2C2F36] text-white shadow-sm dark:bg-white dark:text-slate-950'
-                : 'liquid-glass-subtle text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'
-            }`}
+            aria-pressed={query === suggested}
+            onClick={() => { setQuery(suggested === query ? '' : suggested); if (suggested !== query) remember(suggested); }}
+            className="choice-pill shrink-0 whitespace-nowrap"
           >
-            {term}
+            {suggested}
           </button>
         ))}
       </div>
 
-      {term && <>
-        {matchingSources.length > 0 && (
-          <section aria-label="Gefundene Quellen" className="settings-group">
-            {matchingSources.map(source => (
-              <div key={source.id} className="preference-row justify-between">
-                <div className="min-w-0">
-                  <div className="font-semibold">{source.name}</div>
-                  <div className="text-xs text-slate-600 dark:text-slate-300">{source.category}</div>
+      {term && (
+        <div className="feed-content space-y-4">
+          {matchingSources.length > 0 && (
+            <section aria-label={t('sourcesTitle')} className="settings-group">
+              {matchingSources.map(source => (
+                <div key={source.id} className="preference-row justify-between">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <SourceIcon source={source} size="h-9 w-9" />
+                    <div className="min-w-0">
+                      <div className="truncate font-semibold">{source.name}</div>
+                      <div className="text-xs text-[var(--muted)]">
+                        {source.region ? `${source.region} · ` : ''}{source.language.toUpperCase()} · {categoryLabel(source.category)}
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="source-toggle-btn reaction-btn inline-flex min-h-[44px] shrink-0 items-center gap-1.5 rounded-full px-3.5 text-xs font-semibold"
+                    data-active={source.subscribed || undefined}
+                    aria-pressed={source.subscribed}
+                    aria-label={source.subscribed ? `${source.name}: ${t('discoverFollowing')}` : `${source.name}: ${t('discoverFollow')}`}
+                    onClick={() => { remember(query); onToggleSubscribe(source.id); }}
+                  >
+                    {source.subscribed ? <Check className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden="true" /> : <Plus className="h-3.5 w-3.5" aria-hidden="true" />}
+                    {source.subscribed ? t('discoverFollowing') : t('discoverFollow')}
+                  </button>
                 </div>
-                <button type="button" className="choice-pill shrink-0" aria-pressed={source.subscribed}
-                  aria-label={source.subscribed ? `${source.name} entfolgen` : `${source.name} folgen`}
-                  onClick={() => { remember(query); onToggleSubscribe(source.id); }}>
-                  {source.subscribed ? 'Abonniert' : 'Folgen'}
-                </button>
-              </div>
-            ))}
-          </section>
-        )}
-        <p role="status" className="text-xs font-medium text-slate-600 dark:text-slate-300">
-          {results.length} Meldungen für „{query.trim()}“
-        </p>
-      {results.length === 0 && matchingSources.length === 0 ? (
-        <div className="liquid-glass rounded-3xl p-8 text-center">
-          <p className="text-base font-semibold text-slate-900 dark:text-white">
-            Keine Ergebnisse für „{query}“
+              ))}
+            </section>
+          )}
+          <p role="status" className="text-xs font-medium text-[var(--muted)] tabular-nums">
+            {t('discoverResultsFor', { count: results.length, query: term })}
           </p>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Probiere ein anderes Stichwort oder abonniere weitere Feeds in den Einstellungen.
-          </p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
-          {results.map((article) => (
-            <CompactArticleCard
-              key={article.id}
-              article={article}
-              isBookmarked={profile.bookmarkedIds.includes(article.id)}
-              isLiked={profile.likedIds.includes(article.id)}
-              onOpen={article => { remember(query); onOpenArticle(article); }}
-              onToggleBookmark={onToggleBookmark}
-              onToggleLike={onToggleLike}
-            />
-          ))}
+          {results.length === 0 && matchingSources.length === 0 ? (
+            <ViewStatus title={t('discoverNoResults', { query: term })}>
+              {t('discoverNoResultsHint')}
+            </ViewStatus>
+          ) : (
+            <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
+              {results.map((article) => (
+                <CompactArticleCard
+                  key={article.id}
+                  article={article}
+                  isBookmarked={profile.bookmarkedIds.includes(article.id)}
+                  isLiked={profile.likedIds.includes(article.id)}
+                  onOpen={item => { remember(query); onOpenArticle(item); }}
+                  onToggleBookmark={onToggleBookmark}
+                  onToggleLike={onToggleLike}
+                />
+              ))}
+            </div>
+          )}
         </div>
       )}
-      </>}
     </div>
   );
 };

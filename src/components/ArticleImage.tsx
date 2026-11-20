@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Newspaper } from 'lucide-react';
 
 interface ArticleImageProps {
@@ -7,6 +7,7 @@ interface ArticleImageProps {
   sourceShortCode: string;
   sourceColor: string;
   className?: string;
+  priority?: boolean;
 }
 
 export const ArticleImage: React.FC<ArticleImageProps> = ({
@@ -15,23 +16,34 @@ export const ArticleImage: React.FC<ArticleImageProps> = ({
   sourceShortCode,
   sourceColor,
   className = '',
+  priority = false,
 }) => {
-  const [failed, setFailed] = useState(false);
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
 
-  if (!src || failed) {
+  const failed = !src || failedSrc === src;
+  const loaded = Boolean(src) && loadedSrc === src;
+
+  useEffect(() => {
+    if (!src) return;
+    // Reset stale states when src changes to a new URL
+    if (failedSrc && failedSrc !== src) setFailedSrc(null);
+  }, [src, failedSrc]);
+
+  if (failed) {
     return (
       <div
-        className={`relative flex items-center justify-center overflow-hidden bg-gradient-to-br from-slate-200 via-slate-100 to-slate-200 dark:from-[#151923] dark:via-[#10131B] dark:to-[#1B2230] ${className}`}
-        aria-label={alt}
+        className={`relative flex items-center justify-center overflow-hidden bg-gradient-to-br from-[#eae8e3] via-[#f2f0ec] to-[#e5e3de] dark:from-[#161922] dark:via-[#12151d] dark:to-[#1c212d] ${className}`}
+        aria-label={alt || undefined}
       >
         <div
           className="absolute inset-0 opacity-20"
           style={{
-            background: `radial-gradient(circle at 30% 30%, ${sourceColor}, transparent 68%)`,
+            background: `radial-gradient(circle at 28% 28%, ${sourceColor}, transparent 68%)`,
           }}
         />
-        <div className="relative z-10 flex flex-col items-center gap-1.5 text-slate-500 dark:text-slate-400">
-          <Newspaper className="h-5 w-5 opacity-70" />
+        <div className="relative z-10 flex flex-col items-center gap-1.5 text-[var(--muted)]">
+          <Newspaper className="h-5 w-5 opacity-65" aria-hidden="true" />
           <span className="text-[11px] font-semibold tracking-wider uppercase opacity-80">
             {sourceShortCode}
           </span>
@@ -41,19 +53,26 @@ export const ArticleImage: React.FC<ArticleImageProps> = ({
   }
 
   return (
-    <img
-      src={src}
-      alt={alt}
-      loading="lazy"
-      referrerPolicy="no-referrer"
-      onError={() => setFailed(true)}
-      onLoad={(e) => {
-        const img = e.currentTarget;
-        if (img.naturalWidth <= 12 || img.naturalHeight <= 12) {
-          setFailed(true);
-        }
-      }}
-      className={`object-cover ${className}`}
-    />
+    <div className={`relative overflow-hidden bg-[var(--control)] ${className}`}>
+      {!loaded && <div aria-hidden="true" className="image-shimmer absolute inset-0" />}
+      <img
+        src={src}
+        alt={alt}
+        loading={priority ? 'eager' : 'lazy'}
+        decoding="async"
+        fetchPriority={priority ? 'high' : undefined}
+        referrerPolicy="no-referrer"
+        onError={() => setFailedSrc(src)}
+        onLoad={(e) => {
+          const img = e.currentTarget;
+          if (img.naturalWidth <= 12 || img.naturalHeight <= 12) {
+            setFailedSrc(src);
+          } else {
+            setLoadedSrc(src);
+          }
+        }}
+        className={`h-full w-full object-cover transition-opacity duration-300 ease-out ${loaded ? 'opacity-100' : 'opacity-0'}`}
+      />
+    </div>
   );
 };

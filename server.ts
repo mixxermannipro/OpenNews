@@ -230,6 +230,7 @@ app.get('/api/article/extract', async (req, res) => {
     res.status(400).json({ error: 'Ungültige Artikel-URL' });
     return;
   }
+  const isPreload = String(req.query.preload || '') === '1';
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 6000);
   try {
@@ -242,6 +243,10 @@ app.get('/api/article/extract', async (req, res) => {
     });
     if (!resp.ok) {
       await resp.body?.cancel();
+      if (isPreload) {
+        res.set('Cache-Control', 'no-store').json({ paragraphs: [], headingIndexes: [], unavailable: true });
+        return;
+      }
       res.status(502).json({ error: 'Artikel konnte nicht geladen werden' });
       return;
     }
@@ -253,6 +258,10 @@ app.get('/api/article/extract', async (req, res) => {
       dom.window.close();
     }
   } catch {
+    if (isPreload) {
+      res.set('Cache-Control', 'no-store').json({ paragraphs: [], headingIndexes: [], unavailable: true });
+      return;
+    }
     res.status(504).json({ error: 'Zeitüberschreitung beim Laden des Artikels' });
   } finally {
     clearTimeout(timeout);

@@ -1,274 +1,755 @@
-import { TranscriptSummary } from './TranscriptSummary';
-import { ViewStatus } from './ViewStatus';
-import { Capacitor, SystemBars } from '@capacitor/core';
-import { ArrowLeft, Bookmark, ChevronDown, ChevronRight, ChevronUp, Headphones, Heart, Play, Share2, Video } from 'lucide-react';
-import { createPortal } from 'react-dom';
+import {
+  Bookmark,
+  ChevronRight,
+  ExternalLink,
+  Film,
+  Headphones,
+  Heart,
+  Layers,
+  Play,
+  Plus,
+  Share2,
+  Sparkles,
+  Video,
+} from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { collectDistinctMedia } from '../lib/articleMedia';
+import { collectDistinctMedia, type PlayableMedia } from '../lib/articleMedia';
+import { STARTER_PACKS } from '../lib/catalog';
+import { buildClipsPlaylist, extractMediaChannels, type MediaEntry } from '../lib/clipsEngine';
+import { useI18n } from '../lib/i18n';
+import type { AudioPositionEntry } from '../lib/readerExtras';
+import { shareArticle } from '../lib/shareArticle';
 import type { AIProviderConfig, NewsArticle } from '../types/news';
 import { ArticleImage } from './ArticleImage';
+import { ClipsFeed } from './ClipsFeed';
 import { MediaPlayer } from './MediaPlayer';
-import { shareArticle } from '../lib/shareArticle';
-import { formatRelativeTimeDe } from '../lib/personalization';
+import { formatAudioClock } from './MiniAudioPlayer';
+import { SourceIcon } from './SourceIcon';
+import { TranscriptSummary } from './TranscriptSummary';
+import { ViewStatus } from './ViewStatus';
 
-const FILTERS = { all: 'Alle', video: 'Videos', audio: 'Audio', clips: 'Clips' } as const;
-type MediaFilter = keyof typeof FILTERS;
+type MediaFilter = 'all' | 'video' | 'audio' | 'clips';
+const FILTER_KEYS: MediaFilter[] = ['all', 'video', 'audio', 'clips'];
+const MEDIA_PACK_IDS = new Set(['clips-social', 'video-audio', 'podcasts-daily']);
 
-export function MediaView({ aiConfig, articles, loading, background, onArticle, onSources, onLike, onSave, onEngaged, liked, saved }: {
+export function MediaView({
+  aiConfig,
+  articles,
+  hasActiveSources,
+  loading,
+  background,
+  activeAudioUrl,
+  audioPositions = {},
+  initialClipUrl,
+  onClearInitialClip,
+  onPlayAudio,
+  onArticle,
+  onSources,
+  onApplyStarterPack,
+  onLike,
+  onSave,
+  onEngaged,
+  liked,
+  saved,
+}: {
   aiConfig: AIProviderConfig;
   articles: NewsArticle[];
+  hasActiveSources?: boolean;
   loading: boolean;
   background: boolean;
+  activeAudioUrl?: string;
+  audioPositions?: Record<string, AudioPositionEntry>;
+  initialClipUrl?: string;
+  onClearInitialClip?: () => void;
+  onPlayAudio?: (article: NewsArticle, media: PlayableMedia) => void;
   onArticle: (article: NewsArticle) => void;
   onSources: () => void;
+  onApplyStarterPack?: (sourceIds: readonly string[]) => void;
   onLike: (article: NewsArticle) => void;
   onSave: (article: NewsArticle) => void;
   onEngaged: (article: NewsArticle, seconds: number) => void;
   liked: string[];
   saved: string[];
 }) {
-  const [filter, setFilter] = useState<MediaFilter>('all');
-  const [selected, setSelected] = useState<string>();
+  const { t, formatRelative } = useI18n();
+  const [filter, setFilter] = useState<MediaFilter>(initialClipUrl ? 'clips' : 'all');
+  const [selectedChannel, setSelectedChannel] = useState<string | null>(null);
+  const [playingUrl, setPlayingUrl] = useState<string>();
+  const [startClipUrl, setStartClipUrl] = useState<string | undefined>(initialClipUrl);
   const [shareFeedback, setShareFeedback] = useState('');
-  const dialogExit = useRef<(() => void) | undefined>(undefined);
-  const clipsDialog = useRef<HTMLDialogElement>(null);
-  const clipsPane = useRef<HTMLUListElement>(null);
-  const clipsButton = useRef<HTMLButtonElement>(null);
-  const entries = useMemo(() => collectDistinctMedia(articles), [articles]);
-  const clips = entries.filter(({ media }) => media.portrait);
-  const [startClip, setStartClip] = useState<string>();
-  const [clipMuted, setClipMuted] = useState(false);
-  const clipIndex = clips.findIndex(({ media }) => media.url === selected);
-  const scrollToClip = (index: number) => {
-    const pane = clipsPane.current;
-    if (pane && index >= 0 && index < clips.length) {
-      pane.scrollTo({ top: index * pane.clientHeight, behavior: 'instant' });
+  const clipsButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (initialClipUrl) {
+      setStartClipUrl(initialClipUrl);
+      setFilter('clips');
+      onClearInitialClip?.();
     }
+  }, [initialClipUrl, onClearInitialClip]);
+
+  const allEntries = useMemo(() => collectDistinctMedia(articles), [articles]);
+  const channels = useMemo(() => extractMediaChannels(allEntries), [allEntries]);
+
+  const filteredEntries = useMemo(
+    () => (selectedChannel ? allEntries.filter(({ article }) => (article.sourceId || article.sourceName) === selectedChannel) : allEntries),
+    [allEntries, selectedChannel],
+  );
+
+  const clipsPreview = useMemo(() => buildClipsPlaylist(filteredEntries, 'shorts', false).items, [filteredEntries]);
+  const videoItems = useMemo(
+    () => filteredEntries.filter(({ media }) => media.type !== 'audio' && !media.portrait),
+    [filteredEntries],
+  );
+  const audioItems = useMemo(
+    () => filteredEntries.filter(({ media }) => media.type === 'audio'),
+    [filteredEntries],
+  );
+
+  const mediaStarterPacks = useMemo(
+    () => STARTER_PACKS.filter(pack => MEDIA_PACK_IDS.has(pack.id)),
+    [],
+  );
+
+  const filterLabels: Record<MediaFilter, string> = {
+    all: t('mediaFilterAll'),
+    video: t('mediaFilterVideo'),
+    audio: t('mediaFilterAudio'),
+    clips: t('mediaFilterClips'),
   };
-  const closeClips = () => {
-    setFilter('all');
-    setSelected(undefined);
-    setStartClip(undefined);
+
+  const handleShare = (article: NewsArticle, mediaUrl: string) => {
+    setShareFeedback('');
+    void shareArticle(article, article.linkIsFeed ? mediaUrl : article.link)
+      .then(copied => {
+        if (copied) {
+          setShareFeedback(t('linkCopied'));
+          window.setTimeout(() => setShareFeedback(''), 2400);
+        }
+      })
+      .catch(error => {
+        if (!(error instanceof DOMException && error.name === 'AbortError')) {
+          setShareFeedback(t('shareUnavailable'));
+          window.setTimeout(() => setShareFeedback(''), 2400);
+        }
+      });
   };
 
-  useEffect(() => {
-    if (filter !== 'clips') return;
-    const dialog = clipsDialog.current;
-    const opener = document.activeElement;
-    dialog?.showModal();
-    if (Capacitor.isNativePlatform()) void SystemBars.hide().catch(() => {});
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    window.history.pushState(window.history.state, '');
-    const back = () => {
-      closeClips();
-      const action = dialogExit.current;
-      dialogExit.current = undefined;
-      action?.();
-    };
-    window.addEventListener('popstate', back);
-    return () => {
-      window.removeEventListener('popstate', back);
-      document.body.style.overflow = originalOverflow;
-      dialog?.close();
-      if (Capacitor.isNativePlatform()) void SystemBars.show().catch(() => {});
-      if (opener instanceof HTMLElement && opener !== document.body && opener.isConnected) opener.focus({ preventScroll: true });
-      else clipsButton.current?.focus({ preventScroll: true });
-    };
-  }, [filter]);
+  const openClipTheater = (url?: string) => {
+    setPlayingUrl(undefined);
+    setStartClipUrl(url);
+    setFilter('clips');
+  };
 
-  useEffect(() => {
-    if (!startClip || filter !== 'clips') return;
-    const pane = clipsPane.current;
-    const card = [...(pane?.children ?? [])].find(child => (child as HTMLElement).dataset.mediaUrl === startClip);
-    if (card instanceof HTMLElement) {
-      pane?.scrollTo({ top: card.offsetTop, behavior: 'instant' });
-      setSelected(startClip);
-    }
-  }, [filter, startClip]);
-  useEffect(() => {
-    const pane = clipsPane.current;
-    if (filter !== 'clips' || !pane) return;
-    const observer = new IntersectionObserver(changes => {
-      const visible = changes.find(change => change.intersectionRatio >= 0.55);
-      if (visible) {
-        setSelected((visible.target as HTMLElement).dataset.mediaUrl);
-      } else {
-        const leaving = new Set(changes.map(change => (change.target as HTMLElement).dataset.mediaUrl));
-        setSelected(current => leaving.has(current) ? undefined : current);
-      }
-    }, { root: pane, threshold: 0.55 });
-    for (const card of pane.children) observer.observe(card);
-    return () => observer.disconnect();
-  }, [filter, entries]);
-  const groups = (['video', 'audio'] as const).map(kind => ({
-    kind,
-    items: entries.filter(({ media }) => kind === 'audio' ? media.type === 'audio' : media.type !== 'audio' && !media.portrait),
-  })).filter(group => group.items.length && (filter === 'all' || filter === group.kind));
+  const activeVideoEntry = useMemo(
+    () => videoItems.find(({ media }) => media.url === playingUrl),
+    [videoItems, playingUrl],
+  );
 
-  const renderCard = ({ article, media }: (typeof entries)[number], clip = false) => {
-    const playing = selected === media.url;
-    const audio = media.type === 'audio';
-    const embeddedClip = clip && playing && media.type === 'youtube';
+  const renderVideoCard = ({ article, media }: MediaEntry, featured = false) => {
+    const isPlaying = playingUrl === media.url;
+    const isLiked = liked.includes(article.id);
+    const isSaved = saved.includes(article.id);
     const artwork = article.imageUrl;
-    const Icon = audio ? Headphones : Video;
+
     return (
-      <li key={media.url} data-media-url={media.url}
-        className={clip ? 'relative h-full snap-start snap-always overflow-hidden bg-black text-white' : audio ? 'settings-group media-audio overflow-hidden' : 'overflow-hidden'}>
-        <div className={embeddedClip ? 'absolute inset-x-3 top-[calc(4.25rem+env(safe-area-inset-top))] bottom-[var(--clip-caption-height)] bg-black' : clip ? 'absolute inset-0 bg-black' : audio ? 'media-artwork relative overflow-hidden bg-slate-900' : 'relative aspect-[2.1] overflow-hidden rounded-[var(--card-radius)] bg-black'}>
-          {playing && !audio ? (
-            <MediaPlayer media={media} title={article.title} poster={artwork} background={!clip && background} clip={clip} autoPlay
-              muted={clip && clipMuted} onToggleMute={() => setClipMuted(value => !value)} onEngaged={seconds => onEngaged(article, seconds)} />
+      <li
+        key={media.url}
+        data-media-url={media.url}
+        className={`media-video-card group overflow-hidden ${featured ? 'sm:col-span-2 lg:col-span-3' : ''}`}
+      >
+        <div className="relative aspect-video overflow-hidden rounded-[var(--card-radius)] bg-black">
+          {isPlaying ? (
+            <MediaPlayer
+              media={media}
+              title={article.title}
+              poster={artwork}
+              background={background}
+              autoPlay
+              onEngaged={seconds => onEngaged(article, seconds)}
+            />
           ) : (
-            <button type="button" aria-label={`${article.title} abspielen`} onClick={() => {
-                if (media.portrait && !clip) {
-                  setStartClip(media.url);
-                  setFilter('clips');
-                } else setSelected(media.url);
-              }}
-              className="absolute inset-0 grid w-full place-items-center text-white">
-              {artwork ? <ArticleImage src={artwork} alt="" sourceShortCode={article.sourceShortCode}
-                sourceColor={article.sourceColor} className="absolute inset-0 h-full w-full" /> : <Icon size={44} aria-hidden />}
-              <span className="relative grid size-12 place-items-center rounded-full border border-white/30 bg-black/75">
-                <Play size={24} fill="currentColor" aria-hidden />
+            <button
+              type="button"
+              aria-label={article.title}
+              onClick={() => setPlayingUrl(media.url)}
+              className="absolute inset-0 grid w-full place-items-center text-white"
+            >
+              {artwork ? (
+                <ArticleImage
+                  src={artwork}
+                  alt=""
+                  sourceShortCode={article.sourceShortCode}
+                  sourceColor={article.sourceColor}
+                  className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]"
+                />
+              ) : (
+                <Video size={40} className="text-white/60" aria-hidden="true" />
+              )}
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent"
+              />
+              <span className="relative grid size-14 place-items-center rounded-full border border-white/25 bg-black/65 backdrop-blur-md transition-transform duration-200 group-hover:scale-105 group-active:scale-95">
+                <Play size={24} fill="currentColor" className="translate-x-0.5" aria-hidden="true" />
               </span>
             </button>
           )}
         </div>
-        {playing && audio && <div className="media-audio-player px-4 pt-3"><MediaPlayer media={media} title={article.title} background={background} autoPlay onEngaged={seconds => onEngaged(article, seconds)} /></div>}
-        {playing && !clip && <TranscriptSummary article={article} config={aiConfig} />}
-        <div className={embeddedClip ? 'absolute inset-x-0 bottom-0 h-[var(--clip-caption-height)] overflow-auto px-4 pt-3 pb-safe space-y-1.5' : clip
-          ? 'pointer-events-none absolute inset-x-0 bottom-0 space-y-1.5 bg-gradient-to-t from-black via-black/70 to-transparent px-4 pt-16 pb-[calc(3.5rem+env(safe-area-inset-bottom))] [&_a]:pointer-events-auto [&_button]:pointer-events-auto'
-          : audio ? 'min-w-0 space-y-1.5' : 'space-y-1.5 py-3'}>
-          <p className={clip ? 'text-xs text-slate-300' : 'text-xs text-slate-600 dark:text-slate-300'}>
-            {article.sourceName} · {formatRelativeTimeDe(article.publishedAt)}
-          </p>
-          <button type="button" className="block text-left text-base font-bold leading-snug [overflow-wrap:anywhere]" onClick={() => {
-            if (clip) {
-              dialogExit.current = () => onArticle(article);
-              window.history.back();
-            } else onArticle(article);
-          }}>{article.title}</button>
-          {playing && media.type === 'youtube' && (
-            <a className="text-xs underline" href={article.link} target="_blank" rel="noreferrer">Auf YouTube ansehen</a>
-          )}
-          <div className="flex flex-wrap gap-2">
-            <button type="button" className="choice-pill" aria-pressed={liked.includes(article.id)} onClick={() => onLike(article)}>
-              <Heart size={16} aria-hidden /> Gefällt mir
+
+        {isPlaying && <TranscriptSummary article={article} config={aiConfig} />}
+
+        <div className="mt-3 flex items-start gap-3">
+          <div className="shrink-0 pt-0.5">
+            <SourceIcon
+              source={{
+                id: article.sourceId,
+                shortCode: article.sourceShortCode,
+                accentColor: article.sourceColor,
+              }}
+              size="h-9 w-9"
+              rounded="rounded-full"
+            />
+          </div>
+          <div className="min-w-0 flex-1 space-y-1.5">
+            <button
+              type="button"
+              onClick={() => onArticle(article)}
+              className="block text-left text-[15px] font-bold leading-snug text-[var(--ink)] transition-colors hover:text-[var(--accent)] line-clamp-2 [overflow-wrap:anywhere]"
+            >
+              {article.title}
             </button>
-            <button type="button" className="choice-pill" aria-pressed={saved.includes(article.id)} onClick={() => onSave(article)}>
-              <Bookmark size={16} aria-hidden /> Speichern
-            </button>
-            <button type="button" className="choice-pill" onClick={() => {
-              setShareFeedback('');
-              void shareArticle(article, article.linkIsFeed ? media.url : article.link).then(copied => {
-                if (copied) setShareFeedback('Link kopiert');
-              }).catch(error => {
-                if (!(error instanceof DOMException && error.name === 'AbortError')) setShareFeedback('Teilen gerade nicht möglich');
-              });
-            }}>
-              <Share2 size={16} aria-hidden /> Teilen
-            </button>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-[var(--muted)]">
+              <span className="font-medium text-[var(--ink)]/80">{article.sourceName}</span>
+              <span aria-hidden="true">·</span>
+              <span>{formatRelative(article.publishedAt)}</span>
+              {isPlaying && media.type === 'youtube' && (
+                <>
+                  <span aria-hidden="true">·</span>
+                  <a
+                    href={article.link}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 font-medium underline hover:text-[var(--ink)]"
+                  >
+                    {t('mediaWatchYoutube')}
+                    <ExternalLink className="h-3 w-3" aria-hidden="true" />
+                  </a>
+                </>
+              )}
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5 pt-1">
+              <button
+                type="button"
+                className="choice-pill"
+                aria-pressed={isLiked}
+                onClick={() => onLike(article)}
+              >
+                <Heart size={15} fill={isLiked ? 'currentColor' : 'none'} aria-hidden="true" />
+                {t('like')}
+              </button>
+              <button
+                type="button"
+                className="choice-pill"
+                aria-pressed={isSaved}
+                onClick={() => onSave(article)}
+              >
+                <Bookmark size={15} fill={isSaved ? 'currentColor' : 'none'} aria-hidden="true" />
+                {t('saveShort')}
+              </button>
+              <button
+                type="button"
+                className="choice-pill"
+                onClick={() => handleShare(article, media.url)}
+              >
+                <Share2 size={15} aria-hidden="true" />
+                {t('share')}
+              </button>
+            </div>
           </div>
         </div>
       </li>
     );
   };
+
+  const renderAudioCard = ({ article, media }: MediaEntry) => {
+    const isPlayingPersistent = activeAudioUrl === media.url;
+    const isPlayingInline = !onPlayAudio && playingUrl === media.url;
+    const isPlaying = isPlayingPersistent || isPlayingInline;
+    const isLiked = liked.includes(article.id);
+    const isSaved = saved.includes(article.id);
+    const artwork = article.imageUrl;
+    const savedPos = audioPositions[media.url];
+
+    return (
+      <li
+        key={media.url}
+        data-media-url={media.url}
+        className={`settings-group media-audio-card overflow-hidden p-3.5 transition-colors ${
+          isPlaying ? 'ring-1 ring-[var(--accent)]/40' : ''
+        }`}
+      >
+        <div className="flex items-start gap-3.5">
+          <button
+            type="button"
+            aria-label={article.title}
+            onClick={() => {
+              if (onPlayAudio) {
+                onPlayAudio(article, media);
+              } else {
+                setPlayingUrl(isPlayingInline ? undefined : media.url);
+              }
+            }}
+            className="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-slate-900 text-white shadow-sm transition-transform active:scale-95"
+          >
+            {artwork ? (
+              <ArticleImage
+                src={artwork}
+                alt=""
+                sourceShortCode={article.sourceShortCode}
+                sourceColor={article.sourceColor}
+                className="absolute inset-0 h-full w-full object-cover"
+              />
+            ) : (
+              <span className="grid h-full w-full place-items-center">
+                <Headphones size={28} aria-hidden="true" />
+              </span>
+            )}
+            <span className="absolute inset-0 grid place-items-center bg-black/35">
+              {isPlaying ? (
+                <span className="media-eq" aria-hidden="true">
+                  <span />
+                  <span />
+                  <span />
+                </span>
+              ) : (
+                <span className="grid size-10 place-items-center rounded-full bg-black/70 backdrop-blur-sm">
+                  <Play size={18} fill="currentColor" className="translate-x-0.5" aria-hidden="true" />
+                </span>
+              )}
+            </span>
+          </button>
+
+          <div className="min-w-0 flex-1 space-y-1">
+            <div className="flex items-center gap-1.5 text-xs text-[var(--muted)]">
+              <span className="truncate font-semibold text-[var(--ink)]/85">{article.sourceName}</span>
+              <span aria-hidden="true">·</span>
+              <span className="shrink-0">{formatRelative(article.publishedAt)}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => onArticle(article)}
+              className="block text-left text-[15px] font-bold leading-snug text-[var(--ink)] line-clamp-2 [overflow-wrap:anywhere] hover:text-[var(--accent)]"
+            >
+              {article.title}
+            </button>
+            {savedPos && savedPos.seconds >= 5 && !isPlaying && (
+              <p className="text-[11px] font-semibold text-[var(--accent)] tabular-nums">
+                {t('miniPlayerResume', { time: formatAudioClock(savedPos.seconds) })}
+              </p>
+            )}
+            <div className="flex flex-wrap items-center gap-1.5 pt-1">
+              <button
+                type="button"
+                className="choice-pill"
+                aria-pressed={isLiked}
+                onClick={() => onLike(article)}
+              >
+                <Heart size={15} fill={isLiked ? 'currentColor' : 'none'} aria-hidden="true" />
+                {t('like')}
+              </button>
+              <button
+                type="button"
+                className="choice-pill"
+                aria-pressed={isSaved}
+                onClick={() => onSave(article)}
+              >
+                <Bookmark size={15} fill={isSaved ? 'currentColor' : 'none'} aria-hidden="true" />
+                {t('saveShort')}
+              </button>
+              <button
+                type="button"
+                className="choice-pill"
+                onClick={() => handleShare(article, media.url)}
+              >
+                <Share2 size={15} aria-hidden="true" />
+                {t('share')}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {isPlayingInline && (
+          <div className="mt-3.5 border-t border-[var(--line)] pt-3">
+            <MediaPlayer
+              media={media}
+              title={article.title}
+              background={background}
+              autoPlay
+              onEngaged={seconds => onEngaged(article, seconds)}
+            />
+            <TranscriptSummary article={article} config={aiConfig} />
+          </div>
+        )}
+      </li>
+    );
+  };
+
+  const hasAnyMedia = allEntries.length > 0;
+  const showShortsShelf = (filter === 'all' || filter === 'video') && clipsPreview.length > 0;
+  const showVideos = (filter === 'all' || filter === 'video') && videoItems.length > 0;
+  const showAudio = (filter === 'all' || filter === 'audio') && audioItems.length > 0;
+  const showFilteredEmpty = filter !== 'clips' && hasAnyMedia && !showShortsShelf && !showVideos && !showAudio;
+
   return (
-    <section aria-labelledby="media-heading" className="screen-entry space-y-5">
-      <p role="status" className={shareFeedback ? "text-sm" : "sr-only"}>{shareFeedback}</p>
-      <header>
-        <h1 id="media-heading" className="screen-title">Video &amp; Audio</h1>
-        <p className="screen-subtitle">Nachrichten in Bild und Ton.</p>
+    <section aria-labelledby="media-heading" className="screen-entry space-y-6">
+      <p role="status" className={shareFeedback ? 'text-sm font-medium text-[var(--accent)]' : 'sr-only'}>
+        {shareFeedback}
+      </p>
+
+      <header className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 id="media-heading" className="screen-title">
+            {t('mediaTitle')}
+          </h1>
+          <p className="screen-subtitle">{t('mediaSubtitle')}</p>
+        </div>
+        {hasAnyMedia && (
+          <button
+            type="button"
+            className="choice-pill inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap"
+            onClick={onSources}
+          >
+            <Layers className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <span className="hidden sm:inline">{t('mediaManageSources')}</span>
+            <span className="sm:hidden">{t('sourcesTitle')}</span>
+          </button>
+        )}
       </header>
-      <div className="segmented-control sliding-tabs media-tabs" role="group" aria-label="Medien filtern"
-        style={{ '--tab-count': Object.keys(FILTERS).length, '--tab-index': Object.keys(FILTERS).indexOf(filter) } as React.CSSProperties}>
-        <span className="tab-track" aria-hidden="true"><span className="tab-selection" /></span>
-        {(Object.keys(FILTERS) as Array<keyof typeof FILTERS>).map(key => (
-          <button key={key} ref={key === 'clips' ? clipsButton : undefined} type="button" className="choice-pill" aria-pressed={filter === key}
-            onClick={() => { setFilter(key); setSelected(undefined); }}>{FILTERS[key]}</button>
+
+      {/* Primary Segmented Switcher: All | Video | Audio | Clips */}
+      <div
+        className="segmented-control sliding-tabs media-tabs"
+        role="group"
+        aria-label={t('mediaTitle')}
+        style={{ '--tab-count': FILTER_KEYS.length, '--tab-index': FILTER_KEYS.indexOf(filter) } as React.CSSProperties}
+      >
+        <span className="tab-track" aria-hidden="true">
+          <span className="tab-selection" />
+        </span>
+        {FILTER_KEYS.map(key => (
+          <button
+            key={key}
+            ref={key === 'clips' ? clipsButtonRef : undefined}
+            type="button"
+            className="choice-pill whitespace-nowrap"
+            aria-pressed={filter === key}
+            onClick={() => {
+              if (key === 'clips') {
+                openClipTheater(undefined);
+              } else {
+                setFilter(key);
+                setPlayingUrl(undefined);
+              }
+            }}
+          >
+            {filterLabels[key]}
+          </button>
         ))}
       </div>
-      {filter === 'clips' && createPortal(
-        <dialog ref={clipsDialog} aria-label="Hochformat-Clips im Vollbild"
-          className="clips-dialog fixed inset-0 m-0 h-dvh max-h-none w-dvw max-w-none overflow-hidden bg-black text-white [--clip-caption-height:calc(9rem+env(safe-area-inset-bottom))] [@media(max-height:480px)]:[--clip-caption-height:calc(4rem+env(safe-area-inset-bottom))]"
-          onCancel={event => { event.preventDefault(); window.history.back(); }}>
-          <button type="button" className="absolute top-[calc(0.75rem+env(safe-area-inset-top))] left-3 z-10 grid size-12 place-items-center rounded-full bg-black/70"
-            aria-label="Clips schließen" onClick={() => window.history.back()}><ArrowLeft aria-hidden /></button>
-          {clips.length > 1 && (
-            <div className="absolute top-[calc(0.75rem+env(safe-area-inset-top))] left-1/2 z-10 flex -translate-x-1/2 gap-2">
-              <button type="button" className="grid size-12 place-items-center rounded-full bg-black/70 disabled:opacity-40"
-                aria-label="Vorheriger Clip" disabled={clipIndex <= 0} onClick={() => scrollToClip(clipIndex - 1)}>
-                <ChevronUp aria-hidden />
+
+      {/* Instagram / YouTube Subscriptions-Style Channel Stories Strip */}
+      {channels.length > 1 && filter !== 'clips' && (
+        <div
+          role="region"
+          aria-label={t('sourcesTitle')}
+          className="media-stories-strip -mx-4 flex gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0"
+        >
+          <button
+            type="button"
+            aria-pressed={selectedChannel === null}
+            onClick={() => {
+              setSelectedChannel(null);
+              setPlayingUrl(undefined);
+            }}
+            className="media-story-btn flex w-[4.5rem] shrink-0 flex-col items-center gap-1.5 text-center"
+          >
+            <span
+              className={`grid h-14 w-14 place-items-center rounded-full border-2 transition-transform active:scale-95 ${
+                selectedChannel === null
+                  ? 'border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-ink)]'
+                  : 'border-[var(--line)] bg-[var(--panel)] text-[var(--ink)]'
+              }`}
+            >
+              <Film className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <span className="w-full truncate text-[11px] font-semibold text-[var(--ink)]">
+              {t('mediaChannelsAll')}
+            </span>
+          </button>
+
+          {channels.map(channel => {
+            const active = selectedChannel === channel.sourceId;
+            return (
+              <button
+                key={channel.sourceId}
+                type="button"
+                aria-pressed={active}
+                onClick={() => {
+                  setSelectedChannel(active ? null : channel.sourceId);
+                  setPlayingUrl(undefined);
+                }}
+                className="media-story-btn flex w-[4.5rem] shrink-0 flex-col items-center gap-1.5 text-center"
+              >
+                <span
+                  className={`grid h-14 w-14 place-items-center rounded-full p-0.5 transition-transform active:scale-95 ${
+                    active
+                      ? 'ring-2 ring-[var(--accent)] ring-offset-2 ring-offset-[var(--canvas)]'
+                      : channel.hasClips
+                        ? 'media-story-ring'
+                        : 'ring-1 ring-[var(--line)]'
+                  }`}
+                >
+                  <SourceIcon
+                    source={{
+                      id: channel.sourceId,
+                      shortCode: channel.sourceShortCode,
+                      accentColor: channel.sourceColor,
+                    }}
+                    size="h-12 w-12"
+                    rounded="rounded-full"
+                  />
+                </span>
+                <span
+                  className={`w-full truncate text-[11px] ${
+                    active ? 'font-bold text-[var(--ink)]' : 'font-medium text-[var(--muted)]'
+                  }`}
+                >
+                  {channel.sourceName}
+                </span>
               </button>
-              <button type="button" className="grid size-12 place-items-center rounded-full bg-black/70 disabled:opacity-40"
-                aria-label="Nächster Clip" disabled={clipIndex >= clips.length - 1} onClick={() => scrollToClip(clipIndex + 1)}>
-                <ChevronDown aria-hidden />
-              </button>
-            </div>
-          )}
-          {shareFeedback && <p role="status" className="absolute top-[calc(1rem+env(safe-area-inset-top))] right-4 z-10 rounded-full bg-black/80 px-3 py-2 text-sm">{shareFeedback}</p>}
-          {clips.length > 0 ? (
-            <ul ref={clipsPane} tabIndex={0} aria-label="Hochformat-Clips"
-              className="relative h-full w-full snap-y snap-mandatory overflow-y-auto touch-pan-y overscroll-y-contain">
-              {clips.map(entry => renderCard(entry, true))}
-            </ul>
-          ) : (
-            <div className="grid h-full place-content-center gap-4 p-6 text-center">
-              <p role="status">{loading ? 'Clips werden geladen …' : 'Gerade sind keine Hochformat-Clips verfügbar.'}</p>
-              {!loading && <button type="button" className="choice-pill" onClick={() => { dialogExit.current = onSources; window.history.back(); }}>Quellen verwalten</button>}
-            </div>
-          )}
-        </dialog>,
-        document.body,
+            );
+          })}
+        </div>
       )}
-      {groups.length ? groups.map(({ kind, items }) => (
-        <section key={`${filter}-${kind}`} aria-labelledby={`media-${kind}`} className="screen-entry space-y-3">
-          <div className="flex items-center justify-between gap-3">
-            <h2 id={`media-${kind}`} className="text-xl font-bold tracking-tight">{kind === 'audio' ? 'Audio & Podcasts' : 'Jetzt ansehen'}</h2>
-            {filter === 'all' && items.length > 1 && (
-              <button className="choice-pill" type="button" onClick={() => { setFilter(kind); setSelected(undefined); }}>
-                {kind === 'audio' ? 'Alle Audios' : 'Alle Videos'}
-              </button>
-            )}
-          </div>
-          <ul className={filter === 'all' ? 'grid gap-4' : kind === 'audio' ? 'grid gap-4 sm:grid-cols-2 lg:grid-cols-3' : 'grid gap-4 sm:grid-cols-2'}>
-            {(filter === 'all' ? items.slice(0, 1) : items).map(entry => renderCard(entry))}
-          </ul>
-        </section>
-      )) : filter !== 'clips' && !(filter === 'all' && clips.length > 0) && (
-        <ViewStatus
-          title={loading ? 'Beiträge werden geladen …' : 'Hier sind gerade keine passenden Beiträge verfügbar.'}
-          action={!loading && <button type="button" className="choice-pill" onClick={onSources}>Quellen verwalten</button>}
+
+      {/* Full-Screen TikTok / Reels / YouTube Shorts Clips Theater */}
+      {filter === 'clips' && (
+        <ClipsFeed
+          entries={filteredEntries}
+          initialUrl={startClipUrl}
+          loading={loading}
+          liked={liked}
+          saved={saved}
+          onClose={() => {
+            setFilter('all');
+            setStartClipUrl(undefined);
+            clipsButtonRef.current?.focus({ preventScroll: true });
+          }}
+          onArticle={onArticle}
+          onSources={onSources}
+          onLike={onLike}
+          onSave={onSave}
+          onEngaged={onEngaged}
         />
       )}
-      {filter === 'all' && clips.length > 0 && (
-        <section aria-labelledby="clips-heading" className="screen-entry space-y-3">
+
+      {/* Empty State with Instant 1-Tap Media Starter Packs */}
+      {!hasAnyMedia && filter !== 'clips' && (
+        loading ? (
+          <ViewStatus title={t('mediaLoading')} />
+        ) : (
+          <div className="settings-group space-y-5 p-6 sm:p-8">
+            <div className="space-y-2">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--control)] text-[var(--ink)]">
+                <Film className="h-6 w-6" aria-hidden="true" />
+              </div>
+              <h2 className="text-xl font-extrabold tracking-tight text-[var(--ink)]">
+                {hasActiveSources === false ? t('mediaEmptyNoSources') : t('mediaEmpty')}
+              </h2>
+              <p className="max-w-lg text-sm leading-relaxed text-[var(--muted)]">
+                {t('mediaStarterHint')}
+              </p>
+            </div>
+
+            {onApplyStarterPack && mediaStarterPacks.length > 0 && (
+              <div className="grid gap-3 sm:grid-cols-3">
+                {mediaStarterPacks.map(pack => (
+                  <button
+                    key={pack.id}
+                    type="button"
+                    onClick={() => onApplyStarterPack(pack.sourceIds)}
+                    className="source-pack-card flex flex-col justify-between gap-3 rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-4 text-left"
+                  >
+                    <div className="space-y-1">
+                      <span className="flex items-center gap-1.5 text-sm font-bold text-[var(--ink)]">
+                        <Sparkles className="h-4 w-4 text-[var(--accent)]" aria-hidden="true" />
+                        {pack.label}
+                      </span>
+                      <span className="block text-xs leading-relaxed text-[var(--muted)]">
+                        {pack.subtitle}
+                      </span>
+                    </div>
+                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--accent)]">
+                      <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                      {t('sourcesStarterApply')}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div className="pt-1">
+              <button type="button" className="primary-action inline-flex items-center gap-2" onClick={onSources}>
+                <Layers className="h-4 w-4 shrink-0" aria-hidden="true" />
+                {t('mediaManageSources')}
+              </button>
+            </div>
+          </div>
+        )
+      )}
+
+      {showFilteredEmpty && (
+        <ViewStatus
+          title={t('mediaEmpty')}
+          action={
+            <button
+              type="button"
+              className="choice-pill"
+              onClick={() => {
+                setSelectedChannel(null);
+                setFilter('all');
+              }}
+            >
+              {t('sourcesResetFilters')}
+            </button>
+          }
+        />
+      )}
+
+      {/* YouTube-Shorts / Instagram-Reels 9:16 Vertical Preview Shelf */}
+      {showShortsShelf && (
+        <section aria-labelledby="clips-shelf-heading" className="screen-entry space-y-3">
           <div className="flex items-center justify-between gap-3">
-            <h2 id="clips-heading" className="text-xl font-bold tracking-tight">Kurze Clips</h2>
-            <button className="choice-pill inline-flex items-center gap-1" type="button"
-              onClick={() => { setSelected(undefined); setFilter('clips'); }}>
-              Alle Clips <ChevronRight size={16} aria-hidden="true" />
+            <h2 id="clips-shelf-heading" className="text-xl font-bold tracking-tight text-[var(--ink)]">
+              {t('mediaShortClips')}
+            </h2>
+            <button
+              type="button"
+              className="choice-pill inline-flex items-center gap-1"
+              onClick={() => openClipTheater(undefined)}
+            >
+              {t('mediaAllClips')}
+              <ChevronRight size={16} aria-hidden="true" />
             </button>
           </div>
-          <ul className="grid grid-cols-3 gap-2 sm:gap-3">
-            {clips.slice(0, 3).map(({ article, media }) => (
-              <li key={media.url} className="min-w-0">
-                <button type="button" aria-label={`${article.title} abspielen`}
-                  className="relative grid aspect-square w-full place-items-center overflow-hidden rounded-[var(--card-radius)] bg-slate-900 text-white"
-                  onClick={() => { setStartClip(media.url); setFilter('clips'); }}>
-                  <ArticleImage src={article.imageUrl} alt="" sourceShortCode={article.sourceShortCode}
-                    sourceColor={article.sourceColor} className="absolute inset-0 h-full w-full" />
-                  <span className="relative grid size-11 place-items-center rounded-full bg-black/75">
-                    <Play size={18} fill="currentColor" aria-hidden="true" />
+
+          <ul className="media-shorts-shelf -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
+            {clipsPreview.slice(0, 12).map(({ article, media }) => (
+              <li key={media.url} className="w-[9.75rem] shrink-0 snap-start sm:w-[11.25rem]">
+                <button
+                  type="button"
+                  aria-label={article.title}
+                  onClick={() => openClipTheater(media.url)}
+                  className="media-short-card group relative block aspect-[9/16] w-full overflow-hidden rounded-[var(--card-radius)] bg-slate-900 text-left text-white shadow-sm"
+                >
+                  <ArticleImage
+                    src={article.imageUrl}
+                    alt=""
+                    sourceShortCode={article.sourceShortCode}
+                    sourceColor={article.sourceColor}
+                    className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
+                  />
+                  <span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/90 via-black/25 to-black/15"
+                  />
+                  <span className="absolute top-2.5 right-2.5 grid h-8 w-8 place-items-center rounded-full bg-black/55 backdrop-blur-sm transition-transform group-hover:scale-110">
+                    <Play size={14} fill="currentColor" className="translate-x-0.5" aria-hidden="true" />
                   </span>
+                  <div className="absolute inset-x-0 bottom-0 space-y-1 p-3">
+                    <div className="flex items-center gap-1.5">
+                      <SourceIcon
+                        source={{
+                          id: article.sourceId,
+                          shortCode: article.sourceShortCode,
+                          accentColor: article.sourceColor,
+                        }}
+                        size="h-5 w-5"
+                        rounded="rounded-full"
+                      />
+                      <span className="truncate text-[11px] font-semibold text-white/90">
+                        {article.sourceName}
+                      </span>
+                    </div>
+                    <p className="line-clamp-2 text-xs font-bold leading-snug text-white">
+                      {article.title}
+                    </p>
+                  </div>
                 </button>
               </li>
             ))}
           </ul>
         </section>
       )}
-      {groups.length > 0 && <button type="button" className="choice-pill" onClick={onSources}>Medienquellen verwalten</button>}
+
+      {/* YouTube-Style Widescreen Video Hub */}
+      {showVideos && (
+        <section aria-labelledby="media-video-heading" className="screen-entry space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <h2 id="media-video-heading" className="text-xl font-bold tracking-tight text-[var(--ink)]">
+              {t('mediaVideoSection')}
+            </h2>
+            {filter === 'all' && videoItems.length > 3 && (
+              <button
+                type="button"
+                className="choice-pill inline-flex items-center gap-1"
+                onClick={() => {
+                  setFilter('video');
+                  setPlayingUrl(undefined);
+                }}
+              >
+                {t('mediaAllVideo')}
+                <ChevronRight size={16} aria-hidden="true" />
+              </button>
+            )}
+          </div>
+
+          <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {activeVideoEntry && renderVideoCard(activeVideoEntry, true)}
+            {(filter === 'all' ? videoItems.slice(0, 6) : videoItems)
+              .filter(({ media }) => media.url !== activeVideoEntry?.media.url)
+              .map(entry => renderVideoCard(entry, false))}
+          </ul>
+        </section>
+      )}
+
+      {/* Spotify / Apple Podcasts-Style Audio Hub */}
+      {showAudio && (
+        <section aria-labelledby="media-audio-heading" className="screen-entry space-y-3.5">
+          <div className="flex items-center justify-between gap-3">
+            <h2 id="media-audio-heading" className="text-xl font-bold tracking-tight text-[var(--ink)]">
+              {t('mediaAudioSection')}
+            </h2>
+            {filter === 'all' && audioItems.length > 4 && (
+              <button
+                type="button"
+                className="choice-pill inline-flex items-center gap-1"
+                onClick={() => {
+                  setFilter('audio');
+                  setPlayingUrl(undefined);
+                }}
+              >
+                {t('mediaAllAudio')}
+                <ChevronRight size={16} aria-hidden="true" />
+              </button>
+            )}
+          </div>
+
+          <ul className="grid gap-3.5 md:grid-cols-2">
+            {(filter === 'all' ? audioItems.slice(0, 4) : audioItems).map(entry => renderAudioCard(entry))}
+          </ul>
+        </section>
+      )}
     </section>
   );
 }

@@ -12,6 +12,8 @@ export type NewsCategory =
 
 export type FeedFormat = 'rss' | 'atom' | 'json' | 'opendata' | 'podcast';
 
+export type AppLanguage = 'de' | 'en' | 'fr' | 'es' | 'it' | 'pt';
+
 export interface NewsSource {
   id: string;
   name: string;
@@ -19,7 +21,9 @@ export interface NewsSource {
   format: FeedFormat;
   category: Exclude<NewsCategory, 'Alle' | 'Für dich'>;
   description: string;
-  language: 'de' | 'en';
+  language: AppLanguage;
+  region?: string;
+  tags?: string[];
   recommended?: boolean;
   subscribed: boolean;
   accentColor: string;

@@ -1,4 +1,5 @@
-import { clipSourceIds, DEFAULT_SOURCES } from './catalog';
+import { clipSourceIds } from './catalog';
+import type { LanguageSetting } from './i18n';
 import type { NewsCategory, NewsSource } from '../types/news';
 
 export const TOPICS = [
@@ -32,25 +33,44 @@ export function resolveRetention(value: unknown): Retention {
 }
 
 export const EDITIONS = {
-  balanced: { label: 'Ausgewogen', sources: [], description: 'Die Standardauswahl deckt allgemeine Nachrichten, Wirtschaft, Technik und Wissenschaft ab.' },
-  public: { label: 'Öffentlich-rechtliche Nachrichten', sources: ['tagesschau', 'zdfheute', 'deutschlandfunk', 'dw'], description: 'Tagesschau, ZDFheute, Deutschlandfunk und Deutsche Welle.' },
-  analysis: { label: 'Analyse & Hintergrund', sources: ['zeit', 'faz', 'sueddeutsche', 'handelsblatt', 'spiegel'], description: 'ZEIT, F.A.Z., Süddeutsche Zeitung, Handelsblatt und SPIEGEL.' },
-  technology: { label: 'Technologie & KI', sources: ['heise', 'the-decoder', 'golem', 't3n', 'arstechnica'], description: 'heise, THE DECODER, Golem, t3n und Ars Technica.' },
-  tabloid: { label: 'Boulevard & Aktuelles', sources: ['bild', 'ntv', 'welt'], description: 'BILD, ntv und WELT.' },
+  balanced: {
+    label: 'Ausgewogen',
+    sources: ['tagesschau', 'zdfheute', 'deutschlandfunk', 'faz', 'spiegel', 'zeit', 'handelsblatt', 'heise', 'guardian', 'nasa', 'dw'],
+    description: 'Ausgewogene Auswahl aus Nachrichten, Wirtschaft, Technik und Wissenschaft.',
+  },
+  public: {
+    label: 'Öffentlich-rechtliche Nachrichten',
+    sources: ['tagesschau', 'zdfheute', 'deutschlandfunk', 'dw', 'bbc', 'npr'],
+    description: 'Tagesschau, ZDFheute, Deutschlandfunk, DW, BBC und NPR.',
+  },
+  analysis: {
+    label: 'Analyse & Hintergrund',
+    sources: ['zeit', 'faz', 'sueddeutsche', 'handelsblatt', 'spiegel', 'guardian', 'lemonde', 'elpais'],
+    description: 'ZEIT, F.A.Z., SZ, Handelsblatt, SPIEGEL, Guardian, Le Monde und El País.',
+  },
+  technology: {
+    label: 'Technologie & KI',
+    sources: ['heise', 'the-decoder', 'golem', 'netzpolitik', 'hackernews', 'arstechnica', 'theverge', 'mit-tech'],
+    description: 'heise, THE DECODER, Golem, netzpolitik, Hacker News, Ars Technica, The Verge und MIT Tech.',
+  },
+  tabloid: {
+    label: 'Boulevard & Aktuelles',
+    sources: ['bild', 'ntv', 'welt'],
+    description: 'BILD, n-tv und WELT.',
+  },
 } as const;
 export type Edition = keyof typeof EDITIONS;
 
 export function applyEditionSources(sources: NewsSource[], edition: Edition): NewsSource[] {
   const preset = EDITIONS[edition] ?? EDITIONS.balanced;
-  const ids = new Set<string>(edition === 'balanced'
-    ? DEFAULT_SOURCES.filter(source => source.subscribed).map(source => source.id)
-    : preset.sources);
+  const ids = new Set<string>(preset.sources);
   return sources.map(source => source.isCustom || clipSourceIds.has(source.id)
     ? source
     : { ...source, subscribed: ids.has(source.id) });
 }
 
 export interface AppPreferences {
+  language: LanguageSetting;
   accent: 'system' | 'blue' | 'green' | 'violet';
   glass: 'subtle' | 'clear' | 'off';
   corners: 'small' | 'medium' | 'round';
@@ -67,6 +87,7 @@ export interface AppPreferences {
 }
 
 export const DEFAULT_PREFERENCES: AppPreferences = {
+  language: 'system',
   accent: 'system',
   glass: 'subtle',
   corners: 'medium',

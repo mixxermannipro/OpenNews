@@ -309,14 +309,26 @@ export function comparePerspectives(articles: NewsArticle[], config: AIProviderC
     text: (article.summary || article.paragraphs[0] || '').slice(0, 650),
   }));
   const prompt = buildGroundedPrompt(
-    'Vergleiche neutral die Schwerpunkte und Wortwahl der gelieferten Kurztexte auf Deutsch. ' +
-    'Beziehe Aussagen über fehlende Details nur auf die gelieferten Ausschnitte. Gib zwei bis drei kurze Abschnitte aus. ' +
-    'Belege jeden Abschnitt mit den passenden numerischen Quellen-IDs und berücksichtige alle Quellen. ' +
+    'Vergleiche neutral die Schwerpunkte, regionale Perspektiven und Wortwahl der gelieferten Kurztexte auf Deutsch (auch wenn Quellen mehrsprachig sind). ' +
+    'Trenne sachlich gemeinsame Fakten von unterschiedlichen Schwerpunktsetzungen. Beziehe Aussagen über fehlende Details nur auf die gelieferten Ausschnitte. ' +
+    'Gib zwei bis drei kurze Abschnitte aus, belege jeden Abschnitt mit den passenden numerischen Quellen-IDs und berücksichtige alle Quellen. ' +
     'Antworte ausschließlich als JSON: {"sections":[{"text":"Vergleich","sources":[1,2]}]}.',
     { articles: input },
   );
   return withAIResult(config, 'perspectives', articles.map(article => article.id), prompt,
     async () => parseSourcedReport(await requestAI(config, prompt, true), input.length));
+}
+
+export function createArticleContext(article: NewsArticle, config: AIProviderConfig): Promise<string[]> {
+  const body = (article.paragraphs.join('\n\n') || article.summary).slice(0, 7000);
+  const prompt = buildGroundedPrompt(
+    'Erkläre sachlich „Was bisher geschah“ ausschließlich anhand des vorliegenden Artikeltexts: ' +
+    'Nenne die wichtigsten Akteure, den zeitlichen Hintergrund und die offene Frage in bis zu 4 kurzen, klaren Punkten. ' +
+    'Erfinde keine Fakten außerhalb des Texts. Antworte ausschließlich als JSON: {"bullets":["Kontextpunkt"]}.',
+    { source: article.sourceName.slice(0, 160), title: article.title.slice(0, 240), text: body },
+  );
+  return withAIResult(config, 'context', [article.id], prompt,
+    async () => parseSummaryBullets(await requestAI(config, prompt, true), 4));
 }
 
 export function createWeeklyReview(articles: NewsArticle[], config: AIProviderConfig, week: string) {
