@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical" android:padding="6dp"
+    android:background="@drawable/opennews_widget_surface" android:clipToOutline="true">
+    <TextView
+        android:layout_width="match_parent" android:layout_height="44dp"
+        android:gravity="center_vertical" android:paddingStart="8dp"
+        android:fontFamily="sans-serif-medium" android:textSize="16sp"
+        android:textColor="@color/widget_ink" android:text="OpenNews" />
+    <LinearLayout
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginBottom="4dp" android:orientation="horizontal">
+        <TextView style="@style/OpenNewsWidgetTab" android:text="@string/widget_today"
+            android:textColor="@color/widget_tab_text" android:background="@drawable/opennews_widget_selected" />
+        <TextView style="@style/OpenNewsWidgetTab" android:text="@string/widget_personal"
+            android:textColor="@color/widget_muted" />
+        <TextView style="@style/OpenNewsWidgetTab" android:text="@string/widget_latest"
+            android:textColor="@color/widget_muted" />
+    </LinearLayout>
+    <LinearLayout
+        android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"
+        android:orientation="vertical" android:padding="5dp" android:background="@drawable/opennews_widget_card">
+        <ImageView
+            android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"
+            android:src="@drawable/widget_europa" android:scaleType="centerCrop"
+            android:background="@drawable/opennews_widget_photo" android:clipToOutline="true"
+            android:importantForAccessibility="no" />
+        <TextView
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:padding="6dp" android:fontFamily="sans-serif-medium" android:textSize="17sp"
+            android:textColor="@color/widget_ink" android:text="@string/widget_preview" />
+    </LinearLayout>
+</LinearLayout>

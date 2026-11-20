@@ -6,6 +6,6 @@
     android:configure="io.opennews.app.WidgetSettingsActivity"
     android:widgetFeatures="reconfigurable|configuration_optional"
     android:initialLayout="@layout/opennews_widget"
-    android:previewLayout="@layout/opennews_widget"
+    android:previewLayout="@layout/opennews_widget_preview"
     android:updatePeriodMillis="1800000" android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen" />

@@ -1,0 +1,27 @@
+<resources>
+    <style name="OpenNewsWidgetIcon">
+        <item name="android:layout_width">44dp</item>
+        <item name="android:layout_height">44dp</item>
+        <item name="android:scaleType">center</item>
+        <item name="android:background">@android:drawable/list_selector_background</item>
+    </style>
+    <style name="OpenNewsWidgetTab">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:minHeight">44dp</item>
+        <item name="android:gravity">center</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:ellipsize">end</item>
+    </style>
+    <item name="widget_pref_section" type="id" />
+    <item name="widget_pref_topic" type="id" />
+    <item name="widget_pref_source" type="id" />
+    <item name="widget_pref_density" type="id" />
+    <item name="widget_pref_theme" type="id" />
+    <item name="widget_pref_images" type="id" />
+    <item name="widget_pref_summaries" type="id" />
+    <item name="widget_pref_metadata" type="id" />
+</resources>

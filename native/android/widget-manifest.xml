@@ -1,12 +1,14 @@
-        <receiver android:name=".OpenNewsWidget" android:exported="false" android:label="OpenNews Top-Themen">
+        <receiver android:name=".OpenNewsWidget" android:exported="false" android:label="@string/widget_name">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/opennews_widget_info" />
         </receiver>
         <activity android:name=".WidgetSettingsActivity" android:exported="true"
-            android:label="OpenNews-Widget" android:theme="@style/OpenNewsWidgetSettings">
+            android:label="@string/widget_settings" android:theme="@style/OpenNewsWidgetSettings">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
             </intent-filter>
         </activity>
+        <service android:name=".WidgetFeedService" android:exported="false"
+            android:permission="android.permission.BIND_REMOTEVIEWS" />

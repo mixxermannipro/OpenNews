@@ -18,7 +18,7 @@ HIGHLIGHTS
 • Eigene Quellen & RSS-Feeds hinzufügen sowie Abos per OPML importieren und exportieren
 • Ruhige Artikelansicht mit Volltext-Abruf, Vorschaubildern, Zusammenfassung und Link zur Originalquelle
 • Artikel für später speichern oder den Tagesüberblick vorlesen lassen
-• Android-Widget für Top-Schlagzeilen direkt auf deinem Startbildschirm
+• Scrollbarer Nachrichtenfeed als Android-Widget mit eigenen Filtern und Layouts
 • Optionale Vor-Ort-Übersetzung englischer Artikel und frei konfigurierbare KI-Funktionen mit eigenem Schlüssel
 
 DATENSCHUTZ IM FOKUS
@@ -39,7 +39,7 @@ HIGHLIGHTS
 • Discover topics and publishers, add your own RSS feeds, and import or export OPML lists
 • Clean article reader with full-text extraction, preview images, summaries and direct link to the original
 • Save articles for later or listen to your daily briefing read aloud
-• Android home screen widget for top headlines
+• Scrollable Android home screen news widget with its own filters and layouts
 • Optional on-device translation for English articles and bring-your-own-key AI tools
 
 PRIVACY FIRST

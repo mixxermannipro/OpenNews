@@ -37,6 +37,10 @@ Bewegung erklärt einen Wechsel oder die Reaktion auf eine Aktion. Druckreaktion
 
 Normale Schrift braucht mindestens 4,5:1 Kontrast, große Schrift 3:1. Bedienelemente außerhalb von Fließtext sollen mindestens 44 × 44 CSS-Pixel treffen. Tastaturfokus ist sichtbar. Prüfe auch große Schrift, Umbruch bei 320 CSS-Pixeln und die Bedienung mit einem Screenreader. [WCAG-Kontrast](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html) · [Zielgröße](https://www.w3.org/WAI/WCAG22/Understanding/target-size-enhanced.html)
 
+## Android-Widget
+
+Der **OpenNews-Feed** übernimmt die deckenden App-Flächen und die Gliederung in Aufmacher und kompakte Meldungen. Auf wenig Fläche bekommen Titel und Scrollbereich Vorrang. Bei mehr Platz ergänzen Vorschaubilder, Reiter und Schnellaktionen die Liste. Der Aufmacher ordnet Bild und Text untereinander. Text bleibt auf einer deckenden Fläche lesbar. Farbmodus und Informationsdichte sind pro Widget einstellbar. Die Startbildschirm-App bestimmt die Größen und führt die Scrollgeste aus.
+
 ## Bestandsaufnahme für Issue 71
 
 | Fläche | Geprüfter Code und Änderung |

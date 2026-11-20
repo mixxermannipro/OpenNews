@@ -1,0 +1,34 @@
+<resources>
+    <string name="widget_name">OpenNews-Feed</string>
+    <string name="widget_settings">Widget-Einstellungen</string>
+    <string name="widget_today">Heute</string>
+    <string name="widget_personal">Für dich</string>
+    <string name="widget_latest">Neueste</string>
+    <string name="widget_selected">%1$s, ausgewählt</string>
+    <string name="widget_refresh">Feed aktualisieren</string>
+    <string name="widget_discover">Themen entdecken</string>
+    <string name="widget_load">OpenNews öffnen und Meldungen laden</string>
+    <string name="widget_no_matches">Keine Treffer. Filter ändern</string>
+    <string name="widget_no_stories">Keine Meldungen. Feed aktualisieren</string>
+    <string name="widget_save_article">Merken: %1$s</string>
+    <string name="widget_saved_article">Gemerkt: %1$s</string>
+    <string name="widget_view">Ansicht</string>
+    <string name="widget_topic">Thema</string>
+    <string name="widget_source">Quelle</string>
+    <string name="widget_all_topics">Alle Themen</string>
+    <string name="widget_all_sources">Alle Quellen</string>
+    <string name="widget_appearance">Darstellung</string>
+    <string name="widget_layout">Layout</string>
+    <string name="widget_auto">Automatisch</string>
+    <string name="widget_compact">Kompakt</string>
+    <string name="widget_magazine">Magazin</string>
+    <string name="widget_theme">Farbmodus</string>
+    <string name="widget_system">OpenNews</string>
+    <string name="widget_light">Hell</string>
+    <string name="widget_dark">Dunkel</string>
+    <string name="widget_images">Themenbilder</string>
+    <string name="widget_summaries">Kurztext zum Aufmacher</string>
+    <string name="widget_metadata">Quelle und Veröffentlichungszeit</string>
+    <string name="widget_save_settings">Einstellungen speichern</string>
+    <string name="widget_preview">Meldungen aus deinen Quellen</string>
+</resources>

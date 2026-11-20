@@ -1,52 +1,56 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/opennews_widget_root" android:layout_width="match_parent"
-    android:layout_height="match_parent" android:orientation="vertical"
-    android:paddingHorizontal="8dp" android:paddingVertical="4dp" android:background="@drawable/opennews_widget_surface">
-    <LinearLayout android:layout_width="match_parent" android:layout_height="48dp"
-        android:orientation="horizontal" android:gravity="center_vertical">
-        <TextView android:id="@+id/opennews_widget_section" android:layout_width="0dp" android:layout_height="match_parent"
-            android:layout_weight="1" android:gravity="center_vertical" android:text="Heute" android:maxLines="1" android:ellipsize="end"
-            android:contentDescription="Widget einstellen" android:textSize="14sp" android:textColor="@color/widget_ink" />
-        <TextView android:id="@+id/opennews_widget_forward" android:layout_width="44dp" android:layout_height="match_parent"
-            android:gravity="center" android:text="›" android:textSize="24sp" android:textColor="@color/widget_ink"
-            android:contentDescription="Weitere Meldungen" android:visibility="gone" />
-        <TextView android:id="@+id/opennews_widget_refresh" android:layout_width="44dp" android:layout_height="match_parent"
-            android:gravity="center" android:text="↻" android:textSize="20sp" android:textColor="@color/widget_ink"
-            android:contentDescription="Meldungen aktualisieren" />
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical" android:padding="6dp"
+    android:background="@drawable/opennews_widget_surface_light"
+    android:clipToOutline="true">
+
+    <LinearLayout
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:gravity="center_vertical" android:orientation="horizontal">
+        <TextView
+            android:id="@+id/widget_heading"
+            android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:minHeight="44dp"
+            android:gravity="center_vertical" android:paddingStart="8dp"
+            android:maxLines="1" android:ellipsize="end"
+            android:fontFamily="sans-serif-medium" android:textSize="16sp"
+            android:textColor="#1e2024" android:text="@string/widget_today" />
+        <ImageView android:id="@+id/widget_discover" style="@style/OpenNewsWidgetIcon"
+            android:src="@drawable/widget_compass" android:contentDescription="@string/widget_discover"
+            android:visibility="gone" />
+        <ImageView android:id="@+id/widget_refresh" style="@style/OpenNewsWidgetIcon"
+            android:src="@drawable/widget_refresh" android:contentDescription="@string/widget_refresh"
+            android:visibility="gone" />
+        <ImageView android:id="@+id/widget_settings" style="@style/OpenNewsWidgetIcon"
+            android:src="@drawable/widget_settings" android:contentDescription="@string/widget_settings" />
     </LinearLayout>
-    <LinearLayout android:id="@+id/opennews_widget_lead" android:layout_width="match_parent"
-        android:layout_height="wrap_content" android:minHeight="44dp" android:orientation="vertical"
-        android:gravity="center_vertical" android:paddingHorizontal="4dp" android:paddingVertical="3dp">
-        <ImageView android:id="@+id/opennews_widget_image" android:layout_width="match_parent"
-            android:layout_height="64dp" android:layout_marginBottom="5dp" android:scaleType="centerCrop"
-            android:background="@drawable/opennews_widget_photo" android:clipToOutline="true"
-            android:importantForAccessibility="no" android:visibility="gone" />
-        <TextView android:id="@+id/opennews_widget_headlines" android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:maxLines="2" android:ellipsize="end"
-            android:text="OpenNews" android:textSize="16sp" android:textColor="@color/widget_ink" android:fontFamily="sans-serif-medium" />
-        <TextView android:id="@+id/opennews_widget_source" android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:maxLines="1" android:ellipsize="end"
-            android:textSize="12sp" android:textColor="@color/widget_muted" />
+
+    <LinearLayout
+        android:id="@+id/widget_tabs"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginBottom="4dp" android:orientation="horizontal"
+        android:visibility="gone">
+        <TextView android:id="@+id/widget_tab_0" style="@style/OpenNewsWidgetTab" />
+        <TextView android:id="@+id/widget_tab_1" style="@style/OpenNewsWidgetTab" />
+        <TextView android:id="@+id/widget_tab_2" style="@style/OpenNewsWidgetTab" />
     </LinearLayout>
-    <LinearLayout android:id="@+id/opennews_widget_second" android:layout_width="match_parent"
-        android:layout_height="wrap_content" android:minHeight="44dp" android:orientation="vertical"
-        android:gravity="center_vertical" android:paddingHorizontal="4dp" android:paddingVertical="3dp" android:visibility="gone">
-        <TextView android:id="@+id/opennews_widget_next" android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:maxLines="2" android:ellipsize="end"
-            android:textSize="14sp" android:textColor="@color/widget_ink" android:fontFamily="sans-serif-medium" />
-        <TextView android:id="@+id/opennews_widget_next_source" android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:maxLines="1" android:ellipsize="end"
-            android:textSize="12sp" android:textColor="@color/widget_muted" />
-    </LinearLayout>
-    <LinearLayout android:id="@+id/opennews_widget_third" android:layout_width="match_parent"
-        android:layout_height="wrap_content" android:minHeight="44dp" android:orientation="vertical"
-        android:gravity="center_vertical" android:paddingHorizontal="4dp" android:paddingVertical="3dp" android:visibility="gone">
-        <TextView android:id="@+id/opennews_widget_third_title" android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:maxLines="2" android:ellipsize="end"
-            android:textSize="14sp" android:textColor="@color/widget_ink" android:fontFamily="sans-serif-medium" />
-        <TextView android:id="@+id/opennews_widget_third_source" android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:maxLines="1" android:ellipsize="end"
-            android:textSize="12sp" android:textColor="@color/widget_muted" />
-    </LinearLayout>
+
+    <FrameLayout
+        android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1">
+        <ListView
+            android:id="@+id/widget_list"
+            android:layout_width="match_parent" android:layout_height="match_parent"
+            android:divider="@android:color/transparent" android:dividerHeight="5dp"
+            android:paddingBottom="1dp" android:clipToPadding="false"
+            android:scrollbarStyle="insideOverlay" />
+        <TextView
+            android:id="@+id/widget_empty"
+            android:layout_width="match_parent" android:layout_height="match_parent"
+            android:gravity="center" android:padding="4dp" android:ellipsize="end"
+            android:maxLines="3" android:textSize="12sp" android:textColor="#1e2024"
+            android:background="@android:drawable/list_selector_background"
+            android:text="@string/widget_load" />
+    </FrameLayout>
 </LinearLayout>

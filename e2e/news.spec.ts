@@ -33,10 +33,12 @@ test.beforeEach(async ({ page }) => {
 
 async function enterApp(page: Page) {
   await page.getByRole('button', { name: 'Einrichtung überspringen' }).click();
+  await page.getByRole('button', { name: /^DACH Kompakt/ }).click();
 }
 async function openSources(page: Page) {
   await page.getByRole('button', { name: 'Profil', exact: true }).click();
-  await page.getByRole('button', { name: 'Quellen', exact: true }).click();
+  await page.getByRole('button', { name: /^Quellen \d+$/ }).click();
+  await page.getByRole('button', { name: 'Eigene Quelle', exact: true }).click();
 }
 
 test('skips onboarding and displays a feed article', async ({ page }) => {
@@ -119,11 +121,10 @@ test('opens a reader and saves the article', async ({ page }) => {
 test('subscribes to a custom feed', async ({ page }) => {
   await enterApp(page);
   await openSources(page);
-  await page.getByText('Eigene Quelle hinzufügen', { exact: true }).click();
-  await page.getByLabel('Name des eigenen Feeds').fill('Eigene Testquelle');
-  await page.getByLabel('URL des eigenen Feeds').fill('https://example.org/rss.xml');
-  await page.getByRole('button', { name: 'Feed hinzufügen' }).click();
-  await expect(page.getByRole('button', { name: 'Eigene Testquelle abbestellen' })).toBeVisible();
+  await page.getByLabel(/^Name \(z\. B\./).fill('Eigene Testquelle');
+  await page.getByLabel('Feed URL').fill('https://example.org/rss.xml');
+  await page.getByRole('button', { name: 'Hinzufügen' }).click();
+  await expect(page.getByRole('button', { name: 'Eigene Testquelle: Aktiv' })).toBeVisible();
 });
 
 test('imports a feed from OPML', async ({ page }) => {
@@ -134,7 +135,7 @@ test('imports a feed from OPML', async ({ page }) => {
     mimeType: 'application/xml',
     buffer: Buffer.from('<opml version="2.0"><body><outline text="OPML Testquelle" type="rss" xmlUrl="https://example.org/import.xml"/></body></opml>'),
   });
-  await expect(page.getByRole('button', { name: 'OPML Testquelle abbestellen' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'OPML Testquelle: Aktiv' })).toBeVisible();
 });
 
 test('opens portrait clips full-screen, keeps the sound choice and closes the player', async ({ page }) => {
@@ -167,30 +168,34 @@ test('opens portrait clips full-screen, keeps the sound choice and closes the pl
   await page.reload();
   await enterApp(page);
   await page.getByRole('button', { name: 'Video & Audio' }).click();
-  await page.getByRole('button', { name: 'Testclip 1 abspielen' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Hochformat-Clips im Vollbild' });
+  await page.getByRole('button', { name: 'Testclip 1' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Clips' });
   await expect(dialog).toBeVisible();
   expect(await dialog.boundingBox()).toEqual({ x: 0, y: 0, width: 390, height: 844 });
 
   const player = dialog.locator('video');
+  const playingClip = dialog.getByRole('listitem').filter({ has: page.locator('video') });
   await expect(player).toHaveAttribute('src', /1\.webm$/);
   await expect(player).toHaveJSProperty('muted', false);
-  await dialog.getByRole('button', { name: 'Ton ausschalten' }).click();
+  await playingClip.getByRole('button', { name: 'Ton aus' }).and(page.locator('[aria-pressed]')).click();
   await expect(player).toHaveJSProperty('muted', true);
-  const clips = dialog.getByRole('list', { name: 'Hochformat-Clips' });
+  const clips = dialog.getByRole('list', { name: 'Clips' });
   await clips.evaluate(element => element.scrollTo(0, element.clientHeight));
   await expect(player).toHaveAttribute('src', /2\.webm$/);
   await expect(player).toHaveJSProperty('muted', true);
-  await dialog.getByRole('button', { name: 'Ton einschalten' }).click();
-  await dialog.getByRole('button', { name: 'Nächster Clip' }).click();
+  await playingClip.getByRole('button', { name: 'Ton an' }).and(page.locator('[aria-pressed]')).click();
+  await clips.evaluate(element => element.scrollTo(0, 2 * element.clientHeight));
   const youtube = dialog.locator('iframe');
   await expect(youtube).toHaveAttribute('src', /autoplay=1/);
   await expect(youtube).not.toHaveAttribute('src', /mute=1/);
   expect((await youtube.boundingBox())!.height).toBeGreaterThan(844 * 0.68);
   await page.setViewportSize({ width: 844, height: 400 });
   await clips.evaluate(element => element.scrollTo(0, 2 * element.clientHeight));
-  await expect.poll(async () => (await youtube.boundingBox())?.height).toBeGreaterThanOrEqual(200);
-  await dialog.getByRole('button', { name: 'Clips schließen' }).click();
+  await expect.poll(async () => {
+    const bounds = await youtube.boundingBox();
+    return bounds ? Math.min(bounds.width, bounds.height) : 0;
+  }).toBeGreaterThanOrEqual(200);
+  await dialog.getByRole('button', { name: 'Schließen' }).click();
   await expect(dialog).toBeHidden();
   await expect(dialog.locator('video, iframe')).toHaveCount(0);
 });
@@ -209,7 +214,7 @@ test('reads a saved article offline', async ({ page, context }) => {
   await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
   await context.setOffline(true);
   await page.getByRole('button', { name: 'Profil', exact: true }).click();
-  await page.getByRole('button', { name: 'Gespeichert', exact: true }).click();
+  await page.getByRole('button', { name: /^Gespeichert \d+$/ }).click();
   await page.getByText(title, { exact: true }).filter({ visible: true }).first().click();
   await expect(reader.getByText(/Volltext stammt/).first()).toBeVisible();
 });
@@ -252,16 +257,18 @@ test('generates an audio briefing on demand and starts speech', async ({ page })
   const tabBar = page.locator('[aria-label="Ansicht der Startseite"]');
   const position = await tabBar.boundingBox();
   await trigger.click();
-  const briefing = page.getByRole('dialog', { name: 'Tagesüberblick' });
+  const briefing = page.getByRole('dialog').filter({ has: page.locator('#briefing-title') });
   await expect(briefing).toBeVisible();
   expect(await tabBar.boundingBox()).toEqual(position);
-  await briefing.getByRole('button', { name: 'Tagesüberblick anhören' }).click();
+  await briefing.getByRole('button', { name: 'Mit KI vertiefen' }).click();
   await expect.poll(() => briefingText).not.toBe('');
+  await expect(briefing.getByText(briefingText, { exact: true })).toBeVisible();
+  await briefing.getByRole('button', { name: 'Tagesüberblick anhören' }).click();
   await expect(page.locator('html')).toHaveAttribute('data-spoken-briefing', briefingText);
   await briefing.getByRole('button', { name: 'Wiedergabe pausieren' }).click();
-  await expect(briefing.getByRole('status')).toHaveText('Wiedergabe pausiert.');
+  await expect(briefing.getByRole('status')).toHaveText('Wiedergabe pausieren');
   await briefing.getByRole('button', { name: 'Wiedergabe fortsetzen' }).click();
-  await expect(briefing.getByRole('status')).toHaveText('Tagesüberblick läuft.');
+  await expect(briefing.getByRole('status')).toHaveText('Tagesüberblick');
   await briefing.getByRole('button', { name: 'Wiedergabe pausieren' }).click();
   await briefing.getByRole('button', { name: 'Wiedergabe stoppen' }).click();
   await briefing.getByRole('button', { name: 'Tagesüberblick anhören' }).click();
@@ -338,9 +345,9 @@ test('moves between home sections while respecting both reduced-motion settings'
   await expect.poll(async () => (await selection.boundingBox())!.x).toBeCloseTo(initialPosition, 0);
   const briefingEntry = page.getByRole('button', { name: 'Tagesüberblick', exact: true });
   await briefingEntry.click();
-  const briefing = page.getByRole('dialog', { name: 'Tagesüberblick' });
+  const briefing = page.getByRole('dialog').filter({ has: page.locator('#briefing-title') });
   await expect(briefing).toBeVisible();
-  await briefing.getByRole('button', { name: 'Tagesüberblick schließen' }).click();
+  await briefing.getByRole('button', { name: 'Schließen' }).click();
   await expect(briefing).toBeHidden();
   await expect(briefingEntry).toBeFocused();
 
@@ -361,13 +368,13 @@ test('moves between home sections while respecting both reduced-motion settings'
   await expect(tabs.getByRole('button', { name: 'Neueste', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await dock.getByRole('button', { name: 'Video & Audio' }).click();
   await page.getByRole('button', { name: 'Clips', exact: true }).click();
-  const clips = page.getByRole('dialog', { name: 'Hochformat-Clips im Vollbild' });
+  const clips = page.getByRole('dialog', { name: 'Clips' });
   await expect(clips).toBeVisible();
   const clipDuration = await clips.evaluate(dialog =>
     Number.parseFloat(getComputedStyle(dialog).animationDuration),
   );
   expect(clipDuration).toBeLessThan(0.001);
-  await clips.getByRole('button', { name: 'Clips schließen' }).click();
+  await clips.getByRole('button', { name: 'Schließen' }).click();
   await expect(clips).toBeHidden();
 });
 

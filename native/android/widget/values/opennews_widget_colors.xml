@@ -1,5 +1,5 @@
 <resources>
-    <color name="widget_surface">#F6F5F2</color>
+    <color name="widget_surface">#f6f5f2</color>
     <color name="widget_control">#EFEEEB</color>
     <color name="widget_topic">#A23640</color>
     <color name="widget_ink">#181A20</color>
@@ -9,4 +9,7 @@
         <item name="android:windowActionBar">false</item>
         <item name="android:windowNoTitle">true</item>
     </style>
+    <color name="widget_card">#ffffff</color>
+    <color name="widget_tab">#30343d</color>
+    <color name="widget_tab_text">#ffffff</color>
 </resources>

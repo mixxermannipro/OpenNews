@@ -64,12 +64,12 @@ OpenNews bündelt Nachrichten aus frei zugänglichen Feeds in einer ruhigen Ober
 | **Darstellung** | System/Hell/Dunkel, Akzentfarbe, Transparenz, Ecken, Kartendichte, Textgröße, reduzierte Bewegung |
 | **Sicherung** | Export und Import von Abos, Reaktionen und Lesezeichen als JSON-Datei bis 5 MB; bleibt auf dem Gerät |
 | **Diagnose** | Freiwillige lokale Fehleraufzeichnung ohne Fehlertexte, Adressen oder Gerätekennungen; Export als JSON, optionales Senden der Fehlerart an den eigenen Server |
-| **Widget** | Android-Widget „Top-Themen“ mit drei Ansichten, Bildaufmacher und Merken; iOS-WidgetKit für drei Größen mit Reitern, benötigt Xcode |
+| **Widget** | Scrollbarer Android-Feed mit Größenanpassung, Filter und Erscheinungsbild je Widget; iOS-WidgetKit für drei Größen mit Reitern, benötigt Xcode |
 | **PWA** | Installierbar, Service Worker mit Auto-Update, Offline-Hinweis, maskierbares Icon |
 | **Android** | Capacitor-WebView, direkte HTTP-Aufrufe, nativer Zurück-Knopf, Share-Dialog, Systemstimme und lokale Übersetzung |
 | **Benachrichtigungen** | Android-Push für unterstützte abonnierte Quellen mit eingerichtetem Firebase. Im Web erscheinen Hinweise in der geöffneten App. |
 
-Beim App-Start werden die Feeds einmal priorisiert geladen. Ziehe auf „Heute“, „Für dich“ oder „Neueste“ nach unten oder tippe auf die Aktualisieren-Schaltfläche im Kopf, um sie neu abzurufen. Bist du bereits weiter unten im Feed, bleiben gelesene Positionen stabil und neue Beiträge erscheinen über einen kompakten Hinweis zum Hochspringen. Beim Schließen eines Artikels bleibt die geöffnete Liste erhalten. Android- und iOS-Widgets haben weiterhin eine eigene Aktualisieren-Taste.
+Beim App-Start werden die Feeds einmal priorisiert geladen. Ziehe auf „Heute“, „Für dich“ oder „Neueste“ nach unten oder tippe auf die Aktualisieren-Schaltfläche im Kopf, um sie neu abzurufen. Bist du bereits weiter unten im Feed, bleiben gelesene Positionen stabil und neue Beiträge erscheinen über einen kompakten Hinweis zum Hochspringen. Beim Schließen eines Artikels bleibt die geöffnete Liste erhalten. Der Android-Feed bietet eine Aktualisieren-Taste im Kopf oder in den Widget-Einstellungen. Das iOS-Widget hat eine eigene Aktualisieren-Taste.
 
 **Einstellungen:** Die Android-Freigabe erscheint beim Einschalten von Eilmeldungen oder der täglichen Erinnerung. Nach einer Ablehnung führt ein Link zur Benachrichtigungsseite von Android. Im Browser erscheinen Hinweise beim Aktualisieren der geöffneten App. Die automatische Übersetzung steht unter **Lesen**, das Zurücksetzen der Empfehlungen unter **KI & Personalisierung**. Sicherung und Diagnose stehen unter **Datenschutz**.
 
@@ -198,6 +198,8 @@ OpenNews/
 │   │   ├── NewsPush.java               # Push-Registrierung
 │   │   ├── NewsWidget.java             # Widget-Brücke
 │   │   ├── OpenNewsWidget.java         # Android-Widget
+│   │   ├── WidgetFeed.java             # Filter und Meldungszeilen
+│   │   ├── WidgetFeedService.java      # Scrollbare Liste bis Android 11
 │   │   ├── widget/                     # Layout, Bilder und Farben des Widgets
 │   │   ├── sync-icons.sh               # Launcher-Icons aus dem Logo
 │   │   └── sync-plugins.sh             # Native Dateien ins Android-Projekt kopieren
@@ -378,7 +380,7 @@ NODE_ENV=production npm start
 | `npm start` | `tsx server.ts` | Express starten; mit `NODE_ENV=production` aus `dist/` |
 | `npm run preview` | `vite preview` | Statischen Build ansehen (ohne API) |
 | `npm run lint` | `tsc --noEmit` | TypeScript-Typprüfung |
-| `npm test` | `node --import tsx --test src/lib/*.test.ts` | 99 Unit-Tests |
+| `npm test` | `node --import tsx --test src/lib/*.test.ts` | 106 Unit-Tests |
 | `npm run test:e2e` | `playwright test` | 14 Browsertests |
 | `npm run push:worker` | `tsx scripts/push-news.ts` | Android-Push aus den Standardquellen senden |
 | `node scripts/check-web-budget.mjs` | Node | Prüft das Start-JavaScript gegen 170 KiB gzip |
@@ -469,12 +471,12 @@ Im statischen Browserbetrieb kann Anthropic direkt mit dem in der App hinterlegt
 
 Mit `npm run android:release -- <versionCode>` erzeugst du ein lokal signiertes AAB für Google Play. Die [Android-Release-Anleitung](docs/android-release.md) beschreibt den Upload-Schlüssel, die Paketprüfung und den Testkanal. Die Schritte für den Kontoinhaber stehen in [PLAY_STORE_NEXT_STEPS.md](docs/PLAY_STORE_NEXT_STEPS.md). Das Android-Paket bietet den vollen Funktionsumfang inklusive Artikelreader mit Volltext-Abruf, Vorschaubildern, Medienwiedergabe und lokaler Zusammenfassung. Unter **Profil → Kontakt und Feedback** kannst du eine freiwillige Rückmeldung per E-Mail verfassen.
 
-Die App ist eine Capacitor-WebView mit `CapacitorHttp` (Feed- und KI-Aufrufe direkt auf dem Gerät), nativem Zurück-Knopf, `ArticleShare`-Plugin, Systemstimme für den Tagesüberblick, lokaler Übersetzung über ML Kit, Firebase-Nachrichten und synchronisierten Systemleisten. Das Widget „OpenNews Top-Themen“ zeigt je nach Größe bis zu drei Meldungen. Die große Ansicht bietet einen Bildaufmacher und Reiter für **Heute**, **Für dich** und **Neueste**. [Bedienung und Größen](docs/android-widget.md)
+Die App ist eine Capacitor-WebView mit `CapacitorHttp` (Feed- und KI-Aufrufe direkt auf dem Gerät), nativem Zurück-Knopf, `ArticleShare`-Plugin, Systemstimme für den Tagesüberblick, lokaler Übersetzung über ML Kit, Firebase-Nachrichten und synchronisierten Systemleisten. Das Android-Widget **OpenNews-Feed** zeigt einen scrollbaren Nachrichtenfeed in der Größe, die du auf dem Startbildschirm einstellst. Bei mehr Platz erscheinen Reiter für **Heute**, **Für dich** und **Neueste** sowie ein Aufmacher. Je Widget kannst du unabhängig filtern und Layout, Farbmodus, Bilder und Kurztexte wählen. [Bedienung und Größen](docs/android-widget.md)
 
-**CI:** Zwei Workflows laufen bei Pull Requests gegen `main`:
+**CI:** Die App-Prüfungen laufen bei Pull Requests gegen `main`.
 
-- **Web CI** (`web-ci.yml`): Typprüfung, 99 Unit-Tests, Build, JavaScript-Budget und 14 Browsertests mit Playwright.
-- **OpenNews Android Test APK** (`android-test-apk.yml`): bei Änderungen an `src/**`, `scripts/**`, `native/android/**`, `public/**` und Build-Dateien sowie manuell über **Actions → Run workflow**. Richtet Node 22 und JDK 21 ein, prüft Typen, führt Unit-Tests und Build aus, erzeugt das Android-Projekt, baut `assembleDebug`, lädt die APK als Artefakt (7 Tage) hoch, prüft bei Pull Requests den AAB-Bau mit einem Einmalschlüssel und veröffentlicht bei manuellem Lauf ein privates Pre-Release `v0.1.0-alpha.<Run-Nummer>`.
+- **Web CI** (`web-ci.yml`): Typprüfung, 106 Unit-Tests, Build, JavaScript-Budget und 14 Browsertests mit Playwright.
+- **OpenNews Android Test APK** (`android-test-apk.yml`): bei Änderungen an `src/**`, `scripts/**`, `native/android/**`, `public/**` und Build-Dateien sowie manuell über **Actions → Run workflow**. Richtet Node 22 und JDK 21 ein, prüft Typen, führt Unit-Tests und Build aus, erzeugt das Android-Projekt, baut `assembleDebug`, prüft, dass die APK vorhanden ist, lädt sie bei verfügbarem GitHub-Speicher als Artefakt (7 Tage) hoch, prüft bei Pull Requests den AAB-Bau mit einem Einmalschlüssel und veröffentlicht bei manuellem Lauf ein privates Pre-Release `v0.1.0-alpha.<Run-Nummer>`.
 
 **Lokal:**
 
@@ -515,7 +517,7 @@ Android zeigt für OpenNews-Benachrichtigungen ein eigenes monochromes Symbol in
 
 ## Tests und Qualität
 
-`npm test` führt **99 Unit-Tests** aus 23 Dateien aus: `rssParser.test.ts`, `personalization.test.ts`, `newsFeed.test.ts`, `opml.test.ts`, `nativeFeed.test.ts`, `aiClient.test.ts`, `aiCache.test.ts`, `transcript.test.ts`, `articleMedia.test.ts`, `articleExtraction.test.ts`, `publicHttp.test.ts`, `storyClusters.test.ts`, `scrollNavigation.test.ts`, `pullPhysics.test.ts`, `feedRefresh.test.ts`, `i18n.test.ts`, `sourceSearch.test.ts`, `clipsEngine.test.ts`, `localEditorialAI.test.ts`, `dailyBriefingSynth.test.ts`, `keywordFilter.test.ts`, `relatedMedia.test.ts` und `readerExtras.test.ts`. Abgedeckt sind Parsing und Medien, Aufbewahrung, Ranking und Vielfalt, OPML, native URL-Sicherheit, KI-Antwortparsing, Volltext, SSRF-Schutz, Themencluster, Scroll-Navigation, Pull-Physik, priorisiertes Feed-Batching, Mehrsprachigkeit, Quellensuche, Clips-Engine, lokale Redaktions-KI, Tagesüberblick-Synthese, Stichwort-/Stummschalt-Filter, Themen-Verlinkungen sowie Reader-/Offline-Logik.
+`npm test` führt **106 Unit-Tests** aus 24 Dateien aus: `rssParser.test.ts`, `personalization.test.ts`, `newsFeed.test.ts`, `opml.test.ts`, `nativeFeed.test.ts`, `aiClient.test.ts`, `aiCache.test.ts`, `transcript.test.ts`, `articleMedia.test.ts`, `articleExtraction.test.ts`, `publicHttp.test.ts`, `storyClusters.test.ts`, `scrollNavigation.test.ts`, `pullPhysics.test.ts`, `feedRefresh.test.ts`, `i18n.test.ts`, `sourceSearch.test.ts`, `clipsEngine.test.ts`, `localEditorialAI.test.ts`, `dailyBriefingSynth.test.ts`, `keywordFilter.test.ts`, `relatedMedia.test.ts`, `readerExtras.test.ts` und `pagesApi.test.ts`. Abgedeckt sind Parsing und Medien, Aufbewahrung, Ranking und Vielfalt, OPML, native URL-Sicherheit, KI-Antwortparsing, Volltext, SSRF-Schutz, Themencluster, Scroll-Navigation, Pull-Physik, priorisiertes Feed-Batching, Mehrsprachigkeit, Quellensuche, Clips-Engine, lokale Redaktions-KI, Tagesüberblick-Synthese, Stichwort-/Stummschalt-Filter, Themen-Verlinkungen sowie Reader-/Offline-Logik.
 
 `npm run test:e2e` startet den Produktionsbuild auf Port `3099` und prüft vierzehn Abläufe gegen einen simulierten Feed. Dazu gehören Feeds, Artikel, Medien, Tagesüberblick, Einstellungen, große Schrift und reduzierte Bewegung. Einmalig `npx playwright install chromium` ausführen.
 
@@ -597,14 +599,14 @@ Das Repository ist privat und in einer frühen Alpha. Beiträge klein und prüfb
 | PWA | nutzbar (Installation, Offline-Hinweis) |
 | Android | Alpha, Debug-APK |
 | iOS | vorbereitet (Brücken und WidgetKit), Build nur mit Xcode/macOS |
-| Android-Widget | Lokale Schlagzeilen mit Quellenfilter und Reader-Verknüpfung |
+| Android-Widget | Scrollbarer Feed mit lokalen Schlagzeilen, persönlichen Filtern und Reader-Verknüpfung |
 | iOS-Widget | vorbereitet, nicht geprüft |
 | Native Push | Android mit Firebase und laufendem Feed-Dienst |
 | Artikelvolltext | Beta, abhängig von der Quelle |
 | BYOK-KI | Beta, abhängig von Anbieter und Schlüssel |
 | Tagesüberblick | Lokal synthetisiertes Themen-Briefing mit Vorlesen 2.0, optional mit Anbieter-KI |
 | Diagnose | lokal verfügbar, Senden optional |
-| Tests | 99 Unit-Tests und 14 Playwright-Browsertests |
+| Tests | 106 Unit-Tests und 14 Playwright-Browsertests |
 | Eigener Quellcode | Alle Rechte vorbehalten |
 
 ## Lizenz

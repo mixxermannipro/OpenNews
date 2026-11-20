@@ -675,11 +675,13 @@ export default function App() {
     if (!cachedStorageReady || isLoadingFeeds || (platform !== 'android' && platform !== 'ios')) return;
     const snapshot = (tab: HomeTab) => homeSections[tab].slice(0, platform === 'ios' ? 3 : 24).map(({ lead }) => ({
       ...lead, contentHtml: undefined, paragraphs: [], summary: lead.summary.slice(0, 400),
+      ...(platform === 'android' && { widgetSaved: normalizedProfile.bookmarkedIds.includes(lead.id) }),
     }));
     void import('./lib/newsWidget').then(({ NewsWidget }) => NewsWidget.update({
       today: snapshot('Heute'), personal: snapshot('Für dich'), latest: snapshot('Neueste'),
+      ...(platform === 'android' && { language: activeLanguage, theme }),
     })).catch(() => {});
-  }, [cachedStorageReady, homeSections, isLoadingFeeds]);
+  }, [activeLanguage, cachedStorageReady, homeSections, isLoadingFeeds, normalizedProfile.bookmarkedIds, theme]);
 
   const openSettings = (sec: SettingsSectionTab = 'overview') => {
     navigate({ tab: 'settings', settings: sec });
