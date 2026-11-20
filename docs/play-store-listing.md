@@ -16,7 +16,7 @@ OpenNews bündelt Nachrichten aus deinen gewählten Quellen – ohne Werbung, oh
 HIGHLIGHTS
 • Drei klare Ansichten: „Heute“ für wichtige Meldungen, „Für dich“ nach deinen Interessen und „Neueste“ chronologisch
 • Eigene Quellen & RSS-Feeds hinzufügen sowie Abos per OPML importieren und exportieren
-• Ruhige Artikelansicht mit Überschrift, Quelle, Datum und direktem Link zur Originalquelle
+• Ruhige Artikelansicht mit Volltext-Abruf, Vorschaubildern, Zusammenfassung und Link zur Originalquelle
 • Artikel für später speichern oder den Tagesüberblick vorlesen lassen
 • Android-Widget für Top-Schlagzeilen direkt auf deinem Startbildschirm
 • Optionale Vor-Ort-Übersetzung englischer Artikel und frei konfigurierbare KI-Funktionen mit eigenem Schlüssel
@@ -37,7 +37,7 @@ OpenNews brings together news from the sources you follow — with no ads, no ac
 HIGHLIGHTS
 • Three clear views: "Today" for key stories, "For you" tailored to your interests and "Latest" in chronological order
 • Discover topics and publishers, add your own RSS feeds, and import or export OPML lists
-• Clean article overview with headline, source attribution, publication date and direct link to the original
+• Clean article reader with full-text extraction, preview images, summaries and direct link to the original
 • Save articles for later or listen to your daily briefing read aloud
 • Android home screen widget for top headlines
 • Optional on-device translation for English articles and bring-your-own-key AI tools

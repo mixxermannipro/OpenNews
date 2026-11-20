@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { NewsArticle } from '../types/news';
-import { buildHomeSections, DAY_MS, distinctArticles, mergeFeedArticles } from './newsFeed';
+import { buildHomeSections, DAY_MS, distinctArticles, hydrateArticles, mergeFeedArticles } from './newsFeed';
 import { featuredStoryIds } from './featuredStories';
 import { createDefaultProfile } from './personalization';
 
@@ -33,6 +33,17 @@ test('updates a feed entry using its link and retains its previous ID', () => {
   assert.deepEqual(mergeFeedArticles([article], [duplicate], '4', Date.parse(article.publishedAt)), [
     { ...duplicate, id: article.id },
   ]);
+});
+
+test('enriches cached articles in saved or history records once full feed content arrives', () => {
+  const stripped: NewsArticle = { ...article, summary: '', paragraphs: [], imageUrl: undefined };
+  const enriched: NewsArticle = {
+    ...article,
+    summary: 'Voller Teaser aus dem Feed.',
+    paragraphs: ['Erster Absatz mit Inhalt.', 'Zweiter Absatz mit Inhalt.'],
+    imageUrl: 'https://example.org/news/photo.jpg',
+  };
+  assert.deepEqual(hydrateArticles([stripped], [enriched]), [enriched]);
 });
 
 test('keeps entries separate if the feed URL is their only opening target', () => {

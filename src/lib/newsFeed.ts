@@ -88,6 +88,40 @@ export function mergeFeedArticles(
   return pruneFeedArticles([...byId.values()], retention, now).sort(newestFirst).slice(0, CACHE_LIMIT);
 }
 
+export function hydrateArticles(articles: NewsArticle[], fresh: NewsArticle[]): NewsArticle[] {
+  if (!articles.length || !fresh.length) return articles;
+  const byKey = new Map(fresh.map(article => [articleIdentity(article), article]));
+  let changed = false;
+  const next = articles.map(article => {
+    const match = byKey.get(articleIdentity(article));
+    if (!match) return article;
+    const summary = article.summary || match.summary;
+    const paragraphs = article.paragraphs.length ? article.paragraphs : match.paragraphs;
+    const imageUrl = article.imageUrl ?? match.imageUrl;
+    const media = article.media?.length ? article.media : match.media;
+    const transcript = article.transcript ?? match.transcript;
+    if (
+      summary === article.summary &&
+      paragraphs === article.paragraphs &&
+      imageUrl === article.imageUrl &&
+      media === article.media &&
+      transcript === article.transcript
+    ) {
+      return article;
+    }
+    changed = true;
+    return {
+      ...article,
+      summary,
+      paragraphs,
+      ...(imageUrl !== undefined && { imageUrl }),
+      ...(media !== undefined && { media }),
+      ...(transcript !== undefined && { transcript }),
+    };
+  });
+  return changed ? next : articles;
+}
+
 export function buildHomeSections(
   articles: NewsArticle[],
   profile: PersonalizationProfile,
