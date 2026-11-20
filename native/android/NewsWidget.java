@@ -30,6 +30,8 @@ public class NewsWidget extends Plugin {
 
     static final String ARTICLE = "io.opennews.app.WIDGET_ARTICLE";
     static final String ACTION = "io.opennews.app.WIDGET_ACTION";
+    static final String SECTION = "io.opennews.app.WIDGET_SECTION";
+    static final String SAVE = "io.opennews.app.WIDGET_SAVE";
     static final String REFRESH = "io.opennews.app.WIDGET_REFRESH";
 
     @PluginMethod
@@ -38,13 +40,22 @@ public class NewsWidget extends Plugin {
         for (String section : OpenNewsWidget.SECTIONS) {
             snapshot.put(section, call.getArray(section));
         }
-        Context context = getContext();
-        context.getSharedPreferences(STORE, Context.MODE_PRIVATE)
-            .edit().putString("snapshot", snapshot.toString()).apply();
-        AppWidgetManager manager = AppWidgetManager.getInstance(context);
-        int[] ids = manager.getAppWidgetIds(new ComponentName(context, OpenNewsWidget.class));
-        new OpenNewsWidget().onUpdate(context, manager, ids);
-        call.resolve();
+        String language = call.getString("language");
+        if (language != null) snapshot.put("language", language);
+        String theme = call.getString("theme");
+        if (theme != null) snapshot.put("theme", theme);
+        String json = snapshot.toString();
+        getActivity().runOnUiThread(() -> {
+            Context context = getContext();
+            android.content.SharedPreferences store = OpenNewsWidget.store(context);
+            if (!json.equals(store.getString("snapshot", ""))) {
+                store.edit().putString("snapshot", json).apply();
+                AppWidgetManager manager = AppWidgetManager.getInstance(context);
+                int[] ids = manager.getAppWidgetIds(new ComponentName(context, OpenNewsWidget.class));
+                new OpenNewsWidget().onUpdate(context, manager, ids);
+            }
+            call.resolve();
+        });
     }
 
     @PluginMethod
@@ -79,8 +90,9 @@ public class NewsWidget extends Plugin {
                 for (int i = 0; stories != null && i < stories.length(); i++) {
                     JSONObject candidate = stories.optJSONObject(i);
                     if (candidate != null && article.equals(candidate.optString("id"))) {
+                        candidate.remove("widgetSaved");
                         data.put("article", candidate);
-                        if ("save".equals(action)) data.put("save", true);
+                        if ("save".equals(action) || intent.getBooleanExtra(SAVE, false)) data.put("save", true);
                         return data;
                     }
                 }
@@ -88,6 +100,8 @@ public class NewsWidget extends Plugin {
         }
         if (intent.getBooleanExtra(REFRESH, false)) {
             data.put("refresh", true);
+            String section = intent.getStringExtra(SECTION);
+            if (section != null) data.put("section", section);
             intent.removeExtra(REFRESH);
         }
         return data;

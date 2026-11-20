@@ -1,10 +1,14 @@
 import { registerPlugin, type PluginListenerHandle } from '@capacitor/core';
 import type { NewsArticle } from '../types/news';
 
+type WidgetArticle = NewsArticle & { widgetSaved?: boolean };
+
 export interface WidgetSnapshot {
-  today: NewsArticle[];
-  personal: NewsArticle[];
-  latest: NewsArticle[];
+  today: WidgetArticle[];
+  personal: WidgetArticle[];
+  latest: WidgetArticle[];
+  language?: string;
+  theme?: 'system' | 'light' | 'dark';
 }
 
 export interface WidgetLaunch {

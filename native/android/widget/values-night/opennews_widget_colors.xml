@@ -1,8 +1,11 @@
 <resources>
-    <color name="widget_surface">#17181C</color>
+    <color name="widget_surface">#111214</color>
     <color name="widget_control">#25262B</color>
     <color name="widget_topic">#FF8B91</color>
     <color name="widget_ink">#F4F6FA</color>
     <color name="widget_muted">#B8BECA</color>
     <color name="widget_divider">#393C44</color>
+    <color name="widget_card">#1b1c20</color>
+    <color name="widget_tab">#eeeef0</color>
+    <color name="widget_tab_text">#191b20</color>
 </resources>

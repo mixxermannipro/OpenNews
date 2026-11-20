@@ -1,0 +1,34 @@
+<resources>
+    <string name="widget_name">Fil OpenNews</string>
+    <string name="widget_settings">Réglages du widget</string>
+    <string name="widget_today">Aujourd’hui</string>
+    <string name="widget_personal">Pour vous</string>
+    <string name="widget_latest">Dernières</string>
+    <string name="widget_selected">%1$s, sélectionné</string>
+    <string name="widget_refresh">Actualiser le fil</string>
+    <string name="widget_discover">Explorer les sujets</string>
+    <string name="widget_load">Ouvrir OpenNews pour charger les articles</string>
+    <string name="widget_no_matches">Aucun résultat. Modifier les filtres</string>
+    <string name="widget_no_stories">Aucun article. Actualiser le fil</string>
+    <string name="widget_save_article">Enregistrer : %1$s</string>
+    <string name="widget_saved_article">Enregistré : %1$s</string>
+    <string name="widget_view">Fil</string>
+    <string name="widget_topic">Sujet</string>
+    <string name="widget_source">Source</string>
+    <string name="widget_all_topics">Tous les sujets</string>
+    <string name="widget_all_sources">Toutes les sources</string>
+    <string name="widget_appearance">Apparence</string>
+    <string name="widget_layout">Disposition</string>
+    <string name="widget_auto">Automatique</string>
+    <string name="widget_compact">Compacte</string>
+    <string name="widget_magazine">Magazine</string>
+    <string name="widget_theme">Mode de couleur</string>
+    <string name="widget_system">OpenNews</string>
+    <string name="widget_light">Clair</string>
+    <string name="widget_dark">Sombre</string>
+    <string name="widget_images">Images des sujets</string>
+    <string name="widget_summaries">Résumé à la une</string>
+    <string name="widget_metadata">Source et heure de publication</string>
+    <string name="widget_save_settings">Enregistrer les réglages</string>
+    <string name="widget_preview">Les articles de vos sources</string>
+</resources>

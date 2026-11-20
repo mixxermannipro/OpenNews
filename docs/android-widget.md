@@ -1,34 +1,32 @@
-# Android-Nachrichtenwidget
+# OpenNews-Feed auf Android
 
-Das Widget zeigt Schlagzeilen aus OpenNews. Tippe auf eine Meldung, um den zugehörigen Artikel im Reader zu öffnen. Über den Namen der Ansicht stellst du für jedes Widget „Heute“, „Für dich“ oder „Neueste“ sowie Thema und Quelle ein. Auf ausreichend großen Widgets wechselt eine Reiterleiste direkt zwischen „Heute“, „Für dich“ und „Neueste“. „Weitere Themen entdecken“ öffnet die Suche und Themenübersicht. Das Sternsymbol speichert die Meldung in OpenNews und öffnet sie. „›“ blättert durch den lokalen Vorrat. „↻“ öffnet OpenNews und stößt die vorhandene Feed-Aktualisierung an. Im schmalsten Layout ist „↻“ bei mehreren Seiten ausgeblendet.
+Halte eine freie Stelle auf dem Startbildschirm gedrückt. Öffne **Widgets** und füge **OpenNews-Feed** hinzu. Ziehe anschließend an den Griffen, um die Breite oder Höhe zu ändern. Wische innerhalb der Meldungen nach oben oder unten, um den Feed direkt auf dem Startbildschirm zu lesen.
 
-| Platz im Launcher | Darstellung |
+| Platz im Startbildschirm | Darstellung |
 | --- | --- |
-| Klein, etwa 2 × 2 | Eine Meldung mit Quelle und Zeit |
-| Breit, etwa 4 × 2 | Eine Meldung mit mehr Platz für den Titel und eigenen Bedienelementen |
-| Größer, etwa 4 × 4 | Themenillustration und bis zu zwei Meldungen |
-| Hoch und breit (ab 248 × 340 dp bei Standardschrift) | Datum, Reiterleiste, Bildaufmacher, zwei kompakte Meldungen und Einstieg zu „Entdecken“. Ab 430 dp Höhe erscheint die Kurzbeschreibung, falls vorhanden. |
+| Klein oder schmal | Kompakte Schlagzeilen und Zugang zu den Widget-Einstellungen |
+| Mittel | Scrollbare Meldungen mit optionalen Vorschaubildern, Merken-Taste und Feed-Aktualisierung |
+| Breit und hoch | Direkte Reiter für **Heute**, **Für dich** und **Neueste**, Einstieg zu **Entdecken** und Platz für einen Aufmacher |
 
-Android-Launcher (Startbildschirm-Apps) vergeben unterschiedlich viel Platz pro Rasterzelle. Deshalb richten sich die Ansichten nach den verfügbaren Breiten und Höhen in dp. Bei großer Systemschrift sinkt die Anzahl der Zeilen. Text und bedienbare Symbole verwenden helle und dunkle Systemvarianten. Die Darstellung hat keine eigenen Animationen.
+Bei Standardschrift wechselt das Layout ab etwa 188 × 144 dp zur mittleren und ab 264 × 236 dp zur großen Ansicht. Android-Launcher (Startbildschirm-Apps) bestimmen Raster, mögliche Größen und Ausrichtung. Bei größerer Systemschrift brauchen die breiteren Ansichten mehr Platz. Das Widget verwendet auch im kleinsten Format dieselbe scrollbare Liste. [Android-Dokumentation zur Größenwahl](https://developer.android.com/develop/ui/views/appwidgets/layouts)
+
+![OpenNews-Feed in der großen Ansicht auf dem Pixel-Launcher](../apps/website/public/screenshots/widget.webp)
+
+## Einrichten und lesen
+
+- Tippe auf das Zahnrad oder den Reiternamen oben. **Ansicht**, **Thema** und **Quelle** gelten jeweils für dieses Widget. Die angebotenen Themen und Quellen stammen aus den zuletzt geladenen Meldungen. Du kannst zum Beispiel zwei Widgets für unterschiedliche Quellen anlegen.
+- **Automatisch** richtet die Darstellung nach der Größe aus. **Kompakt** zeigt Textzeilen auch auf größeren Widgets. **Magazin** hebt die erste Meldung bereits bei mittlerer Größe hervor.
+- Schalte Themenbilder, den Kurztext zum Aufmacher oder Quelle und Veröffentlichungszeit einzeln um. Die Bilder sind lokale Themenillustrationen.
+- Unter **Farbmodus** folgt **OpenNews** der Farbwahl der App. **Hell** und **Dunkel** gelten jeweils für dieses Widget. Die Bedienelemente folgen der App-Sprache, sobald OpenNews einen Feed übergeben hat.
+- Tippe auf eine Meldung, um sie im Reader zu öffnen. Die Merken-Taste legt sie in die Leseliste und öffnet den Reader. Ein gefülltes Symbol zeigt eine bereits gemerkte Meldung.
+- **Feed aktualisieren** öffnet den gewählten Reiter in OpenNews und startet den Feed-Abruf. **Themen entdecken** springt zur Themenübersicht der App. Im kleinsten Format erreichst du beide Aktionen über die Widget-Einstellungen.
 
 ## Daten und Aktualisierung
 
-Die Android-App übergibt bis zu 24 bereits gruppierte Meldungen je Reiter an den nativen Widget-Speicher. Die Daten bleiben lokal. Das Widget filtert anschließend nach dem gewählten Thema und der Quelle. Beim Öffnen löst OpenNews die Artikel-ID gegen den lokalen Vorrat auf und lädt bei Bedarf den Volltext im bestehenden Reader. Wenn der ausgewählte Artikel inzwischen aus dem Vorrat gefallen ist, öffnet sich die App. Die Titelliste erhält Aktualisierungen, wenn OpenNews neue Feeds anzeigt. Android kann ungefähr alle 30 Minuten die Darstellung und Zeitangaben auffrischen. Dieser Schritt ruft keine Feeds ab. Ohne Verbindung bleiben die zuletzt gespeicherten Schlagzeilen lesbar. Bei einer leeren Auswahl führt die erste Zeile zur App.
+OpenNews übergibt bis zu 24 gruppierte Meldungen je Reiter, ihren Merkstatus, die App-Sprache und die Farbwahl an den lokalen Widget-Speicher. Das Widget wendet die gewählten Filter auf diesen Vorrat an. Bei einem leeren Ergebnis führt die Anzeige je nach Ursache zum Feed-Abruf oder zu den Filtern. Beim Öffnen löst die App die Artikel-ID gegen den lokalen Vorrat auf und lädt bei Bedarf den Volltext. Offline kannst du die zuletzt gespeicherten Schlagzeilen weiter durchscrollen. Android kann die Darstellung ungefähr alle 30 Minuten aktualisieren. Dabei findet kein Feed-Abruf statt.
 
-## Vergleich und technische Entscheidung
+Der Feed ist ein Widget für den Startbildschirm. Welche Fläche ein Launcher über die seitliche Wischgeste öffnet, bestimmt der Launcher. [Android-Dokumentation zu scrollbaren Widgets](https://developer.android.com/develop/ui/views/appwidgets/collections)
 
-- Google beschreibt Discover als Vorschlagsfläche für Interessen. OpenNews übernimmt die Idee der schnellen Vorschau. Die Auswahl ist über Ansicht, Thema und Quelle auf dem Gerät einstellbar. [Google Search – Discover](https://developers.google.com/search/docs/appearance/google-discover)
-- Google News kombiniert Schlagzeilen, Quellen und unabhängige Perspektiven. OpenNews übernimmt die Schlagzeile mit Quellenangabe und zeigt mehrere Berichte im Hauptfeed. [Google News – Auswahl](https://support.google.com/googlenews/answer/9005749)
-- Android stellt Widgets mit `RemoteViews` in einem separaten Launcher-Prozess dar. Die vorhandene Java-Implementierung braucht keine neue Jetpack-Abhängigkeit. Die Plattform stellt die Konfiguration, Größenänderungen und sichere Klickaktionen bereit. [Android Developers – App-Widgets](https://developer.android.com/develop/ui/views/appwidgets)
+## Prüfung im Emulator
 
-Das Widget nutzt lokale Themenillustrationen. Die Motive stehen für das Thema. Sie stammen aus dem lokalen Bildbestand der App. Der Google-Discover-Bildschirm eines Launchers lässt sich über diese Android-Schnittstelle nicht austauschen.
-
-## Gerätetest vom 14. November 2026
-
-Eine getrennte Debug-App lief auf einem Samsung-Handy mit Android 17 und One UI. Geprüft wurden das Hinzufügen des 4×2-Widgets, Blättern, direkter Sprung zum angezeigten Artikel mit geladenem Volltext und das Öffnen der Einstellungen. Der Test deckte einen überlagerten Titel im Einstellungsfenster auf. Nach der Korrektur waren Überschrift und Eingaben unterhalb der Statusleiste sichtbar. Die vorhandene OpenNews-Installation blieb erhalten.
-
-### Tagesagenda im 4×5-Format
-
-Am 14. November 2026 lief die GitHub-Test-APK aus PR #111 auf demselben Samsung-Gerät. Im Launcher geprüft wurden das Hinzufügen der großen Variante, die Reiter „Für dich“ und „Neueste“, der Sprung zum passenden Artikel, das Merken mit anschließendem geöffnetem Reader und der Aufruf von „Entdecken“. Die Aktualisieren-Taste holte OpenNews in den Vordergrund. Weitere Launcher, Helligkeitsmodi und Schriftgrößen wurden für diese Variante nicht am Gerät geprüft.
-
-![Großes OpenNews-Widget auf dem Android-Startbildschirm](screenshots/android-widget-tagesagenda.jpg)
+Im Pixel-Launcher mit Android 16 wurden mit echten Meldungen die Größen 4 × 5 und 2 × 2 geprüft. Im großen Format wurden Scrollen, Reiterwechsel, Hell und Dunkel sowie der Sprung in den Reader geprüft. Im kleinen Format ließen sich die Quellen- und Zeitzeile ausblenden und gespeicherte Meldungen im Flugmodus durchscrollen. Der Launcher-Test deckt Pixel ab. Für Android 7 bis 11 und andere Launcher steht der Gerätetest aus.

@@ -1,0 +1,34 @@
+<resources>
+    <string name="widget_name">Notícias do OpenNews</string>
+    <string name="widget_settings">Configurações do widget</string>
+    <string name="widget_today">Hoje</string>
+    <string name="widget_personal">Para você</string>
+    <string name="widget_latest">Recentes</string>
+    <string name="widget_selected">%1$s, selecionado</string>
+    <string name="widget_refresh">Atualizar notícias</string>
+    <string name="widget_discover">Explorar temas</string>
+    <string name="widget_load">Abra o OpenNews para carregar notícias</string>
+    <string name="widget_no_matches">Sem resultados. Edite os filtros</string>
+    <string name="widget_no_stories">Sem notícias. Atualize o feed</string>
+    <string name="widget_save_article">Salvar: %1$s</string>
+    <string name="widget_saved_article">Salvo: %1$s</string>
+    <string name="widget_view">Visualização</string>
+    <string name="widget_topic">Tema</string>
+    <string name="widget_source">Fonte</string>
+    <string name="widget_all_topics">Todos os temas</string>
+    <string name="widget_all_sources">Todas as fontes</string>
+    <string name="widget_appearance">Aparência</string>
+    <string name="widget_layout">Layout</string>
+    <string name="widget_auto">Automático</string>
+    <string name="widget_compact">Compacto</string>
+    <string name="widget_magazine">Revista</string>
+    <string name="widget_theme">Modo de cor</string>
+    <string name="widget_system">OpenNews</string>
+    <string name="widget_light">Claro</string>
+    <string name="widget_dark">Escuro</string>
+    <string name="widget_images">Imagens dos temas</string>
+    <string name="widget_summaries">Resumo do destaque</string>
+    <string name="widget_metadata">Fonte e horário de publicação</string>
+    <string name="widget_save_settings">Salvar configurações</string>
+    <string name="widget_preview">Notícias das suas fontes</string>
+</resources>

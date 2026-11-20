@@ -108,9 +108,9 @@ function Features() {
     </div>
     <p className="capture-note">App-Ansichten auf Android</p>
     <div className="widget-feature">
-      <AppImage file="widget" alt="Android-Widget mit Schlagzeilen und auswählbaren Ansichten" widget />
+      <AppImage file="widget" alt="Scrollbarer OpenNews-Feed mit Aufmacher und drei Reitern auf dem Android-Startbildschirm" widget />
       <div><h3>Dein Überblick auf dem Startbildschirm.</h3>
-        <p>Das Android-Widget bringt Schlagzeilen auf deinen Startbildschirm. Den Tagesüberblick kannst du in der App lesen oder dir vorlesen lassen.</p></div>
+        <p>Scrolle durch deine Schlagzeilen direkt auf dem Android-Startbildschirm. Ziehe das Widget auf die passende Größe und wähle eigene Themen, Quellen und Ansichten.</p></div>
     </div>
   </section>;
 }
