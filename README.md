@@ -155,8 +155,10 @@ flowchart LR
 ## Projektstruktur
 
 Dieses Repository enthält die App und die [Produktwebsite](apps/website/README.md).
-Die Website hat eigene Abhängigkeiten und einen eigenen Build. Für Cloudflare Pages
-ist `apps/website` das Stammverzeichnis. Die Anleitung im Website-Ordner beschreibt
+Die Website hat eigene Abhängigkeiten und einen eigenen Build. Für den gemeinsamen
+Cloudflare-Pages-Deploy (Website unter `/` und Web-App unter `/app/` samt
+Cloudflare Pages Functions unter `functions/api/`) baut `npm run build:pages`
+beide Teile in `dist-pages/`. Die Anleitung im Website-Ordner beschreibt
 die Live-Konfiguration.
 
 Versionierte Ordner und Dateien. Bilddateien sind gruppiert; generierte Ordner stehen darunter.
@@ -179,6 +181,10 @@ OpenNews/
 │   ├── datenschutz.md                  # Entwurf der Datenschutzerklärung
 │   ├── ios-widget.md                   # WidgetKit und iOS-Einrichtung
 │   └── monetarisierung.md              # Preis- und Erlösmodell
+│
+├── functions/
+│   └── api/
+│       └── [[path]].ts                 # Cloudflare Pages Functions (/api/* für die Web-App)
 │
 ├── e2e/
 │   └── news.spec.ts                    # Browsertests für Kernabläufe
