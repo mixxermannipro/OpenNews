@@ -51,13 +51,11 @@ Your selected sources, bookmarks, reading history and personalisation stay on yo
   512 × 512 px. Grafikdatei vor Upload gegen die Store-Vorschau prüfen.
 - [Feature-Grafik](play-store-assets/feature-graphic.png): 1024 × 500 px,
   PNG ohne Transparenz. Für beide Sprachen verwendbar.
-- Vier Telefon-Aufnahmen aus Android 16, Versionscode 4, liegen lokal
-  unter `build/android-release/screenshots-v4/` (1080 × 2400 px).
-  Motive sind Heute, Entdecken, Reader und Profil. Vor dem Store-Upload
-  die Nutzungsrechte für sichtbare Fremdinhalte abgleichen. Verwende
-  vorrangig die Ansichten mit freigegebenen Inhalten und ohne persönliche
-  Daten. Für den englischen Store-Eintrag die Sprache der unveränderten
-  App-Anzeige berücksichtigen.
+- Telefon-Aufnahmen aus Android 16 vom 21. November 2026 liegen lokal
+  unter `build/android-release/screenshots-2026-11-21/` (1080 × 1920 px).
+  Die Ordner `de/` und `en/` enthalten die deutsche und englische App-Ansicht
+  mit Beispielmeldungen. Motive für beide Store-Einträge sind Heute, Für dich,
+  Neueste, Entdecken, Artikelansicht und Video & Audio.
 
 
 [Google-Vorgaben für Grafiken](https://support.google.com/googleplay/android-developer/answer/9866151)
