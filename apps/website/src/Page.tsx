@@ -41,14 +41,14 @@ function Arrow() {
 }
 
 function Brand() {
-  return <a className="brand" href="/"><img src="/favicon.svg" alt="" width="32" height="32" />OpenNews</a>;
+  return <a className="brand" href="/"><img src="/icon-192.png" alt="" width="32" height="32" />OpenNews</a>;
 }
 
 function AppImage({ file, alt, priority = false, widget = false }: {
   file: string; alt: string; priority?: boolean; widget?: boolean;
 }) {
   const image = <img src={`/screenshots/${file}.webp`} alt={alt}
-    width={widget ? 420 : 824} height={widget ? 625 : 1740}
+    width={widget ? 420 : 810} height={widget ? 625 : 1440}
     loading={priority ? 'eager' : 'lazy'} fetchPriority={priority ? 'high' : undefined}
     decoding="async" />;
   return <div className={widget ? 'widget-image' : 'phone'}>{image}</div>;
@@ -98,7 +98,7 @@ function Features() {
       <article>
         <div className="feature-image"><AppImage file="artikel" alt="Artikelansicht mit Quelle, Überschrift und Lesezeichen" /></div>
         <h3>Später in Ruhe lesen.</h3>
-        <p>Merk dir interessante Meldungen für später. In der Web-App und lokalen Version hilft dir auf Wunsch eine KI-Einordnung; im Play-Store-Build führt der Link direkt zum Original.</p>
+        <p>Speichere interessante Meldungen für später. Die Artikelansicht zeigt nach Möglichkeit den Volltext und bietet einen direkten Link zur Originalquelle.</p>
       </article>
       <article>
         <div className="feature-image"><AppImage file="medien" alt="Video- und Audioübersicht aus abonnierten Quellen" /></div>
@@ -106,7 +106,7 @@ function Features() {
         <p>Finde Kurzclips, Videos und Audiobeiträge aus deinen Quellen – mit durchlaufendem Mini-Audio-Player im Web und direktem Abruf beim Anbieter.</p>
       </article>
     </div>
-    <p className="capture-note">App-Ansichten auf Android</p>
+    <p className="capture-note">App-Ansichten auf Android mit Beispielmeldungen</p>
     <div className="widget-feature">
       <AppImage file="widget" alt="Scrollbarer OpenNews-Feed mit Aufmacher und drei Reitern auf dem Android-Startbildschirm" widget />
       <div><h3>Dein Überblick auf dem Startbildschirm.</h3>
