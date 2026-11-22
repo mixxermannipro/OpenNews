@@ -362,4 +362,24 @@ export const PT: Dictionary = {
 
   miniPlayerResume: 'Retomar em {time}',
   miniPlayerClose: 'Fechar leitor',
+
+  swipeLessLikeThis: 'Menos disto',
+  swipeDismissedToast: 'Menos de {category} · {source}',
+  undo: 'Desfazer',
+  feedCaughtUpTitle: 'Está em dia',
+  feedCaughtUpHint: 'Viu todas as notícias de hoje.',
+
+  ttsTitle: 'Leitura em voz alta (TTS)',
+  ttsSubtitle: 'Voz do dispositivo ou vozes IA por cenário',
+  ttsProviderLabel: 'Fornecedor de voz',
+  ttsScenarioArticle: 'Artigo',
+  ttsScenarioBriefing: 'Resumo diário',
+  ttsScenarioFocus: 'Foco calmo',
+  ttsVoiceLabel: 'Voz',
+  ttsModelLabel: 'Modelo de voz',
+  ttsTestVoice: 'Testar voz',
+  ttsTesting: 'A gerar voz…',
+  ttsUseMainKeyHint: 'Deixe vazio para reutilizar a chave API acima.',
+  ttsFallbackHint: 'Voz na nuvem indisponível — a usar voz local.',
+  ttsLoadingAudio: 'A carregar voz…',
 };

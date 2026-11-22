@@ -1,9 +1,10 @@
 import { hasCloudAI } from '../lib/aiClient';
+import { hasCloudTTS, prefetchSpeechClip, synthesizeSpeechBlob } from '../lib/ttsClient';
 import { synthesizeLocalBriefing } from '../lib/dailyBriefingSynth';
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ArrowUpRight, Headphones, Loader2, Pause, Play, Sparkles, Square, X } from 'lucide-react';
-import type { AIProviderConfig, NewsArticle } from '../types/news';
+import type { AIProviderConfig, NewsArticle, TTSProviderConfig } from '../types/news';
 import { useI18n } from '../lib/i18n';
 
 const AndroidSpeech = registerPlugin<{
@@ -16,13 +17,15 @@ const android = Capacitor.getPlatform() === 'android';
 
 const BRIEFING_SPEEDS = [0.9, 1, 1.15, 1.35] as const;
 
-export function AudioBriefing({ articles, config, open, onOpen, onClose, onOpenArticle }: {
+export function AudioBriefing({ articles, config, ttsConfig, open, onOpen, onClose, onOpenArticle, onBeforeSpeak }: {
   articles: NewsArticle[];
   config: AIProviderConfig;
+  ttsConfig: TTSProviderConfig;
   open: boolean;
   onOpen: () => void;
   onClose: () => void;
   onOpenArticle?: (article: NewsArticle) => void;
+  onBeforeSpeak?: () => void;
 }) {
   const { lang, locale, t, categoryLabel, formatHeaderDate } = useI18n();
   const dialog = useRef<HTMLDialogElement>(null);
@@ -30,19 +33,44 @@ export function AudioBriefing({ articles, config, open, onOpen, onClose, onOpenA
   const [aiBriefing, setAiBriefing] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
   const [state, setState] = useState<'idle' | 'playing' | 'paused'>('idle');
+  const [ttsLoading, setTtsLoading] = useState(false);
   const [activeBulletIndex, setActiveBulletIndex] = useState<number>(-1);
   const [speedIndex, setSpeedIndex] = useState(1);
   const [status, setStatus] = useState('');
   const request = useRef(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioUrlRef = useRef<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
   const speed = BRIEFING_SPEEDS[speedIndex];
+  const speedRef = useRef<number>(speed);
+  speedRef.current = speed;
   const cloud = hasCloudAI(config);
+  const cloudTTS = hasCloudTTS(ttsConfig, config);
 
   const localBriefing = useMemo(
     () => synthesizeLocalBriefing(articles, lang, new Date(), 5),
     [articles, lang],
   );
 
+  const cleanupAudio = () => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    if (audioRef.current) {
+      audioRef.current.onended = null;
+      audioRef.current.onerror = null;
+      audioRef.current.pause();
+      audioRef.current.src = '';
+      audioRef.current = null;
+    }
+    if (audioUrlRef.current) {
+      URL.revokeObjectURL(audioUrlRef.current);
+      audioUrlRef.current = null;
+    }
+    setTtsLoading(false);
+  };
+
   const stopSpeaking = () => {
+    cleanupAudio();
     if (android) void AndroidSpeech.stop().catch(() => {});
     else if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
@@ -54,6 +82,12 @@ export function AudioBriefing({ articles, config, open, onOpen, onClose, onOpenA
     request.current++;
     stopSpeaking();
   }, []);
+
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.playbackRate = speed;
+    }
+  }, [speed]);
 
   const stop = () => {
     request.current++;
@@ -77,9 +111,15 @@ export function AudioBriefing({ articles, config, open, onOpen, onClose, onOpenA
     const current = request.current;
     const pause = state === 'playing';
     try {
-      if (android) await (pause ? AndroidSpeech.pause() : AndroidSpeech.resume());
-      else if (pause) window.speechSynthesis.pause();
-      else window.speechSynthesis.resume();
+      if (audioRef.current) {
+        if (pause) audioRef.current.pause();
+        else await audioRef.current.play();
+      } else if (android) {
+        await (pause ? AndroidSpeech.pause() : AndroidSpeech.resume());
+      } else if ('speechSynthesis' in window) {
+        if (pause) window.speechSynthesis.pause();
+        else window.speechSynthesis.resume();
+      }
       if (current !== request.current) return;
       setState(pause ? 'paused' : 'playing');
       setStatus(pause ? t('briefingPause') : t('briefingTrigger'));
@@ -107,34 +147,12 @@ export function AudioBriefing({ articles, config, open, onOpen, onClose, onOpenA
   const play = async () => {
     const current = ++request.current;
     setStatus('');
-
-    if (android) {
-      const fullText = (aiBriefing || localBriefing.spokenScript).trim().slice(0, 4000);
-      if (!fullText) return;
-      setState('playing');
-      await AndroidSpeech.speak({ text: fullText }).then(
-        () => {
-          if (current === request.current) {
-            setState('idle');
-            setActiveBulletIndex(-1);
-          }
-        },
-        () => {
-          if (current === request.current) {
-            setState('idle');
-            setStatus(t('retry'));
-          }
-        },
-      );
-      return;
-    }
-
-    if (!('speechSynthesis' in window)) return;
-    window.speechSynthesis.cancel();
+    stopSpeaking();
+    onBeforeSpeak?.();
 
     // Build synchronized chunks: intro -> each bullet -> quick notes (or AI prose if active)
     const segments: Array<{ text: string; bulletIdx: number }> = aiBriefing
-      ? [{ text: aiBriefing.trim().slice(0, 4000), bulletIdx: -1 }]
+      ? [{ text: aiBriefing.trim().slice(0, 2800), bulletIdx: -1 }]
       : [
           { text: `${localBriefing.greeting}. ${localBriefing.intro}`, bulletIdx: -1 },
           ...localBriefing.bullets.map((b, idx) => ({
@@ -147,35 +165,128 @@ export function AudioBriefing({ articles, config, open, onOpen, onClose, onOpenA
                 bulletIdx: -1,
               }]
             : []),
-        ];
+        ].filter(seg => seg.text.trim().length > 0);
 
     if (!segments.length) return;
-    setState('playing');
 
-    const speakNext = (index: number) => {
+    const speakSystemFrom = (startIndex: number) => {
       if (current !== request.current) return;
-      if (index >= segments.length) {
+      if (android) {
+        const remainingText = segments.slice(startIndex).map(s => s.text).join(' ').trim().slice(0, 4000);
+        if (!remainingText) {
+          setState('idle');
+          setActiveBulletIndex(-1);
+          return;
+        }
+        setState('playing');
+        void AndroidSpeech.speak({ text: remainingText }).then(
+          () => {
+            if (current === request.current) {
+              setState('idle');
+              setActiveBulletIndex(-1);
+            }
+          },
+          () => {
+            if (current === request.current) {
+              setState('idle');
+              setStatus(t('retry'));
+            }
+          },
+        );
+        return;
+      }
+
+      if (!('speechSynthesis' in window)) {
         setState('idle');
         setActiveBulletIndex(-1);
         return;
       }
-      const seg = segments[index];
-      setActiveBulletIndex(seg.bulletIdx);
-      const utterance = new SpeechSynthesisUtterance(seg.text);
-      utterance.lang = locale;
-      utterance.rate = speed;
-      utterance.onend = () => speakNext(index + 1);
-      utterance.onerror = event => {
+      window.speechSynthesis.cancel();
+      setState('playing');
+
+      const speakNext = (index: number) => {
         if (current !== request.current) return;
-        if (['canceled', 'interrupted'].includes(event.error)) return;
-        setState('idle');
-        setActiveBulletIndex(-1);
-        setStatus(t('retry'));
+        if (index >= segments.length) {
+          setState('idle');
+          setActiveBulletIndex(-1);
+          return;
+        }
+        const seg = segments[index];
+        setActiveBulletIndex(seg.bulletIdx);
+        const utterance = new SpeechSynthesisUtterance(seg.text);
+        utterance.lang = locale;
+        utterance.rate = speedRef.current;
+        utterance.onend = () => speakNext(index + 1);
+        utterance.onerror = event => {
+          if (current !== request.current) return;
+          if (['canceled', 'interrupted'].includes(event.error)) return;
+          setState('idle');
+          setActiveBulletIndex(-1);
+          setStatus(t('retry'));
+        };
+        window.speechSynthesis.speak(utterance);
       };
-      window.speechSynthesis.speak(utterance);
+
+      speakNext(startIndex);
     };
 
-    speakNext(0);
+    if (cloudTTS && navigator.onLine) {
+      setState('playing');
+
+      const playCloudIndex = async (index: number): Promise<void> => {
+        if (current !== request.current) return;
+        if (index >= segments.length) {
+          cleanupAudio();
+          setState('idle');
+          setActiveBulletIndex(-1);
+          setStatus('');
+          return;
+        }
+        const seg = segments[index];
+        setActiveBulletIndex(seg.bulletIdx);
+        setTtsLoading(true);
+        setStatus(t('ttsLoadingAudio'));
+
+        // Opportunistically prefetch next segment for gapless playback
+        if (index + 1 < segments.length) {
+          prefetchSpeechClip(segments[index + 1].text, 'briefing', ttsConfig, config, lang);
+        }
+
+        const controller = new AbortController();
+        abortRef.current = controller;
+        try {
+          const blob = await synthesizeSpeechBlob(seg.text, 'briefing', ttsConfig, config, lang, controller.signal);
+          if (current !== request.current) return;
+          cleanupAudio();
+          const url = URL.createObjectURL(blob);
+          audioUrlRef.current = url;
+          const audio = new Audio(url);
+          audio.playbackRate = speedRef.current;
+          audioRef.current = audio;
+          setStatus('');
+          audio.onended = () => {
+            if (current === request.current) void playCloudIndex(index + 1);
+          };
+          audio.onerror = () => {
+            if (current !== request.current) return;
+            cleanupAudio();
+            setStatus(t('ttsFallbackHint'));
+            speakSystemFrom(index);
+          };
+          await audio.play();
+        } catch {
+          if (current !== request.current) return;
+          cleanupAudio();
+          setStatus(t('ttsFallbackHint'));
+          speakSystemFrom(index);
+        }
+      };
+
+      void playCloudIndex(0);
+      return;
+    }
+
+    speakSystemFrom(0);
   };
 
   const handleOpenBulletArticle = (article: NewsArticle) => {
@@ -184,7 +295,7 @@ export function AudioBriefing({ articles, config, open, onOpen, onClose, onOpenA
     onOpenArticle?.(article);
   };
 
-  const canSpeak = android || 'speechSynthesis' in window;
+  const canSpeak = cloudTTS || android || 'speechSynthesis' in window;
 
   return (
     <>
@@ -233,7 +344,9 @@ export function AudioBriefing({ articles, config, open, onOpen, onClose, onOpenA
                 type="button"
                 onClick={state === 'idle' ? () => void play() : () => void togglePause()}
               >
-                {state === 'playing' ? (
+                {ttsLoading ? (
+                  <Loader2 size={15} className="animate-spin" aria-hidden="true" />
+                ) : state === 'playing' ? (
                   <Pause size={15} fill="currentColor" aria-hidden="true" />
                 ) : (
                   <Play size={15} fill="currentColor" aria-hidden="true" />

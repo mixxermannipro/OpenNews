@@ -11,6 +11,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createServer as createViteServer } from 'vite';
 import { parseFeedPayload } from './src/lib/rssParser.ts';
+import { GoogleGenAI } from '@google/genai';
+import { ensureWavBytes } from './src/lib/ttsClient.ts';
 import type { NewsSource } from './src/types/news.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -82,6 +84,28 @@ app.get('/api/health', (_req, res) => {
   res.json({ ok: true, service: 'OpenNews' });
 });
 
+interface CachedFeedEntry {
+  articles: ReturnType<typeof parseFeedPayload>;
+  fetchedAt: number;
+  etag?: string;
+  lastModified?: string;
+}
+
+const FEED_CACHE_TTL_MS = 90_000;
+const FEED_CACHE_MAX_ENTRIES = 140;
+const feedCache = new Map<string, CachedFeedEntry>();
+const inFlightFeeds = new Map<string, Promise<{ sourceId: string; ok: boolean; count: number; articles: ReturnType<typeof parseFeedPayload> }>>();
+
+function touchFeedCache(key: string, entry: CachedFeedEntry) {
+  if (feedCache.has(key)) feedCache.delete(key);
+  feedCache.set(key, entry);
+  while (feedCache.size > FEED_CACHE_MAX_ENTRIES) {
+    const oldest = feedCache.keys().next().value;
+    if (oldest === undefined) break;
+    feedCache.delete(oldest);
+  }
+}
+
 app.post('/api/feeds/fetch', async (req, res) => {
   const feeds = Array.isArray(req.body?.feeds) ? (req.body.feeds as NewsSource[]) : [];
   if (feeds.length === 0) {
@@ -89,34 +113,80 @@ app.post('/api/feeds/fetch', async (req, res) => {
     return;
   }
 
+  const forceRefresh = req.body?.force === true;
+  const now = Date.now();
   const limitedFeeds = feeds.slice(0, 20);
   const results = await Promise.all(
     limitedFeeds.map(async (source) => {
       if (!source?.url || !isSafeHttpUrl(source.url)) {
         return { sourceId: source?.id || 'unknown', ok: false, count: 0, articles: [] };
       }
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 5500);
-      try {
-        const response = await fetchPublic(source.url, {
-          signal: controller.signal,
-          headers: {
+      const cacheKey = `${source.id}|${source.url}`;
+      const cached = feedCache.get(cacheKey);
+      if (!forceRefresh && cached && now - cached.fetchedAt < FEED_CACHE_TTL_MS) {
+        return { sourceId: source.id, ok: true, count: cached.articles.length, articles: cached.articles };
+      }
+
+      const existingFlight = inFlightFeeds.get(cacheKey);
+      if (existingFlight) {
+        return existingFlight;
+      }
+
+      const fetchTask = (async () => {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5500);
+        try {
+          const headers: Record<string, string> = {
             'User-Agent': 'OpenNews/1.0 (+https://opennews.local; RSS Reader)',
             Accept: 'application/rss+xml, application/atom+xml, application/feed+json, application/xml, text/xml, */*',
-          },
-        });
-        if (!response.ok) {
-          await response.body?.cancel();
-          return { sourceId: source.id, ok: false, count: 0, status: response.status, articles: [] };
+          };
+          if (cached?.etag) headers['If-None-Match'] = cached.etag;
+          if (cached?.lastModified) headers['If-Modified-Since'] = cached.lastModified;
+
+          const response = await fetchPublic(source.url, {
+            signal: controller.signal,
+            headers,
+          });
+          if (response.status === 304 && cached) {
+            await response.body?.cancel();
+            const refreshed: CachedFeedEntry = {
+              ...cached,
+              fetchedAt: Date.now(),
+              etag: response.headers.get('etag') || cached.etag,
+              lastModified: response.headers.get('last-modified') || cached.lastModified,
+            };
+            touchFeedCache(cacheKey, refreshed);
+            return { sourceId: source.id, ok: true, count: refreshed.articles.length, articles: refreshed.articles };
+          }
+          if (!response.ok) {
+            await response.body?.cancel();
+            if (cached && Date.now() - cached.fetchedAt < 10 * 60_000) {
+              return { sourceId: source.id, ok: true, count: cached.articles.length, articles: cached.articles };
+            }
+            return { sourceId: source.id, ok: false, count: 0, articles: [] };
+          }
+          const rawText = await readPublicText(response);
+          const articles = parseFeedPayload(rawText, source);
+          touchFeedCache(cacheKey, {
+            articles,
+            fetchedAt: Date.now(),
+            etag: response.headers.get('etag') || undefined,
+            lastModified: response.headers.get('last-modified') || undefined,
+          });
+          return { sourceId: source.id, ok: true, count: articles.length, articles };
+        } catch {
+          if (cached && Date.now() - cached.fetchedAt < 10 * 60_000) {
+            return { sourceId: source.id, ok: true, count: cached.articles.length, articles: cached.articles };
+          }
+          return { sourceId: source.id, ok: false, count: 0, articles: [] };
+        } finally {
+          clearTimeout(timeout);
+          inFlightFeeds.delete(cacheKey);
         }
-        const rawText = await readPublicText(response);
-        const articles = parseFeedPayload(rawText, source);
-        return { sourceId: source.id, ok: true, count: articles.length, articles };
-      } catch {
-        return { sourceId: source.id, ok: false, count: 0, articles: [] };
-      } finally {
-        clearTimeout(timeout);
-      }
+      })();
+
+      inFlightFeeds.set(cacheKey, fetchTask);
+      return fetchTask;
     })
   );
 
@@ -224,6 +294,26 @@ app.get('/api/media/transcript', async (req, res) => {
   }
 });
 
+interface CachedArticleEntry {
+  data: ReturnType<typeof extractArticle>;
+  fetchedAt: number;
+}
+
+const ARTICLE_CACHE_TTL_MS = 10 * 60_000;
+const ARTICLE_CACHE_MAX_ENTRIES = 80;
+const articleCache = new Map<string, CachedArticleEntry>();
+const inFlightArticles = new Map<string, Promise<ReturnType<typeof extractArticle> | null>>();
+
+function touchArticleCache(url: string, data: ReturnType<typeof extractArticle>) {
+  if (articleCache.has(url)) articleCache.delete(url);
+  articleCache.set(url, { data, fetchedAt: Date.now() });
+  while (articleCache.size > ARTICLE_CACHE_MAX_ENTRIES) {
+    const oldest = articleCache.keys().next().value;
+    if (oldest === undefined) break;
+    articleCache.delete(oldest);
+  }
+}
+
 app.get('/api/article/extract', async (req, res) => {
   const url = String(req.query.url || '');
   if (!isSafeHttpUrl(url)) {
@@ -231,41 +321,61 @@ app.get('/api/article/extract', async (req, res) => {
     return;
   }
   const isPreload = String(req.query.preload || '') === '1';
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 6000);
-  try {
-    const resp = await fetchPublic(url, {
-      signal: controller.signal,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; OpenNewsReader/1.0)',
-        Accept: 'text/html,application/xhtml+xml',
-      },
-    });
-    if (!resp.ok) {
-      await resp.body?.cancel();
-      if (isPreload) {
-        res.set('Cache-Control', 'no-store').json({ paragraphs: [], headingIndexes: [], unavailable: true });
-        return;
+
+  const cached = articleCache.get(url);
+  if (cached && Date.now() - cached.fetchedAt < ARTICLE_CACHE_TTL_MS) {
+    res.set('Cache-Control', 'no-store').json(cached.data);
+    return;
+  }
+
+  let task = inFlightArticles.get(url);
+  if (!task) {
+    task = (async () => {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 6000);
+      try {
+        const resp = await fetchPublic(url, {
+          signal: controller.signal,
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (compatible; OpenNewsReader/1.0)',
+            Accept: 'text/html,application/xhtml+xml',
+          },
+        });
+        if (!resp.ok) {
+          await resp.body?.cancel();
+          return null;
+        }
+        const html = await readPublicText(resp);
+        const dom = new JSDOM(html, { url: resp.url });
+        try {
+          const extracted = extractArticle(dom.window.document, resp.url);
+          if (extracted.paragraphs.length > 0) {
+            touchArticleCache(url, extracted);
+          }
+          return extracted;
+        } finally {
+          dom.window.close();
+        }
+      } catch {
+        return null;
+      } finally {
+        clearTimeout(timeout);
+        inFlightArticles.delete(url);
       }
-      res.status(502).json({ error: 'Artikel konnte nicht geladen werden' });
-      return;
-    }
-    const html = await readPublicText(resp);
-    const dom = new JSDOM(html, { url: resp.url });
-    try {
-      res.set('Cache-Control', 'no-store').json(extractArticle(dom.window.document, resp.url));
-    } finally {
-      dom.window.close();
-    }
-  } catch {
+    })();
+    inFlightArticles.set(url, task);
+  }
+
+  const extracted = await task;
+  if (!extracted) {
     if (isPreload) {
       res.set('Cache-Control', 'no-store').json({ paragraphs: [], headingIndexes: [], unavailable: true });
       return;
     }
-    res.status(504).json({ error: 'Zeitüberschreitung beim Laden des Artikels' });
-  } finally {
-    clearTimeout(timeout);
+    res.status(502).json({ error: 'Artikel konnte nicht geladen werden' });
+    return;
   }
+  res.set('Cache-Control', 'no-store').json(extracted);
 });
 
 app.post('/api/ai/proxy', async (req, res) => {
@@ -377,6 +487,175 @@ app.post('/api/ai/proxy', async (req, res) => {
     res.status(502).json({
       error: 'Verbindung zum KI-Anbieter fehlgeschlagen',
     });
+  }
+});
+
+const MAX_TTS_BYTES = 10 * 1024 * 1024;
+
+async function readAudioBufferLimited(resp: Awaited<ReturnType<typeof fetchPublic>>): Promise<Buffer> {
+  const reader = resp.body?.getReader();
+  if (!reader) return Buffer.alloc(0);
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (!value) continue;
+    total += value.byteLength;
+    if (total > MAX_TTS_BYTES) {
+      await reader.cancel();
+      throw new Error('Audio-Antwort überschreitet das Größenlimit.');
+    }
+    chunks.push(value);
+  }
+  return Buffer.concat(chunks);
+}
+
+app.post('/api/tts/proxy', async (req, res) => {
+  const provider = String(req.body?.provider || 'google');
+  const apiKey = String(req.body?.apiKey || '').trim();
+  const model = String(req.body?.model || '').trim();
+  const voice = String(req.body?.voice || '').trim();
+  const stylePrompt = String(req.body?.stylePrompt || '').trim().slice(0, 300);
+  const customEndpoint = String(req.body?.customEndpoint || '').trim();
+  const text = String(req.body?.text || '').replace(/\s+/g, ' ').trim();
+  const rawSpeed = Number(req.body?.speed);
+  const speed = Number.isFinite(rawSpeed) ? Math.max(0.75, Math.min(1.6, rawSpeed)) : 1;
+
+  if (!text || text.length > 3000) {
+    res.status(400).json({ error: 'Der Vorlesetext fehlt oder ist zu lang (max. 3.000 Zeichen).' });
+    return;
+  }
+  if (!['google', 'openai', 'elevenlabs', 'custom'].includes(provider)) {
+    res.status(400).json({ error: 'Unbekannter Vorlese-Anbieter.' });
+    return;
+  }
+  if (!apiKey && provider !== 'custom') {
+    res.status(400).json({ error: 'Bitte hinterlege einen API-Key für den gewählten Vorlese-Anbieter.' });
+    return;
+  }
+  if (provider === 'custom' && (!isSafeHttpUrl(customEndpoint) || new URL(customEndpoint).protocol !== 'https:')) {
+    res.status(400).json({ error: 'Der eigene TTS-Endpunkt benötigt eine öffentliche HTTPS-Adresse.' });
+    return;
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20_000);
+
+  try {
+    if (provider === 'google') {
+      const targetModel = (model || 'gemini-3.8-flash-lite-tts').replace(/^models\//, '');
+      const voiceName = /^[A-Za-z0-9_-]{2,40}$/.test(voice) ? voice : 'Kore';
+      const ai = new GoogleGenAI({
+        apiKey,
+        httpOptions: {
+          headers: { 'User-Agent': 'aistudio-build' },
+          timeout: 20_000,
+        },
+      });
+      const response = await ai.models.generateContent({
+        model: targetModel,
+        contents: [
+          {
+            role: 'user',
+            parts: [
+              {
+                text,
+                ...(stylePrompt ? { speechMetadata: { style: stylePrompt } } : {}),
+              },
+            ],
+          },
+        ],
+        config: {
+          responseModalities: ['AUDIO'],
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: { voiceName },
+            },
+          },
+        },
+      });
+      const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+      if (!base64Audio) {
+        res.status(502).json({ error: 'Google AI Studio hat keine Audiodaten zurückgegeben.' });
+        return;
+      }
+      const wavBytes = ensureWavBytes(new Uint8Array(Buffer.from(base64Audio, 'base64')), 24000);
+      res.set({
+        'Content-Type': 'audio/wav',
+        'Cache-Control': 'no-store',
+      }).send(Buffer.from(wavBytes));
+      return;
+    }
+
+    if (provider === 'elevenlabs') {
+      const safeVoice = /^[A-Za-z0-9_-]{8,64}$/.test(voice) ? voice : '21m00Tcm4TlvDq8ikWAM';
+      const resp = await fetchPublic(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(safeVoice)}`, {
+        method: 'POST',
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'audio/mpeg',
+          'xi-api-key': apiKey,
+        },
+        body: JSON.stringify({
+          text,
+          model_id: model || 'eleven_flash_v2_5',
+        }),
+      });
+      if (!resp.ok) {
+        const msg = await readPublicText(resp).catch(() => '');
+        res.status(resp.status).json({ error: msg ? `ElevenLabs Fehler (${resp.status})` : 'ElevenLabs Anfrage fehlgeschlagen.' });
+        return;
+      }
+      const audio = await readAudioBufferLimited(resp);
+      res.set({ 'Content-Type': 'audio/mpeg', 'Cache-Control': 'no-store' }).send(audio);
+      return;
+    }
+
+    const endpoint = provider === 'openai'
+      ? 'https://api.openai.com/v1/audio/speech'
+      : customEndpoint;
+    const targetModel = model || (provider === 'openai' ? 'gpt-4o-mini-tts' : 'tts-1');
+    const resp = await fetchPublic(endpoint, {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
+      },
+      body: JSON.stringify({
+        model: targetModel,
+        input: text,
+        voice: voice || 'sage',
+        speed,
+        ...(stylePrompt && targetModel === 'gpt-4o-mini-tts' ? { instructions: stylePrompt } : {}),
+        response_format: 'mp3',
+      }),
+    });
+    if (!resp.ok) {
+      await resp.body?.cancel();
+      res.status(resp.status).json({ error: `TTS-Anbieter Fehler (${resp.status})` });
+      return;
+    }
+    const contentType = resp.headers.get('content-type') || 'audio/mpeg';
+    const audio = await readAudioBufferLimited(resp);
+    res.set({
+      'Content-Type': /^audio\//i.test(contentType) ? contentType : 'audio/mpeg',
+      'Cache-Control': 'no-store',
+    }).send(audio);
+  } catch (err) {
+    const status = typeof (err as { status?: number })?.status === 'number' ? (err as { status: number }).status : 502;
+    const safeStatus = status >= 400 && status < 600 ? status : 502;
+    const message =
+      safeStatus === 401 || safeStatus === 403
+        ? 'API-Key ungültig oder ohne Berechtigung.'
+        : safeStatus === 429
+          ? 'Anbieter-Kontingent erreicht (429). Bitte später erneut versuchen.'
+          : 'Sprachausgabe beim Anbieter fehlgeschlagen.';
+    res.status(safeStatus).json({ error: message });
+  } finally {
+    clearTimeout(timeout);
   }
 });
 

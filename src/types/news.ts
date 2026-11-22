@@ -101,6 +101,26 @@ export interface AIProviderConfig {
   summaryStyle?: SummaryStyle;
 }
 
+export type TTSProviderId = 'system' | 'google' | 'openai' | 'elevenlabs' | 'custom';
+
+export type TTSScenarioId = 'article' | 'briefing' | 'focus';
+
+export interface TTSScenarioConfig {
+  model?: string;
+  voice?: string;
+  speed?: number;
+  stylePrompt?: string;
+}
+
+export interface TTSProviderConfig {
+  provider: TTSProviderId;
+  apiKey: string;
+  model: string;
+  voice: string;
+  customEndpoint?: string;
+  scenarios: Record<TTSScenarioId, TTSScenarioConfig>;
+}
+
 export interface AISummaryResult {
   bullets: string[];
   mode: 'ai' | 'local';

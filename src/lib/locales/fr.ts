@@ -362,4 +362,24 @@ export const FR: Dictionary = {
 
   miniPlayerResume: 'Reprendre à {time}',
   miniPlayerClose: 'Fermer le lecteur',
+
+  swipeLessLikeThis: 'Moins de ce genre',
+  swipeDismissedToast: 'Moins de {category} · {source}',
+  undo: 'Annuler',
+  feedCaughtUpTitle: 'Vous êtes à jour',
+  feedCaughtUpHint: 'Vous avez parcouru toute l’actualité du jour.',
+
+  ttsTitle: 'Lecture vocale & voix (TTS)',
+  ttsSubtitle: 'Voix de l’appareil ou voix IA par scénario',
+  ttsProviderLabel: 'Fournisseur vocal',
+  ttsScenarioArticle: 'Article',
+  ttsScenarioBriefing: 'Synthèse du jour',
+  ttsScenarioFocus: 'Lecture calme',
+  ttsVoiceLabel: 'Voix',
+  ttsModelLabel: 'Modèle vocal',
+  ttsTestVoice: 'Tester la voix',
+  ttsTesting: 'Génération vocale…',
+  ttsUseMainKeyHint: 'Laissez vide pour réutiliser la clé API ci-dessus.',
+  ttsFallbackHint: 'Voix cloud indisponible — voix locale activée.',
+  ttsLoadingAudio: 'Chargement de la voix…',
 };

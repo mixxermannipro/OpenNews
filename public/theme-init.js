@@ -12,7 +12,7 @@
     }
     var metaTheme = document.querySelector('meta[name="theme-color"]');
     if (metaTheme) {
-      metaTheme.setAttribute('content', resolvedDark ? '#111214' : '#f6f5f2');
+      metaTheme.setAttribute('content', resolvedDark ? '#0f1013' : '#f5f3ee');
     }
   } catch (e) {}
 })();

@@ -4,6 +4,7 @@ import { resolveRetention } from './preferences';
 import assert from 'node:assert/strict';
 import {
   createDefaultProfile,
+  dismissArticleLessLikeThis,
   generateLocalExtractiveSummary,
   rankArticlesForYou,
   recordReadingDuration,
@@ -153,16 +154,19 @@ test('a fresh breaking story leads even with a strong interest in another topic'
   assert.equal(rankArticlesForYou([article, breaking], profile, DEFAULT_SOURCES, nowMs)[0].article.id, breaking.id);
 });
 
-test('Heute favors important stories and mixes sources independently of personal dislikes', () => {
+test('Heute hides explicitly dismissed stories and respects negative preferences while Neueste stays chronological', () => {
   const localNoon = new Date(2026, 10, 12, 12).getTime();
   const politics = { ...sampleArticles[0], publishedAt: new Date(localNoon - 30 * 60_000).toISOString() };
   const technology = { ...sampleArticles[1], publishedAt: new Date(localNoon - 4 * 60 * 60_000).toISOString() };
   const breaking = { ...politics, id: 'breaking', title: 'Eilmeldung zum Bundeshaushalt', link: 'https://example.com/breaking', isBreaking: true, publishedAt: technology.publishedAt };
-  const profile = { ...createDefaultProfile(), dislikedIds: ['breaking'] };
+  const profile = dismissArticleLessLikeThis(createDefaultProfile(), breaking);
+  assert.ok(profile.dislikedIds.includes('breaking'));
+  assert.ok((profile.topicWeights['Politik'] ?? 0) < 0);
+  assert.ok((profile.keywordWeights['bundestag'] ?? 0) < 0);
   const sections = buildHomeSections([politics, breaking, technology], profile, DEFAULT_SOURCES, localNoon);
-  assert.deepEqual(sections.Heute.map(story => story.lead.id), ['breaking', 'a-tech', 'a-pol']);
-  assert.deepEqual(sections.Neueste.map(story => story.lead.id), ['a-pol', 'a-tech', 'breaking']);
+  assert.ok(!sections.Heute.some(story => story.lead.id === 'breaking'));
   assert.ok(!sections['Für dich'].some(story => story.lead.id === 'breaking'));
+  assert.deepEqual(sections.Neueste.map(story => story.lead.id), ['a-pol', 'a-tech', 'breaking']);
 });
 
 test('older stories stay available in Neueste without filling Heute or Für dich', () => {
@@ -222,4 +226,28 @@ test('interest weights halve after 21 days and reset preserves saved articles', 
   const reset = resetProfileWeights(later);
   assert.deepEqual(reset.topicWeights, {});
   assert.deepEqual(reset.bookmarkedIds, ['saved']);
+});
+
+test('diversifyArticles does not mutate input array and negative keywords attenuate specific interest', async () => {
+  const { diversifyArticles, scoreArticle } = await import('./personalization');
+  const input = [
+    { article: sampleArticles[0], score: 10 },
+    { article: sampleArticles[1], score: 9 },
+  ];
+  const snapshotIds = input.map(e => e.article.id);
+  const diversified = diversifyArticles(input);
+  assert.deepEqual(input.map(e => e.article.id), snapshotIds);
+  assert.equal(diversified.length, 2);
+
+  const profileWithMixedKeywords = {
+    ...createDefaultProfile(),
+    keywordWeights: { chips: 2, smartphones: -3, lokale: -2 },
+  };
+  const profileOnlyPositive = {
+    ...createDefaultProfile(),
+    keywordWeights: { chips: 2 },
+  };
+  const scoredMixed = scoreArticle(sampleArticles[1], profileWithMixedKeywords, new Set(), nowMs);
+  const scoredPositive = scoreArticle(sampleArticles[1], profileOnlyPositive, new Set(), nowMs);
+  assert.ok(scoredMixed.score < scoredPositive.score);
 });

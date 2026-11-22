@@ -87,7 +87,10 @@ export function detectAndClarifyClickbait(
   const title = article.title.trim();
   if (!title) return { isClickbait: false };
 
-  const uppercaseWords = title.split(/\s+/).filter(w => w.length >= 4 && w === w.toUpperCase() && /[A-ZÄÖÜ]/.test(w));
+  const uppercaseWords = title.split(/\s+/).filter(w => {
+    const clean = w.replace(/[^\p{L}]/gu, '');
+    return clean.length >= 6 && clean === clean.toUpperCase() && /[A-ZÄÖÜ]/.test(clean);
+  });
   const looksClickbaity =
     uppercaseWords.length >= 2 ||
     CLICKBAIT_PATTERNS.some(rx => rx.test(title));

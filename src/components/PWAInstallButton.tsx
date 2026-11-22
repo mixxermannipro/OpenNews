@@ -22,7 +22,7 @@ export const PWAInstallButton: React.FC = () => {
       <button
         type="button"
         onClick={install}
-        className="inline-flex min-h-[44px] items-center gap-2 rounded-full bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-500 active:scale-95"
+        className="primary-action inline-flex min-h-[44px] items-center gap-2 px-4 py-2 text-xs font-semibold shadow-sm"
       >
         <Download className="h-4 w-4" aria-hidden="true" />
         {t('installApp')}
@@ -35,7 +35,7 @@ export const PWAInstallButton: React.FC = () => {
       <button
         type="button"
         onClick={() => setShowGuide(true)}
-        className="inline-flex min-h-[44px] items-center gap-2 rounded-full bg-slate-200/80 px-4 py-2 text-xs font-semibold text-slate-800 transition hover:bg-slate-300 dark:bg-white/10 dark:text-slate-100 dark:hover:bg-white/15"
+        className="choice-pill inline-flex min-h-[44px] items-center gap-2 px-4 py-2 text-xs font-semibold"
       >
         <Smartphone className="h-4 w-4" aria-hidden="true" />
         {isIOS ? t('installOnIOS') : t('installOnPhone')}

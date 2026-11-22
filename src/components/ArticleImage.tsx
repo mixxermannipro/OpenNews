@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Newspaper } from 'lucide-react';
 
 interface ArticleImageProps {
@@ -18,6 +18,7 @@ export const ArticleImage: React.FC<ArticleImageProps> = ({
   className = '',
   priority = false,
 }) => {
+  const imgRef = useRef<HTMLImageElement>(null);
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
   const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
 
@@ -26,14 +27,24 @@ export const ArticleImage: React.FC<ArticleImageProps> = ({
 
   useEffect(() => {
     if (!src) return;
-    // Reset stale states when src changes to a new URL
     if (failedSrc && failedSrc !== src) setFailedSrc(null);
   }, [src, failedSrc]);
+
+  // Immediately reveal browser-cached images on mount/src change without shimmer flash
+  useLayoutEffect(() => {
+    const img = imgRef.current;
+    if (!src || !img || !img.complete) return;
+    if (img.naturalWidth > 12 && img.naturalHeight > 12) {
+      setLoadedSrc(src);
+    } else if (img.naturalWidth === 0) {
+      setFailedSrc(src);
+    }
+  }, [src]);
 
   if (failed) {
     return (
       <div
-        className={`relative flex items-center justify-center overflow-hidden bg-gradient-to-br from-[#eae8e3] via-[#f2f0ec] to-[#e5e3de] dark:from-[#161922] dark:via-[#12151d] dark:to-[#1c212d] ${className}`}
+        className={`relative flex items-center justify-center overflow-hidden bg-gradient-to-br from-[var(--control)] via-[var(--panel)] to-[var(--control)] ${className}`}
         aria-label={alt || undefined}
       >
         <div
@@ -56,6 +67,7 @@ export const ArticleImage: React.FC<ArticleImageProps> = ({
     <div className={`relative overflow-hidden bg-[var(--control)] ${className}`}>
       {!loaded && <div aria-hidden="true" className="image-shimmer absolute inset-0" />}
       <img
+        ref={imgRef}
         src={src}
         alt={alt}
         loading={priority ? 'eager' : 'lazy'}
@@ -71,7 +83,7 @@ export const ArticleImage: React.FC<ArticleImageProps> = ({
             setLoadedSrc(src);
           }
         }}
-        className={`h-full w-full object-cover transition-opacity duration-300 ease-out ${loaded ? 'opacity-100' : 'opacity-0'}`}
+        className={`h-full w-full object-cover transition-opacity duration-200 ease-out ${loaded ? 'opacity-100' : 'opacity-0'}`}
       />
     </div>
   );

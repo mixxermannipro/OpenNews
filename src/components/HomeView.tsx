@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { ArrowDown, ArrowUp, ChevronDown, Layers, LoaderCircle, Plus, RefreshCw, Sparkles } from 'lucide-react';
+import { ArrowDown, ArrowUp, CheckCircle2, ChevronDown, Layers, LoaderCircle, Plus, RefreshCw, Sparkles } from 'lucide-react';
 import type { NewsArticle, PersonalizationProfile } from '../types/news';
 import type { HomeStory } from '../lib/newsFeed';
 import { HOME_TABS, type HomeTab } from '../lib/preferences';
@@ -8,7 +8,7 @@ import { computePullState, PULL_REFRESH_THRESHOLD } from '../lib/pullPhysics';
 import { STARTER_PACKS } from '../lib/catalog';
 import { useI18n } from '../lib/i18n';
 import { ViewStatus } from './ViewStatus';
-import { CompactArticleCard, HeadlineArticleCard } from './ArticleCards';
+import { CompactArticleCard, HeadlineArticleCard, SwipeableArticleCard } from './ArticleCards';
 
 interface HomeViewProps {
   stories: HomeStory[];
@@ -22,12 +22,14 @@ interface HomeViewProps {
   lastUpdatedAt?: number | null;
   pendingNewCount?: number;
   onApplyPending?: () => void;
-  onRefresh: () => Promise<void>;
+  onRefresh: (force?: boolean) => Promise<void>;
   onOpenSources: () => void;
   onApplyStarterPack: (sourceIds: readonly string[]) => void;
   onOpenArticle: (article: NewsArticle) => void;
   onToggleBookmark: (article: NewsArticle) => void;
   onToggleLike: (article: NewsArticle) => void;
+  onDismissLessLikeThis?: (article: NewsArticle) => void;
+  onOpenDiscover?: () => void;
 }
 
 function HomeSkeleton({ showHero }: { showHero: boolean }) {
@@ -95,6 +97,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onOpenArticle,
   onToggleBookmark,
   onToggleLike,
+  onDismissLessLikeThis,
+  onOpenDiscover,
 }) => {
   const { lang, t, homeTabLabel, formatHeaderDate, formatTimelineDate, formatTime } = useI18n();
   const gesture = useRef<{ x: number; y: number; distance: number } | null>(null);
@@ -142,6 +146,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
       ? t('homeDescForYou')
       : t('homeDescLatest');
 
+  const canSwipeDismiss = Boolean(onDismissLessLikeThis) && (isToday || selectedCategory === 'Für dich');
+
   const cardProps = ({ lead: article }: HomeStory) => ({
     article,
     isBookmarked: profile.bookmarkedIds.includes(article.id),
@@ -149,6 +155,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
     onOpen: onOpenArticle,
     onToggleBookmark,
     onToggleLike,
+    onDismissLessLikeThis: canSwipeDismiss ? onDismissLessLikeThis : undefined,
   });
 
   const related = ({ reports }: HomeStory) => {
@@ -204,7 +211,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
     const Card = large ? HeadlineArticleCard : CompactArticleCard;
     return (
       <div key={story.lead.id} className={large ? 'min-w-0 md:col-span-2' : 'min-w-0'}>
-        <Card {...cardProps(story)} />
+        <SwipeableArticleCard article={story.lead} enabled={canSwipeDismiss} onDismiss={onDismissLessLikeThis}>
+          <Card {...cardProps(story)} />
+        </SwipeableArticleCard>
         {storyDetails(story)}
       </div>
     );
@@ -263,7 +272,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         resetPull();
         if (shouldRefresh && !isLoading && hasActiveSources) {
           setGestureRefresh(true);
-          void Promise.resolve(onRefresh()).finally(() => setGestureRefresh(false));
+          void Promise.resolve(onRefresh(true)).finally(() => setGestureRefresh(false));
         }
       }}
       onTouchCancel={resetPull}
@@ -302,7 +311,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   type="button"
                   className="briefing-trigger rounded-full px-2.5"
                   disabled={isLoading}
-                  onClick={() => void onRefresh()}
+                  onClick={() => void onRefresh(true)}
                   aria-label={t('refresh')}
                   title={t('refresh')}
                 >
@@ -424,7 +433,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     action={selectedCategory !== 'Neueste' ? (
                       <button type="button" className="choice-pill" onClick={() => onSelectCategory('Neueste')}>{t('homeGoLatest')}</button>
                     ) : (
-                      <button type="button" className="choice-pill" onClick={() => void onRefresh()}>{t('retry')}</button>
+                      <button type="button" className="choice-pill" onClick={() => void onRefresh(true)}>{t('retry')}</button>
                     )}
                   />
                 )
@@ -432,7 +441,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 <div className="feed-content space-y-6" key={selectedCategory}>
                   {isToday ? (
                     <>
-                      {lead && <div><HeadlineArticleCard {...cardProps(lead)} lead />{storyDetails(lead)}</div>}
+                      {lead && (
+                        <div>
+                          <SwipeableArticleCard article={lead.lead} enabled={canSwipeDismiss} onDismiss={onDismissLessLikeThis}>
+                            <HeadlineArticleCard {...cardProps(lead)} lead />
+                          </SwipeableArticleCard>
+                          {storyDetails(lead)}
+                        </div>
+                      )}
                       {headlines.length > 0 && (
                         <section aria-labelledby="today-headlines">
                           <h2 id="today-headlines" className="mb-3 text-xl font-bold tracking-tight">{t('homeHeadlines')}</h2>
@@ -462,7 +478,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       {renderStories(visibleArticles)}
                     </div>
                   )}
-                  {stories.length > visibleLimit && (
+                  {stories.length > visibleLimit ? (
                     <div className="flex justify-center pt-1">
                       <button
                         type="button"
@@ -472,7 +488,18 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         {t('homeShowMore')}
                       </button>
                     </div>
-                  )}
+                  ) : isToday && visibleArticles.length > 0 ? (
+                    <div className="flex flex-col items-center gap-2 border-t border-[var(--line)] pt-7 pb-3 text-center">
+                      <CheckCircle2 size={22} className="text-[var(--accent)]" aria-hidden="true" />
+                      <p className="text-sm font-bold text-[var(--ink)]">{t('feedCaughtUpTitle')}</p>
+                      <p className="text-xs text-[var(--muted)]">{t('feedCaughtUpHint')}</p>
+                      {onOpenDiscover && (
+                        <button type="button" className="choice-pill mt-1 text-xs" onClick={onOpenDiscover}>
+                          {t('navDiscover')}
+                        </button>
+                      )}
+                    </div>
+                  ) : null}
                 </div>
               )}
             </>

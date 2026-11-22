@@ -1,8 +1,9 @@
-import React from 'react';
-import { Bookmark, Flame, Heart, Play, Sparkles } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { Bookmark, Flame, Heart, Play, Sparkles, ThumbsDown } from 'lucide-react';
 import type { NewsArticle } from '../types/news';
 import { useI18n, type TranslationKey } from '../lib/i18n';
 import { classifyArticleType, detectAndClarifyClickbait, type EditorialArticleType } from '../lib/localEditorialAI';
+import { evaluateSwipeMove, shouldCommitSwipe, type SwipeAxis } from '../lib/swipePhysics';
 import { ArticleImage } from './ArticleImage';
 import { SourceIcon } from './SourceIcon';
 
@@ -21,6 +22,7 @@ interface CardActionsProps {
   onOpen: (article: NewsArticle) => void;
   onToggleBookmark: (article: NewsArticle) => void;
   onToggleLike: (article: NewsArticle) => void;
+  onDismissLessLikeThis?: (article: NewsArticle) => void;
 }
 
 const CATEGORY_TEXT_STYLES: Record<string, string> = {
@@ -34,7 +36,7 @@ const CATEGORY_TEXT_STYLES: Record<string, string> = {
   Sport: 'text-orange-700 dark:text-orange-400',
 };
 
-function ArticleActions({ article, isBookmarked, isLiked, onToggleBookmark, onToggleLike, layout = 'row' }:
+function ArticleActions({ article, isBookmarked, isLiked, onToggleBookmark, onToggleLike, onDismissLessLikeThis, layout = 'row' }:
   Omit<CardActionsProps, 'onOpen'> & { layout?: 'column' | 'row' | 'overlay' }) {
   const { t } = useI18n();
   const overlay = layout === 'overlay';
@@ -45,6 +47,17 @@ function ArticleActions({ article, isBookmarked, isLiked, onToggleBookmark, onTo
   const buttonStyle = `reaction-btn flex h-11 w-11 items-center justify-center rounded-full ${style}`;
   return (
     <div className={`${position[layout]} shrink-0 items-center`}>
+      {onDismissLessLikeThis && !overlay && (
+        <button
+          type="button"
+          className={`${buttonStyle} hidden md:flex md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100 transition-opacity`}
+          onClick={() => onDismissLessLikeThis(article)}
+          aria-label={`${t('swipeLessLikeThis')}: ${article.title}`}
+          title={t('swipeLessLikeThis')}
+        >
+          <ThumbsDown size={15} aria-hidden="true" />
+        </button>
+      )}
       <button
         type="button"
         className={buttonStyle}
@@ -73,6 +86,125 @@ function ArticleActions({ article, isBookmarked, isLiked, onToggleBookmark, onTo
           aria-hidden="true"
         />
       </button>
+    </div>
+  );
+}
+
+export function SwipeableArticleCard({
+  article,
+  enabled,
+  onDismiss,
+  children,
+}: {
+  article: NewsArticle;
+  enabled: boolean;
+  onDismiss?: (article: NewsArticle) => void;
+  children: React.ReactNode;
+}) {
+  const { t } = useI18n();
+  const shellRef = useRef<HTMLDivElement>(null);
+  const touchRef = useRef<{ x: number; y: number; dx: number; time: number; axis: SwipeAxis; buzzed: boolean } | null>(null);
+  const [offsetX, setOffsetX] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const [ready, setReady] = useState(false);
+  const [dismissingDir, setDismissingDir] = useState<-1 | 0 | 1>(0);
+
+  if (!enabled || !onDismiss) {
+    return <>{children}</>;
+  }
+
+  const reset = () => {
+    touchRef.current = null;
+    setDragging(false);
+    setOffsetX(0);
+    setReady(false);
+  };
+
+  return (
+    <div
+      ref={shellRef}
+      className="swipe-card-shell group"
+      onTouchStart={event => {
+        if (dismissingDir !== 0 || event.touches.length !== 1) return;
+        const { clientX, clientY } = event.touches[0];
+        touchRef.current = { x: clientX, y: clientY, dx: 0, time: performance.now(), axis: 'none', buzzed: false };
+      }}
+      onTouchMove={event => {
+        const state = touchRef.current;
+        if (!state || dismissingDir !== 0 || event.touches.length !== 1) return;
+        const { clientX, clientY } = event.touches[0];
+        const dx = clientX - state.x;
+        const dy = clientY - state.y;
+        const width = shellRef.current?.clientWidth || 360;
+        const move = evaluateSwipeMove(dx, dy, width, state.axis);
+        state.axis = move.axis;
+        state.dx = dx;
+
+        if (move.axis === 'vertical') {
+          if (dragging) reset();
+          return;
+        }
+        if (move.axis === 'horizontal') {
+          if (!dragging) setDragging(true);
+          setOffsetX(move.offsetX);
+          setReady(move.pastThreshold);
+          if (move.pastThreshold && !state.buzzed) {
+            state.buzzed = true;
+            navigator.vibrate?.(12);
+          } else if (!move.pastThreshold) {
+            state.buzzed = false;
+          }
+        }
+      }}
+      onTouchEnd={() => {
+        const state = touchRef.current;
+        if (!state || state.axis !== 'horizontal') {
+          reset();
+          return;
+        }
+        const width = shellRef.current?.clientWidth || 360;
+        const elapsed = performance.now() - state.time;
+        if (shouldCommitSwipe(state.dx, elapsed, width)) {
+          const dir = state.dx < 0 ? -1 : 1;
+          touchRef.current = null;
+          setDragging(false);
+          setDismissingDir(dir);
+          setOffsetX(dir * (width + 40));
+          window.setTimeout(() => {
+            onDismiss(article);
+          }, 210);
+        } else {
+          reset();
+        }
+      }}
+      onTouchCancel={reset}
+    >
+      {(dragging || dismissingDir !== 0) && (
+        <div className="swipe-card-backdrop" data-ready={ready || dismissingDir !== 0} aria-hidden="true">
+          <span className={`inline-flex items-center gap-2 text-xs font-bold transition-opacity ${offsetX > 12 ? 'opacity-100' : 'opacity-0'}`}>
+            <ThumbsDown size={15} />
+            {t('swipeLessLikeThis')}
+          </span>
+          <span className={`inline-flex items-center gap-2 text-xs font-bold transition-opacity ${offsetX < -12 ? 'opacity-100' : 'opacity-0'}`}>
+            {t('swipeLessLikeThis')}
+            <ThumbsDown size={15} />
+          </span>
+        </div>
+      )}
+      <div
+        className="swipe-card-surface"
+        data-dragging={dragging || undefined}
+        data-dismissing={dismissingDir !== 0 || undefined}
+        style={offsetX !== 0 ? { transform: `translate3d(${offsetX}px, 0, 0)` } : undefined}
+        onClickCapture={event => {
+          if (Math.abs(offsetX) > 10 || dismissingDir !== 0) {
+            event.preventDefault();
+            event.stopPropagation();
+          }
+        }}
+      >
+        {children}
+      </div>
     </div>
   );
 }

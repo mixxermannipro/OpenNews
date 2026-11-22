@@ -415,6 +415,28 @@ const DE = {
   // Mini Audio Player
   miniPlayerResume: 'Fortsetzen ab {time}',
   miniPlayerClose: 'Player schließen',
+
+  // Swipe-to-Dismiss & Feed Caught-Up
+  swipeLessLikeThis: 'Weniger davon',
+  swipeDismissedToast: 'Weniger zu {category} · {source}',
+  undo: 'Rückgängig',
+  feedCaughtUpTitle: 'Du bist auf dem neuesten Stand',
+  feedCaughtUpHint: 'Alle Meldungen von heute gesehen.',
+
+  // Multi-Provider TTS
+  ttsTitle: 'Vorlesen & Stimmen (TTS)',
+  ttsSubtitle: 'Systemstimme oder eigene KI-Stimmen pro Szenario',
+  ttsProviderLabel: 'Vorlese-Anbieter',
+  ttsScenarioArticle: 'Artikel',
+  ttsScenarioBriefing: 'Tagesüberblick',
+  ttsScenarioFocus: 'Ruhiger Fokus',
+  ttsVoiceLabel: 'Stimme',
+  ttsModelLabel: 'Sprachmodell',
+  ttsTestVoice: 'Stimme testen',
+  ttsTesting: 'Erzeuge Stimme…',
+  ttsUseMainKeyHint: 'Leer lassen, um den API-Key von oben mitzunutzen.',
+  ttsFallbackHint: 'Cloud-Stimme nicht erreichbar — Systemstimme aktiv.',
+  ttsLoadingAudio: 'Stimme wird geladen…',
 } as const;
 
 export type TranslationKey = keyof typeof DE;
@@ -782,6 +804,26 @@ const EN: Dictionary = {
 
   miniPlayerResume: 'Resume at {time}',
   miniPlayerClose: 'Close player',
+
+  swipeLessLikeThis: 'Less like this',
+  swipeDismissedToast: 'Less from {category} · {source}',
+  undo: 'Undo',
+  feedCaughtUpTitle: 'You’re all caught up',
+  feedCaughtUpHint: 'You’ve seen all of today’s stories.',
+
+  ttsTitle: 'Read Aloud & Voices (TTS)',
+  ttsSubtitle: 'Device voice or custom AI voices per scenario',
+  ttsProviderLabel: 'Speech provider',
+  ttsScenarioArticle: 'Article',
+  ttsScenarioBriefing: 'Daily briefing',
+  ttsScenarioFocus: 'Calm focus',
+  ttsVoiceLabel: 'Voice',
+  ttsModelLabel: 'Speech model',
+  ttsTestVoice: 'Test voice',
+  ttsTesting: 'Generating voice…',
+  ttsUseMainKeyHint: 'Leave blank to reuse the API key above.',
+  ttsFallbackHint: 'Cloud voice unavailable — using device voice.',
+  ttsLoadingAudio: 'Loading voice…',
 };
 
 const LOADED_DICTIONARIES: Partial<Record<AppLanguage, Dictionary>> = {

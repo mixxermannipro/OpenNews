@@ -157,10 +157,9 @@ export function Appearance({ theme, onTheme, preferences, onPreferences }: Appea
           onChange={language => onPreferences({ ...preferences, language })}
         />
         <PreferenceSelect label={t('settingsAccent')} value={preferences.accent} options={{ system: 'Neutral', blue: 'Blau', green: 'Grün', violet: 'Violett' }} onChange={accent => onPreferences({ ...preferences, accent })} />
-        <PreferenceSelect label={t('settingsGlass')} value={preferences.glass} options={{ subtle: 'Subtle', clear: 'Clear', off: 'Off' }} onChange={glass => onPreferences({ ...preferences, glass })} />
-        <PreferenceSelect label={t('settingsCorners')} value={preferences.corners} options={{ small: 'S', medium: 'M', round: 'L' }} onChange={corners => onPreferences({ ...preferences, corners })} />
         <PreferenceSelect label={t('settingsCards')} value={preferences.cards} options={{ balanced: 'Balanced', compact: 'Compact' }} onChange={cards => onPreferences({ ...preferences, cards })} />
         <PreferenceSelect label={t('settingsTextScale')} value={preferences.textScale} options={{ small: 'S', normal: 'M', large: 'L' }} onChange={textScale => onPreferences({ ...preferences, textScale })} />
+        <PreferenceSelect label={t('settingsAnimations')} value={preferences.motion} options={{ system: t('system'), reduced: 'Reduced' }} onChange={motion => onPreferences({ ...preferences, motion })} />
       </div>
     </div>
   );
@@ -288,8 +287,6 @@ export function ProfileView({ page, onPage, onBack, onSaved, onHistory, onSource
           {link(labels.appearance, <Palette aria-hidden="true" />, () => onPage('appearance'))}
           {link(labels.feed, <Layers aria-hidden="true" />, () => onPage('feed'))}
           {link(labels.reader, <BookOpen aria-hidden="true" />, () => onPage('reader'))}
-          {link(labels.playback, <Clapperboard aria-hidden="true" />, () => onPage('playback'))}
-          {link(labels.motion, <SlidersHorizontal aria-hidden="true" />, () => onPage('motion'))}
         </div>
         <div className="settings-group">
           {link(t('settingsNotifications'), <Bell aria-hidden="true" />, onNotifications)}
@@ -333,15 +330,29 @@ export function ProfileView({ page, onPage, onBack, onSaved, onHistory, onSource
             onChange={retention => onPreferences({ ...preferences, retention })} />
         </div>
       </>}
-      {page === 'reader' && <div className="settings-group">
-        <PreferenceSelect label={t('settingsArticleFontSize')} value={fontSize} options={{ normal: 'Standard', large: 'L', xlarge: 'XL' }} onChange={onFontSize} />
-        <PreferenceSelect label={t('settingsArticleFont')} value={fontFamily} options={{ sans: 'Sans', serif: 'Serif' }} onChange={onFontFamily} />
-        {Capacitor.getPlatform() === 'android' && <>
+      {page === 'reader' && <div className="space-y-4">
+        <div className="settings-group">
+          <PreferenceSelect label={t('settingsArticleFontSize')} value={fontSize} options={{ normal: 'Standard', large: 'L', xlarge: 'XL' }} onChange={onFontSize} />
+          <PreferenceSelect label={t('settingsArticleFont')} value={fontFamily} options={{ sans: 'Sans', serif: 'Serif' }} onChange={onFontFamily} />
           <label className="preference-row justify-between">
-            Artikel automatisch auf Deutsch lesen
-            <input type="checkbox" checked={autoTranslate} onChange={event => onAutoTranslate(event.target.checked)} />
+            <span>{t('settingsBgPlayback')}</span>
+            <input type="checkbox" role="switch" checked={backgroundPlayback}
+              aria-describedby="background-playback-help"
+              onChange={event => onBackgroundPlayback(event.target.checked)} />
           </label>
-        </>}
+          <p id="background-playback-help" className="px-4 pb-3 text-sm text-[var(--muted)]">
+            {t('settingsBgPlaybackHelp')}
+          </p>
+          {Capacitor.getPlatform() === 'android' && <>
+            <label className="preference-row justify-between">
+              Artikel automatisch auf Deutsch lesen
+              <input type="checkbox" checked={autoTranslate} onChange={event => onAutoTranslate(event.target.checked)} />
+            </label>
+          </>}
+        </div>
+        <div className="settings-group">
+          {link(t('ttsTitle'), <Clapperboard aria-hidden="true" />, onAI)}
+        </div>
       </div>}
       {page === 'motion' && <div className="settings-group">
         <PreferenceSelect label={t('settingsAnimations')} value={preferences.motion} options={{ system: t('system'), reduced: 'Reduced' }} onChange={motion => onPreferences({ ...preferences, motion })} />

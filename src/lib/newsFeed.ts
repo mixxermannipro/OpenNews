@@ -7,7 +7,7 @@ import type { HomeTab, Retention } from './preferences';
 export const DAY_MS = 24 * 60 * 60 * 1000;
 const CACHE_LIMIT = 600;
 const PUBLIC_NEWS = new Set<NewsArticle['category']>(['Politik', 'Europa', 'Wirtschaft', 'Wissenschaft']);
-const TEASER = /^(?:das (?:glaubst|glauben) (?:du|sie) nie|(?:du wirst|sie werden) nicht glauben|was dann geschah|you won.t believe)\b/iu;
+const TEASER = /^(?:das (?:glaubst|glauben) (?:du|sie) nie|(?:du wirst|sie werden) nicht glauben|was dann geschah|unglaublich(?:er|e|es)?|schock(?:-|\s)|you won['’]?t believe|what happened next|shocking:|vous n['’]allez pas croire|ce qui s['’]est passé ensuite|no vas a creer|lo que pasó después|non crederai|você não vai acreditar)\b/iu;
 
 export type HomeStory = ReturnType<typeof clusterStories>[number] & { reason?: string };
 
@@ -129,25 +129,48 @@ export function buildHomeSections(
   now: number,
 ): Record<HomeTab, HomeStory[]> {
   const podcastIds = new Set(sources.filter(source => source.format === 'podcast').map(source => source.id));
-  const latest = distinctArticles(articles.filter(article => !podcastIds.has(article.sourceId) && Date.parse(article.publishedAt) <= now).sort(newestFirst));
+  const publishedMsMap = new Map<string, number>();
+  const getPublishedMs = (article: NewsArticle) => {
+    let ts = publishedMsMap.get(article.id);
+    if (ts === undefined) {
+      ts = Date.parse(article.publishedAt);
+      publishedMsMap.set(article.id, ts);
+    }
+    return ts;
+  };
+
+  const latest = distinctArticles(
+    articles
+      .filter(article => !podcastIds.has(article.sourceId) && getPublishedMs(article) <= now)
+      .sort((a, b) => getPublishedMs(b) - getPublishedMs(a) || a.id.localeCompare(b.id))
+  );
   const todayStart = new Date(now);
   todayStart.setHours(0, 0, 0, 0);
+  const todayStartMs = todayStart.getTime();
 
+  const dislikedSet = new Set(profile.dislikedIds);
   const headlines = latest
     .filter(article => {
-      const published = Date.parse(article.publishedAt);
-      return published >= todayStart.getTime() && published <= now;
+      if (dislikedSet.has(article.id)) return false;
+      const published = getPublishedMs(article);
+      return published >= todayStartMs && published <= now;
     })
     .map((article): ScoredArticle => {
-      const ageHours = (now - Date.parse(article.publishedAt)) / (60 * 60 * 1000);
+      const ageHours = (now - getPublishedMs(article)) / (60 * 60 * 1000);
       const publicNewsBonus = PUBLIC_NEWS.has(article.category) ? 2 * Math.exp(-ageHours / 12) : 0;
-      const score = 8 * Math.exp(-ageHours / 18) + publicNewsBonus + (article.isBreaking ? 8 * Math.exp(-ageHours / 12) : 0);
+      const negTopic = Math.min(0, Math.max(-2.5, (profile.topicWeights[article.category] ?? 0) * 0.6));
+      const negSource = Math.min(0, Math.max(-1.5, (profile.sourceWeights[article.sourceId] ?? 0) * 0.4));
+      const negKwSum = article.keywords.reduce((sum, kw) => sum + Math.min(0, profile.keywordWeights[kw] ?? 0), 0);
+      const negKw = Math.max(-2, negKwSum * 0.35);
+      const score = 8 * Math.exp(-ageHours / 18) + publicNewsBonus + (article.isBreaking ? 8 * Math.exp(-ageHours / 12) : 0)
+        + negTopic + negSource + negKw;
       return { article, score, reason: article.isBreaking ? 'Eilmeldung' : undefined };
     });
 
+  const recentCutoff = now - 2 * DAY_MS;
   const recent = latest.filter(article => {
-    const published = Date.parse(article.publishedAt);
-    return published > now - 2 * DAY_MS && published <= now;
+    const published = getPublishedMs(article);
+    return published > recentCutoff && published <= now;
   });
 
   const personal = rankArticlesForYou(recent, profile, sources, now, false, 24);
@@ -155,7 +178,7 @@ export function buildHomeSections(
     .some(weights => Object.values(weights).some(weight => weight > 0));
   const publicOutsideInterests = ({ article }: ScoredArticle) =>
     (PUBLIC_NEWS.has(article.category) || article.isBreaking === true)
-    && Date.parse(article.publishedAt) >= now - DAY_MS
+    && getPublishedMs(article) >= now - DAY_MS
     && (profile.topicWeights[article.category] ?? 0) <= 0
     && (profile.sourceWeights[article.sourceId] ?? 0) <= 0
     && !article.keywords.some(keyword => (profile.keywordWeights[keyword] ?? 0) > 0);

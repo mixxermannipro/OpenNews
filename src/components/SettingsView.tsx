@@ -15,6 +15,7 @@ import {
   Radio,
   Rss,
   ArrowLeft,
+  Volume2,
 } from 'lucide-react';
 import type {
   AIProviderConfig,
@@ -24,8 +25,20 @@ import type {
   NewsCategory,
   NewsSource,
   NotificationSettings,
+  TTSProviderConfig,
+  TTSProviderId,
+  TTSScenarioId,
 } from '../types/news';
 import { AI_PROVIDERS, testAIConnection } from '../lib/aiClient';
+import {
+  buildProviderDefaults,
+  getTTSProviderMeta,
+  getTTSSampleText,
+  normalizeTTSConfig,
+  resolveEffectiveTTSApiKey,
+  synthesizeSpeechBlob,
+  TTS_PROVIDERS,
+} from '../lib/ttsClient';
 import { TopicChoices } from './Preferences';
 import { NewsPush } from '../lib/newsPush';
 import { SourcesManager } from './SourcesManager';
@@ -39,6 +52,7 @@ interface SettingsViewProps {
   sources: NewsSource[];
   formatPrefs: FormatPreferences;
   aiConfig: AIProviderConfig;
+  ttsConfig: TTSProviderConfig;
   notifications: NotificationSettings;
   briefingSettings: BriefingSettings;
   onBriefingSettings: (value: BriefingSettings) => void;
@@ -53,6 +67,7 @@ interface SettingsViewProps {
   onRemoveCustomSource: (sourceId: string) => void;
   onUpdateFormatPrefs: (prefs: FormatPreferences) => void;
   onUpdateAIConfig: (config: AIProviderConfig) => void;
+  onUpdateTTSConfig: (config: TTSProviderConfig) => void;
   onUpdateNotifications: (next: NotificationSettings) => void;
   onSendTestNotification: () => void;
   onResetAlgorithm: () => void;
@@ -66,6 +81,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   sources,
   formatPrefs,
   aiConfig,
+  ttsConfig,
   notifications,
   briefingSettings,
   onBriefingSettings,
@@ -80,19 +96,27 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onRemoveCustomSource,
   onUpdateFormatPrefs,
   onUpdateAIConfig,
+  onUpdateTTSConfig,
   onUpdateNotifications,
   onSendTestNotification,
   onResetAlgorithm,
   onBackHome,
   onAdvancedSources,
 }) => {
-  const { t } = useI18n();
+  const { lang, locale, t } = useI18n();
   const section = initialSection;
   const [androidSettingsUnavailable, setAndroidSettingsUnavailable] = useState(false);
   const [showAISetup, setShowAISetup] = useState(Boolean(aiConfig.apiKey) || aiConfig.provider === 'device');
   const [showAIKey, setShowAIKey] = useState(false);
   const [aiTestStatus, setAiTestStatus] = useState<{ ok: boolean; message: string } | null>(null);
   const [testingAI, setTestingAI] = useState(false);
+
+  const normalizedTTS = normalizeTTSConfig(ttsConfig);
+  const activeTTSMeta = getTTSProviderMeta(normalizedTTS.provider);
+  const [ttsScenario, setTtsScenario] = useState<TTSScenarioId>('article');
+  const [showTTSKey, setShowTTSKey] = useState(false);
+  const [testingTTS, setTestingTTS] = useState(false);
+  const [ttsTestStatus, setTtsTestStatus] = useState<{ ok: boolean; message: string } | null>(null);
 
   const [deviceAvailable, setDeviceAvailable] = useState(false);
   useEffect(() => {
@@ -102,6 +126,71 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   }, []);
   const activeProviderMeta =
     AI_PROVIDERS.find((p) => p.id === aiConfig.provider) || AI_PROVIDERS[0];
+
+  const handleTTSProviderChange = (providerId: TTSProviderId) => {
+    const defaults = buildProviderDefaults(providerId);
+    onUpdateTTSConfig({
+      ...normalizedTTS,
+      provider: providerId,
+      apiKey: '',
+      model: defaults.model,
+      voice: defaults.voice,
+      scenarios: defaults.scenarios,
+    });
+    setTtsTestStatus(null);
+  };
+
+  const handleUpdateScenario = (updates: { model?: string; voice?: string; speed?: number }) => {
+    const nextScenarios = {
+      ...normalizedTTS.scenarios,
+      [ttsScenario]: {
+        ...normalizedTTS.scenarios[ttsScenario],
+        ...updates,
+      },
+    };
+    onUpdateTTSConfig({
+      ...normalizedTTS,
+      ...(ttsScenario === 'article' && updates.model ? { model: updates.model } : {}),
+      ...(ttsScenario === 'article' && updates.voice ? { voice: updates.voice } : {}),
+      scenarios: nextScenarios,
+    });
+    setTtsTestStatus(null);
+  };
+
+  const handleTestTTS = async () => {
+    setTestingTTS(true);
+    setTtsTestStatus(null);
+    const sample = getTTSSampleText(lang, ttsScenario);
+    try {
+      if (normalizedTTS.provider === 'system') {
+        if (!('speechSynthesis' in window)) {
+          setTtsTestStatus({ ok: false, message: 'Systemstimme wird in diesem Browser nicht unterstützt.' });
+          return;
+        }
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(sample);
+        u.lang = locale;
+        u.rate = normalizedTTS.scenarios[ttsScenario]?.speed ?? 1;
+        window.speechSynthesis.speak(u);
+        setTtsTestStatus({ ok: true, message: 'Systemstimme spielt Beispiel ab.' });
+        return;
+      }
+      const blob = await synthesizeSpeechBlob(sample, ttsScenario, normalizedTTS, aiConfig, lang);
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audio.onended = () => URL.revokeObjectURL(url);
+      audio.onerror = () => URL.revokeObjectURL(url);
+      await audio.play();
+      setTtsTestStatus({ ok: true, message: `${activeTTSMeta.name} spielt Beispiel ab.` });
+    } catch (err) {
+      setTtsTestStatus({
+        ok: false,
+        message: err instanceof Error ? err.message : 'Stimm-Test fehlgeschlagen.',
+      });
+    } finally {
+      setTestingTTS(false);
+    }
+  };
 
   const handleProviderChange = (providerId: AIProviderId) => {
     const meta = AI_PROVIDERS.find((p) => p.id === providerId);
@@ -156,19 +245,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <div className="liquid-glass rounded-[26px] p-5 space-y-3">
             <div className="flex items-center gap-3">
               <div className="liquid-glass-subtle flex h-10 w-10 items-center justify-center rounded-full">
-                <Layers className="h-4 w-4 text-slate-700 dark:text-slate-200" />
+                <Layers className="h-4 w-4 text-[var(--ink)]" />
               </div>
               <div>
-                <h2 className="text-base font-bold text-slate-900 dark:text-white">
+                <h2 className="text-base font-bold text-[var(--ink)]">
                   Öffentliche Quellen
                 </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
+                <p className="text-xs text-[var(--muted)]">
                   Offene und frei nutzbare News-Quellen
                 </p>
               </div>
             </div>
 
-            <div className="divide-y divide-black/[0.06] dark:divide-white/[0.08]">
+            <div className="divide-y divide-[var(--line)]">
               {[
                 {
                   key: 'rssAtom' as const,
@@ -209,10 +298,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         {item.icon}
                       </div>
                       <div className="min-w-0">
-                        <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                        <p className="text-sm font-semibold text-[var(--ink)]">
                           {item.label}
                         </p>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                        <p className="text-xs text-[var(--muted)] truncate">
                           {item.desc}
                         </p>
                       </div>
@@ -226,7 +315,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         onUpdateFormatPrefs({ ...formatPrefs, [item.key]: !enabled })
                       }
                       className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors ${
-                        enabled ? 'bg-[#34C759]' : 'bg-slate-300 dark:bg-slate-700'
+                        enabled ? 'bg-emerald-600 dark:bg-emerald-500' : 'bg-[var(--control)] ring-1 ring-inset ring-[var(--line)]'
                       }`}
                     >
                       <span
@@ -276,16 +365,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <Bot className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-900 dark:text-white">
+              <h2 className="text-base font-bold text-[var(--ink)]">
                 Eigener KI-Anbieter (BYOK)
               </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <p className="text-xs text-[var(--muted)]">
                 Dein API-Key bleibt lokal auf deinem Smartphone
               </p>
             </div>
           </div>
 
-          <p className="text-sm text-slate-600 dark:text-slate-300">Empfohlen: lokale Zusammenfassungen ohne API-Schlüssel.</p>
+          <p className="text-sm text-[var(--muted)]">Empfohlen: lokale Zusammenfassungen ohne API-Schlüssel.</p>
           <label className="flex flex-wrap items-center gap-2 text-sm">
             Standardstil für KI-Zusammenfassungen
             <select className="preference-input" value={resolveSummaryStyle(aiConfig.summaryStyle)}
@@ -298,14 +387,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           {showAISetup && <>
           <div className="space-y-4">
             <div>
-              <label htmlFor="ai-provider" className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">
+              <label htmlFor="ai-provider" className="block text-xs font-semibold text-[var(--muted)] mb-1.5">
                 KI-Anbieter auswählen
               </label>
               <select
                 id="ai-provider"
                 value={aiConfig.provider}
                 onChange={(e) => handleProviderChange(e.target.value as AIProviderId)}
-                className="w-full min-h-[44px] rounded-2xl border border-black/10 bg-white/80 px-3.5 text-sm font-medium text-slate-900 dark:border-white/10 dark:bg-[#151822] dark:text-white"
+                className="w-full min-h-[44px] rounded-2xl border border-[var(--line)] bg-[var(--panel)] px-3.5 text-sm font-medium text-[var(--ink)]"
               >
                 {AI_PROVIDERS.filter(provider => provider.id !== 'device' || deviceAvailable || aiConfig.provider === 'device').map((p) => (
                   <option key={p.id} value={p.id}>
@@ -313,7 +402,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   </option>
                 ))}
               </select>
-              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              <p className="mt-1 text-xs text-[var(--muted)]">
                 {activeProviderMeta.docsHint}
               </p>
             </div>
@@ -352,7 +441,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
             {aiConfig.provider === 'custom' && (
               <div>
-                <label htmlFor="ai-endpoint" className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">
+                <label htmlFor="ai-endpoint" className="block text-xs font-semibold text-[var(--muted)] mb-1.5">
                   Custom Chat-Completions Endpunkt
                 </label>
                 <input
@@ -363,24 +452,24 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     onUpdateAIConfig({ ...aiConfig, customEndpoint: e.target.value })
                   }
                   placeholder="https://openrouter.ai/api/v1/chat/completions"
-                  className="w-full min-h-[44px] rounded-2xl border border-black/10 bg-white/80 px-3.5 text-sm text-slate-900 dark:border-white/10 dark:bg-[#151822] dark:text-white"
+                  className="w-full min-h-[44px] rounded-2xl border border-[var(--line)] bg-[var(--panel)] px-3.5 text-sm text-[var(--ink)]"
                 />
               </div>
             )}
 
             <div>
-              <label htmlFor="ai-apikey" className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">
+              <label htmlFor="ai-apikey" className="block text-xs font-semibold text-[var(--muted)] mb-1.5">
                 API-Key einfügen
               </label>
               <div className="relative flex items-center">
-                <KeyRound className="pointer-events-none absolute left-3.5 z-10 h-4 w-4 text-slate-400" />
+                <KeyRound className="pointer-events-none absolute left-3.5 z-10 h-4 w-4 text-[var(--muted)]" />
                 <input
                   id="ai-apikey"
                   type={showAIKey ? 'text' : 'password'}
                   value={aiConfig.apiKey}
                   onChange={(e) => onUpdateAIConfig({ ...aiConfig, apiKey: e.target.value })}
                   placeholder={activeProviderMeta.keyPlaceholder}
-                  className="w-full min-h-[44px] rounded-2xl border border-black/10 bg-white/80 pl-10 pr-12 text-sm text-slate-900 dark:border-white/10 dark:bg-[#151822] dark:text-white"
+                  className="w-full min-h-[44px] rounded-2xl border border-[var(--line)] bg-[var(--panel)] pl-10 pr-12 text-sm text-[var(--ink)]"
                 />
                 <button
                   type="button"
@@ -414,7 +503,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               )}
             </div>
 
-            <div className="divide-y divide-black/5 border-t border-black/5 pt-3 dark:divide-white/10 dark:border-white/10">
+            <div className="divide-y divide-[var(--line)] border-t border-[var(--line)] pt-3">
               {[
                 {
                   key: 'autoSummarize' as const,
@@ -422,7 +511,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 },
               ].map((opt) => (
                 <div key={opt.key} className="flex items-center justify-between py-3">
-                  <span className="text-sm font-medium text-slate-800 dark:text-slate-200">
+                  <span className="text-sm font-medium text-[var(--ink)]">
                     {opt.label}
                   </span>
                   <button
@@ -434,7 +523,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       onUpdateAIConfig({ ...aiConfig, [opt.key]: !aiConfig[opt.key] })
                     }
                     className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors ${
-                      aiConfig[opt.key] ? 'bg-[#34C759]' : 'bg-slate-300 dark:bg-slate-700'
+                      aiConfig[opt.key] ? 'bg-emerald-600 dark:bg-emerald-500' : 'bg-[var(--control)] ring-1 ring-inset ring-[var(--line)]'
                     }`}
                   >
                     <span
@@ -451,6 +540,176 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       )}
 
+      {/* SECTION 3B: MULTI-PROVIDER SCENARIO TTS */}
+      {section === 'ai' && (
+        <div className="liquid-glass rounded-[26px] p-5 space-y-5">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--control)] text-[var(--accent)]">
+              <Volume2 className="h-5 w-5" aria-hidden="true" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-[var(--ink)]">{t('ttsTitle')}</h2>
+              <p className="text-xs text-[var(--muted)]">{t('ttsSubtitle')}</p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="tts-provider" className="block text-xs font-semibold text-[var(--muted)] mb-1.5">
+                {t('ttsProviderLabel')}
+              </label>
+              <select
+                id="tts-provider"
+                value={normalizedTTS.provider}
+                onChange={e => handleTTSProviderChange(e.target.value as TTSProviderId)}
+                className="w-full min-h-[44px] rounded-2xl border border-[var(--line)] bg-[var(--panel)] px-3.5 text-sm font-medium text-[var(--ink)]"
+              >
+                {TTS_PROVIDERS.map(p => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-[var(--muted)]">{activeTTSMeta.freeTierHint}</p>
+            </div>
+
+            {normalizedTTS.provider !== 'system' && (
+              <>
+                {/* Scenario Selector */}
+                <div className="space-y-3 rounded-2xl border border-[var(--line)] bg-[var(--panel-2)] p-3.5">
+                  <div
+                    role="group"
+                    aria-label={t('ttsTitle')}
+                    className="segmented-control sliding-tabs"
+                    style={{
+                      '--tab-count': 3,
+                      '--tab-index': (['article', 'briefing', 'focus'] as const).indexOf(ttsScenario),
+                    } as React.CSSProperties}
+                  >
+                    <span className="tab-track" aria-hidden="true"><span className="tab-selection" /></span>
+                    {([
+                      { id: 'article', label: t('ttsScenarioArticle') },
+                      { id: 'briefing', label: t('ttsScenarioBriefing') },
+                      { id: 'focus', label: t('ttsScenarioFocus') },
+                    ] as const).map(item => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        aria-pressed={ttsScenario === item.id}
+                        onClick={() => setTtsScenario(item.id)}
+                        className="choice-pill whitespace-nowrap text-xs"
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="space-y-2">
+                    <label htmlFor="tts-scenario-model" className="block text-xs font-semibold text-[var(--muted)]">
+                      {t('ttsModelLabel')}
+                    </label>
+                    <select
+                      id="tts-scenario-model"
+                      value={normalizedTTS.scenarios[ttsScenario]?.model || normalizedTTS.model}
+                      onChange={e => handleUpdateScenario({ model: e.target.value })}
+                      className="w-full min-h-[44px] rounded-2xl border border-[var(--line)] bg-[var(--panel)] px-3.5 text-sm text-[var(--ink)]"
+                    >
+                      {activeTTSMeta.models.map(m => (
+                        <option key={m.id} value={m.id}>{m.label}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <span className="block text-xs font-semibold text-[var(--muted)]">{t('ttsVoiceLabel')}</span>
+                    <div className="flex flex-wrap gap-2">
+                      {activeTTSMeta.voices.map(voice => {
+                        const activeVoice = (normalizedTTS.scenarios[ttsScenario]?.voice || normalizedTTS.voice) === voice.id;
+                        return (
+                          <button
+                            key={voice.id}
+                            type="button"
+                            aria-pressed={activeVoice}
+                            className="choice-pill text-xs"
+                            onClick={() => handleUpdateScenario({ voice: voice.id })}
+                          >
+                            {voice.label} · <span className="opacity-70">{voice.tone}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {normalizedTTS.provider === 'custom' && (
+                  <div>
+                    <label htmlFor="tts-endpoint" className="block text-xs font-semibold text-[var(--muted)] mb-1.5">
+                      Custom TTS HTTPS Endpunkt
+                    </label>
+                    <input
+                      id="tts-endpoint"
+                      type="url"
+                      value={normalizedTTS.customEndpoint || ''}
+                      onChange={e => onUpdateTTSConfig({ ...normalizedTTS, customEndpoint: e.target.value })}
+                      placeholder="https://api.groq.com/openai/v1/audio/speech"
+                      className="w-full min-h-[44px] rounded-2xl border border-[var(--line)] bg-[var(--panel)] px-3.5 text-sm text-[var(--ink)]"
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <label htmlFor="tts-apikey" className="block text-xs font-semibold text-[var(--muted)] mb-1.5">
+                    API-Key
+                  </label>
+                  <div className="relative flex items-center">
+                    <KeyRound className="pointer-events-none absolute left-3.5 z-10 h-4 w-4 text-[var(--muted)]" />
+                    <input
+                      id="tts-apikey"
+                      type={showTTSKey ? 'text' : 'password'}
+                      value={normalizedTTS.apiKey}
+                      onChange={e => onUpdateTTSConfig({ ...normalizedTTS, apiKey: e.target.value })}
+                      placeholder={activeTTSMeta.keyPlaceholder}
+                      className="w-full min-h-[44px] rounded-2xl border border-[var(--line)] bg-[var(--panel)] pl-10 pr-12 text-sm text-[var(--ink)]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowTTSKey(s => !s)}
+                      aria-label={showTTSKey ? 'API-Key verbergen' : 'API-Key anzeigen'}
+                      className="absolute right-0.5 flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl text-[var(--muted)] hover:text-[var(--ink)]"
+                    >
+                      {showTTSKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  {(normalizedTTS.provider === 'google' || normalizedTTS.provider === 'openai') && (
+                    <p className="mt-1 text-xs text-[var(--muted)]">
+                      {t('ttsUseMainKeyHint')}
+                      {!normalizedTTS.apiKey.trim() && resolveEffectiveTTSApiKey(normalizedTTS, aiConfig)
+                        ? ' ✓'
+                        : ''}
+                    </p>
+                  )}
+                </div>
+              </>
+            )}
+
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+              <button
+                type="button"
+                onClick={() => void handleTestTTS()}
+                disabled={testingTTS}
+                className="inline-flex min-h-[44px] items-center gap-2 rounded-full bg-[var(--accent)] px-5 text-xs font-semibold text-[var(--accent-ink)] transition hover:opacity-90 active:scale-95 disabled:opacity-60"
+              >
+                <Volume2 className="h-4 w-4" aria-hidden="true" />
+                {testingTTS ? t('ttsTesting') : t('ttsTestVoice')}
+              </button>
+              {ttsTestStatus && (
+                <span className={`text-xs font-semibold ${ttsTestStatus.ok ? 'text-emerald-500' : 'text-rose-500'}`}>
+                  {ttsTestStatus.message}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {section === 'app' && (
         <div className="space-y-4">
           {Capacitor.getPlatform() === 'android' && <DailyBriefingSettings settings={briefingSettings} onChange={onBriefingSettings} />}
@@ -459,10 +718,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <div className="flex items-center gap-3">
                 <Bell className="h-5 w-5 text-emerald-500" />
                 <div>
-                  <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
+                  <h2 className="text-sm font-semibold text-[var(--ink)]">
                     Eilmeldungen &amp; Benachrichtigungen
                   </h2>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                  <p className="text-xs text-[var(--muted)]">
                     {Capacitor.getPlatform() === 'android' ? 'Meldungen aus unterstützten Quellen auch bei geschlossener App.'
                       : 'Im Browser erscheinen Hinweise nur beim Aktualisieren in der geöffneten App.'}
                   </p>
@@ -476,7 +735,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 disabled={requestingPushPermission}
                 onClick={() => onUpdateNotifications({ ...notifications, enabled: !notifications.enabled })}
                 className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors ${
-                  notifications.enabled ? 'bg-[#34C759]' : 'bg-slate-300 dark:bg-slate-700'
+                  notifications.enabled ? 'bg-emerald-600 dark:bg-emerald-500' : 'bg-[var(--control)] ring-1 ring-inset ring-[var(--line)]'
                 }`}
               >
                 <span
@@ -500,7 +759,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               Android-Einstellungen öffnen
             </button>}
             {notifications.enabled && (
-              <div className="space-y-4 border-t border-black/10 pt-3 dark:border-white/10">
+              <div className="space-y-4 border-t border-[var(--line)] pt-3">
                 <label className="preference-row px-0">
                   Nur als Eilmeldung markierte Artikel
                   <input type="checkbox" checked={notifications.breakingOnly}
@@ -509,7 +768,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 {!notifications.breakingOnly && (
                   <div className="space-y-2">
                     <p className="text-sm font-semibold">Themen für Hinweise</p>
-                    <p className="text-sm text-slate-600 dark:text-slate-300">Ohne Auswahl sind alle Themen aktiv.</p>
+                    <p className="text-sm text-[var(--muted)]">Ohne Auswahl sind alle Themen aktiv.</p>
                     <TopicChoices topics={notifications.topics as NewsCategory[]}
                       onChange={topics => onUpdateNotifications({ ...notifications, topics })} />
                   </div>

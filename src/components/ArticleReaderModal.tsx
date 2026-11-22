@@ -45,8 +45,10 @@ import type {
   NewsArticle,
   ReaderFontFamily,
   ReaderFontSize,
+  TTSProviderConfig,
 } from '../types/news';
 import { analyzeArticleWithBYOK, createArticleContext, hasCloudAI } from '../lib/aiClient';
+import { hasCloudTTS, prefetchSpeechClip, synthesizeSpeechBlob } from '../lib/ttsClient';
 import { generateLocalExtractiveSummary } from '../lib/personalization';
 import { useI18n, type TranslationKey } from '../lib/i18n';
 import { trackNavigationScroll } from '../lib/scrollNavigation';
@@ -86,6 +88,7 @@ interface ArticleReaderModalProps {
   nextQueuedArticle?: NewsArticle;
   highlights: ArticleHighlight[];
   aiConfig: AIProviderConfig;
+  ttsConfig: TTSProviderConfig;
   fontSize: ReaderFontSize;
   fontFamily: ReaderFontFamily;
   readerTheme: ReaderSurfaceTheme;
@@ -104,6 +107,7 @@ interface ArticleReaderModalProps {
   onOpenRelatedClip?: (link: RelatedMediaLink) => void;
   onRecordReadingDuration: (article: NewsArticle, seconds: number) => void;
   onOpenAISettings: () => void;
+  onBeforeSpeak?: () => void;
   showSummary: boolean;
   onOpenSummary: () => void;
   onClose: () => void;
@@ -138,6 +142,7 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
   nextQueuedArticle,
   highlights,
   aiConfig,
+  ttsConfig,
   fontSize,
   fontFamily,
   readerTheme,
@@ -156,11 +161,12 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
   onOpenRelatedClip,
   onRecordReadingDuration,
   onOpenAISettings,
+  onBeforeSpeak,
   showSummary,
   onOpenSummary,
   onClose,
 }) => {
-  const { locale, t, categoryLabel, formatRelative, formatHeaderDate } = useI18n();
+  const { lang, locale, t, categoryLabel, formatRelative, formatHeaderDate } = useI18n();
   const openTimestampRef = useRef<number>(Date.now());
   const recordedRef = useRef<boolean>(false);
   const progressBarRef = useRef<HTMLDivElement>(null);
@@ -310,43 +316,76 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
 
-  // Read Aloud 2.0 (Synchronized paragraph-by-paragraph speech)
+  // Read Aloud 2.0 (Synchronized paragraph-by-paragraph speech: Cloud Scenario TTS + System Fallback)
   const bodyParagraphs = useMemo(() => paragraphs.slice(bodyStart), [paragraphs, bodyStart]);
   const speechBlocks = useMemo(() => buildSpeechBlocks(title, lead, bodyParagraphs), [title, lead, bodyParagraphs]);
   const [speechState, setSpeechState] = useState<'idle' | 'playing' | 'paused'>('idle');
+  const [speechLoading, setSpeechLoading] = useState(false);
   const [speechIndex, setSpeechIndex] = useState(-1);
   const [speechRateIdx, setSpeechRateIdx] = useState(1);
   const [sleepIdx, setSleepIdx] = useState(0);
+  const [speechStatus, setSpeechStatus] = useState('');
   const [speechError, setSpeechError] = useState(false);
   const speechRunRef = useRef(0);
   const sleepTimerRef = useRef<number | undefined>(undefined);
   const blockNodesRef = useRef<Map<string, HTMLElement>>(new Map());
+  const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
+  const ttsUrlRef = useRef<string | null>(null);
+  const ttsAbortRef = useRef<AbortController | null>(null);
   const speechRate = SPEECH_RATES[speechRateIdx];
+  const speechRateRef = useRef<number>(speechRate);
+  speechRateRef.current = speechRate;
   const sleepMinutes = SLEEP_OPTIONS[sleepIdx];
+  const cloudTTSEnabled = hasCloudTTS(ttsConfig, aiConfig);
+  const activeScenario = newspaperMode ? 'focus' : 'article';
+
+  const cleanupTtsAudio = useCallback(() => {
+    ttsAbortRef.current?.abort();
+    ttsAbortRef.current = null;
+    if (ttsAudioRef.current) {
+      ttsAudioRef.current.onended = null;
+      ttsAudioRef.current.onerror = null;
+      ttsAudioRef.current.pause();
+      ttsAudioRef.current.src = '';
+      ttsAudioRef.current = null;
+    }
+    if (ttsUrlRef.current) {
+      URL.revokeObjectURL(ttsUrlRef.current);
+      ttsUrlRef.current = null;
+    }
+    setSpeechLoading(false);
+  }, []);
 
   const stopSpeech = useCallback(() => {
     speechRunRef.current++;
     window.clearTimeout(sleepTimerRef.current);
+    cleanupTtsAudio();
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
     }
     setSpeechState('idle');
     setSpeechIndex(-1);
-  }, []);
+    setSpeechStatus('');
+  }, [cleanupTtsAudio]);
 
   const speakFromIndex = useCallback((startIndex: number, rateOverride?: number) => {
-    if (!('speechSynthesis' in window) || !speechBlocks.length) return;
+    if (!speechBlocks.length) return;
+    if (!cloudTTSEnabled && !('speechSynthesis' in window)) return;
     const bounded = Math.max(0, Math.min(startIndex, speechBlocks.length - 1));
     const runId = ++speechRunRef.current;
-    window.speechSynthesis.cancel();
+    cleanupTtsAudio();
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    onBeforeSpeak?.();
     setSpeechError(false);
+    setSpeechStatus('');
     setSpeechState('playing');
 
-    const playStep = (idx: number) => {
+    const playSystemStep = (idx: number) => {
       if (runId !== speechRunRef.current) return;
-      if (idx >= speechBlocks.length) {
+      if (!('speechSynthesis' in window) || idx >= speechBlocks.length) {
         setSpeechState('idle');
         setSpeechIndex(-1);
+        setSpeechStatus('');
         return;
       }
       const block = speechBlocks[idx];
@@ -357,8 +396,8 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
       }
       const utterance = new SpeechSynthesisUtterance(block.text);
       utterance.lang = locale;
-      utterance.rate = rateOverride ?? speechRate;
-      utterance.onend = () => playStep(idx + 1);
+      utterance.rate = rateOverride ?? speechRateRef.current;
+      utterance.onend = () => playSystemStep(idx + 1);
       utterance.onerror = event => {
         if (runId !== speechRunRef.current) return;
         if (['canceled', 'interrupted'].includes(event.error)) return;
@@ -369,8 +408,66 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
       window.speechSynthesis.speak(utterance);
     };
 
-    playStep(bounded);
-  }, [speechBlocks, locale, speechRate, reducedMotion]);
+    if (cloudTTSEnabled && navigator.onLine) {
+      const playCloudStep = async (idx: number): Promise<void> => {
+        if (runId !== speechRunRef.current) return;
+        if (idx >= speechBlocks.length) {
+          cleanupTtsAudio();
+          setSpeechState('idle');
+          setSpeechIndex(-1);
+          setSpeechStatus('');
+          return;
+        }
+        const block = speechBlocks[idx];
+        setSpeechIndex(idx);
+        const node = blockNodesRef.current.get(block.id);
+        if (node) {
+          node.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'center' });
+        }
+        setSpeechLoading(true);
+        setSpeechStatus(t('ttsLoadingAudio'));
+
+        // Gapless prefetch of the next paragraph
+        if (idx + 1 < speechBlocks.length) {
+          prefetchSpeechClip(speechBlocks[idx + 1].text, activeScenario, ttsConfig, aiConfig, lang);
+        }
+
+        const controller = new AbortController();
+        ttsAbortRef.current = controller;
+        try {
+          const blob = await synthesizeSpeechBlob(block.text, activeScenario, ttsConfig, aiConfig, lang, controller.signal);
+          if (runId !== speechRunRef.current) return;
+          cleanupTtsAudio();
+          const url = URL.createObjectURL(blob);
+          ttsUrlRef.current = url;
+          const audio = new Audio(url);
+          audio.playbackRate = rateOverride ?? speechRateRef.current;
+          ttsAudioRef.current = audio;
+          setSpeechStatus('');
+          audio.onended = () => {
+            if (runId === speechRunRef.current) void playCloudStep(idx + 1);
+          };
+          audio.onerror = () => {
+            if (runId !== speechRunRef.current) return;
+            cleanupTtsAudio();
+            setSpeechStatus(t('ttsFallbackHint'));
+            playSystemStep(idx);
+          };
+          await audio.play();
+        } catch {
+          if (runId !== speechRunRef.current) return;
+          cleanupTtsAudio();
+          setSpeechStatus(t('ttsFallbackHint'));
+          playSystemStep(idx);
+        }
+      };
+
+      void playCloudStep(bounded);
+      return;
+    }
+
+    playSystemStep(bounded);
+  }, [speechBlocks, cloudTTSEnabled, cleanupTtsAudio, onBeforeSpeak, reducedMotion, locale, t, activeScenario, ttsConfig, aiConfig, lang]);
 
   const toggleSpeech = () => {
     if (speechState !== 'idle') {
@@ -381,6 +478,16 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
   };
 
   const toggleSpeechPause = () => {
+    if (ttsAudioRef.current) {
+      if (speechState === 'playing') {
+        ttsAudioRef.current.pause();
+        setSpeechState('paused');
+      } else if (speechState === 'paused') {
+        void ttsAudioRef.current.play().catch(() => {});
+        setSpeechState('playing');
+      }
+      return;
+    }
     if (!('speechSynthesis' in window)) return;
     if (speechState === 'playing') {
       window.speechSynthesis.pause();
@@ -394,8 +501,13 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
   const cycleSpeechRate = () => {
     const nextIdx = (speechRateIdx + 1) % SPEECH_RATES.length;
     setSpeechRateIdx(nextIdx);
+    const nextRate = SPEECH_RATES[nextIdx];
+    if (ttsAudioRef.current) {
+      ttsAudioRef.current.playbackRate = nextRate;
+      return;
+    }
     if (speechState === 'playing' && speechIndex >= 0) {
-      speakFromIndex(speechIndex, SPEECH_RATES[nextIdx]);
+      speakFromIndex(speechIndex, nextRate);
     }
   };
 
@@ -442,10 +554,11 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
     return () => {
       speechRunRef.current++;
       window.clearTimeout(sleepTimerRef.current);
+      cleanupTtsAudio();
       window.speechSynthesis?.cancel();
       requestAnimationFrame(() => { if (document.activeElement === document.body) opener?.focus(); });
     };
-  }, []);
+  }, [cleanupTtsAudio]);
 
   useEffect(() => {
     const dialog = summaryDialog.current;
@@ -697,19 +810,24 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
                         <span className="block text-xs font-semibold text-[var(--muted)]">{t('readerThemeLabel')}</span>
                         <div className="grid grid-cols-2 gap-1.5">
                           {([
-                            ['default', t('readerThemeDefault')],
-                            ['paper', t('readerThemePaper')],
-                            ['sepia', t('readerThemeSepia')],
-                            ['night', t('readerThemeNight')],
-                          ] as const).map(([id, label]) => (
+                            ['paper', t('readerThemePaper'), '#f4f2ec'],
+                            ['sepia', t('readerThemeSepia'), '#f5edd9'],
+                            ['night', t('readerThemeNight'), '#08090c'],
+                            ['default', t('readerThemeDefault'), 'linear-gradient(135deg, #f5f3ee 50%, #0f1013 50%)'],
+                          ] as const).map(([id, label, swatch]) => (
                             <button
                               key={id}
                               type="button"
-                              className="choice-pill justify-center text-xs"
+                              className="choice-pill inline-flex items-center justify-center gap-1.5 text-xs"
                               aria-pressed={readerTheme === id}
                               onClick={() => onReaderTheme(id)}
                             >
-                              {label}
+                              <span
+                                className="h-3 w-3 shrink-0 rounded-full border border-black/20 dark:border-white/25"
+                                style={{ background: swatch }}
+                                aria-hidden="true"
+                              />
+                              <span>{label}</span>
                             </button>
                           ))}
                         </div>
@@ -1116,7 +1234,7 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
           <div
             role="region"
             aria-label={t('readerReadAloud')}
-            className="mx-3 mb-2 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-[var(--line)] bg-[var(--glass)] px-3 py-2 backdrop-blur-xl shadow-lg sm:mx-6"
+            className="mx-3 mb-2 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-[var(--line)] bg-[var(--glass-tint)] px-3 py-2 backdrop-blur-xl shadow-lg sm:mx-6"
           >
             <div className="flex items-center gap-1">
               <button
@@ -1143,9 +1261,15 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
               >
                 <SkipForward size={16} aria-hidden="true" />
               </button>
-              <span className="ml-1 text-xs font-semibold text-[var(--muted)] tabular-nums">
+              <span className="ml-1 inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--muted)] tabular-nums">
+                {speechLoading && <Loader2 size={13} className="animate-spin text-[var(--accent)]" aria-hidden="true" />}
                 {Math.max(1, speechIndex + 1)} / {speechBlocks.length}
               </span>
+              {speechStatus && (
+                <span className="hidden sm:inline max-w-[14rem] truncate text-[11px] text-[var(--muted)]" role="status">
+                  {speechStatus}
+                </span>
+              )}
             </div>
 
             <div className="flex items-center gap-1">
@@ -1194,7 +1318,7 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
           >
             <Sparkles size={19} aria-hidden="true" />
           </button>
-          {'speechSynthesis' in window && (
+          {(cloudTTSEnabled || 'speechSynthesis' in window) && (
             <button
               type="button"
               className="glass-icon"
@@ -1265,6 +1389,7 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
       <dialog
         ref={summaryDialog}
         id="reader-summary"
+        data-reader-theme={resolvedSurfaceTheme}
         className="motion-dialog reader-summary"
         aria-labelledby="reader-summary-title"
         onCancel={event => { event.preventDefault(); onClose(); }}

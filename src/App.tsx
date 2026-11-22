@@ -20,12 +20,14 @@ import type {
   ReaderFontFamily,
   ReaderFontSize,
   ThemeMode,
+  TTSProviderConfig,
 } from './types/news';
 import { DEFAULT_AI_CONFIG, migrateAIConfig } from './lib/aiClient';
 import { clipSourceIds, DEFAULT_SOURCES, legacyCatalogUrls, pushSources } from './lib/catalog';
 import {
   createDefaultProfile,
   decayProfileWeights,
+  dismissArticleLessLikeThis,
   resetProfileWeights,
   normalizeProfile,
   recordArticleRead,
@@ -49,7 +51,7 @@ import { OfflineIndicator } from './components/PWAInstallButton';
 
 import { DEFAULT_PREFERENCES, applyEditionSources, resolveHomeTab, resolveRetention, type AppPreferences, type HomeTab } from './lib/preferences';
 import { I18nProvider, resolveLanguage, translate } from './lib/i18n';
-import { Onboarding, ProfileView, type ProfilePage } from './components/Preferences';
+import type { ProfilePage } from './components/Preferences';
 import { createMuteRule, filterMutedArticles, pruneExpiredMutes, type MuteDuration, type MutedKeywordRule } from './lib/keywordFilter';
 import { upsertAudioPosition, type ArticleHighlight, type AudioPositionEntry, type ReaderSurfaceTheme } from './lib/readerExtras';
 import type { ActiveAudioTrack } from './components/MiniAudioPlayer';
@@ -62,6 +64,8 @@ const MediaView = lazy(() => import('./components/MediaView').then(module => ({ 
 const ArticleReaderModal = lazy(() => import('./components/ArticleReaderModal').then(module => ({ default: module.ArticleReaderModal })));
 const SettingsView = lazy(() => import('./components/SettingsView').then(module => ({ default: module.SettingsView })));
 const MiniAudioPlayer = lazy(() => import('./components/MiniAudioPlayer').then(module => ({ default: module.MiniAudioPlayer })));
+const Onboarding = lazy(() => import('./components/Preferences').then(module => ({ default: module.Onboarding })));
+const ProfileView = lazy(() => import('./components/Preferences').then(module => ({ default: module.ProfileView })));
 
 type AppLocation = {
   tab: AppTab;
@@ -73,6 +77,20 @@ type AppLocation = {
   briefing?: boolean;
 };
 const HOME_LOCATION: AppLocation = { tab: 'home', profile: 'profile', settings: 'overview', saved: 'bookmarks', article: null };
+
+// Lightweight inline default so ttsClient.ts stays strictly inside lazy chunks (<= 170 KiB gzip initial JS)
+const INITIAL_TTS_CONFIG: TTSProviderConfig = {
+  provider: 'system',
+  apiKey: '',
+  model: 'system',
+  voice: 'default',
+  customEndpoint: '',
+  scenarios: {
+    article: { model: 'system', voice: 'default', speed: 1 },
+    briefing: { model: 'system', voice: 'default', speed: 1.05 },
+    focus: { model: 'system', voice: 'default', speed: 0.92 },
+  },
+};
 
 export default function App() {
   const [location, setLocation] = useState<AppLocation>(HOME_LOCATION);
@@ -201,6 +219,10 @@ export default function App() {
     setAiConfig(next);
     setAIConfigMigrated(true);
   };
+  const [ttsConfig, setTtsConfig] = useLocalStorage<TTSProviderConfig>(
+    'opennews_tts_config',
+    INITIAL_TTS_CONFIG
+  );
 
   const [formatPrefs, setFormatPrefs] = useLocalStorage<FormatPreferences>('opennews_formats', {
     rssAtom: true,
@@ -217,7 +239,7 @@ export default function App() {
     'opennews_font_family',
     'sans'
   );
-  const [readerTheme, setReaderTheme] = useLocalStorage<ReaderSurfaceTheme>('opennews_reader_theme', 'default');
+  const [readerTheme, setReaderTheme] = useLocalStorage<ReaderSurfaceTheme>('opennews_reader_theme', 'paper');
   const [newspaperMode, setNewspaperMode] = useLocalStorage<boolean>('opennews_newspaper_mode', false);
   const [mutedKeywords, setMutedKeywords] = useLocalStorage<MutedKeywordRule[]>('opennews_muted_keywords', []);
   const [trackedKeywords, setTrackedKeywords] = useLocalStorage<string[]>('opennews_tracked_keywords', []);
@@ -284,7 +306,7 @@ export default function App() {
       }
       const metaTheme = document.querySelector('meta[name="theme-color"]');
       if (metaTheme) {
-        metaTheme.setAttribute('content', resolvedDark ? '#111214' : '#f6f5f2');
+        metaTheme.setAttribute('content', resolvedDark ? '#0f1013' : '#f5f3ee');
       }
     };
 
@@ -429,7 +451,7 @@ export default function App() {
 
   const latestHomeStories = useRef<ReturnType<typeof buildHomeSections>[HomeTab]>([]);
 
-  const fetchLiveFeeds = useCallback(async () => {
+  const fetchLiveFeeds = useCallback(async (force = false) => {
     if (!cachedStorageReady || refresh.current || !activeSources.length || !navigator.onLine) return;
     const controller = new AbortController();
     refresh.current = controller;
@@ -490,7 +512,7 @@ export default function App() {
       const resp = await fetch('/api/feeds/fetch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ feeds: batch }),
+        body: JSON.stringify({ feeds: batch, force }),
         signal: controller.signal,
       });
       if (resp.status === 429) {
@@ -596,13 +618,15 @@ export default function App() {
 
   const allArticles = useMemo(() => distinctArticles(activeArticles), [activeArticles]);
 
+  const activeStoryClusters = useMemo(() => clusterStories(activeArticles), [activeArticles]);
+
   const perspectiveArticles = useMemo(() => {
     if (!activeArticle) return [];
-    const cluster = clusterStories(activeArticles)
+    const cluster = activeStoryClusters
       .find(story => story.reports.some(report => report.id === activeArticle.id));
     if (!cluster) return [];
     return [...new Map(cluster.reports.map(report => [report.sourceId, report])).values()].slice(0, 6);
-  }, [activeArticle, activeArticles]);
+  }, [activeArticle, activeStoryClusters]);
 
   const homeSections = useMemo(
     () => {
@@ -755,6 +779,31 @@ export default function App() {
     setProfile((prev) => toggleArticleDislike(normalizeProfile(prev), article));
     goBack();
   };
+
+  const [undoDismiss, setUndoDismiss] = useState<{
+    article: NewsArticle;
+    previousProfile: PersonalizationProfile;
+  } | null>(null);
+  const undoTimerRef = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(undoTimerRef.current), []);
+
+  const handleDismissLessLikeThis = useCallback((article: NewsArticle) => {
+    window.clearTimeout(undoTimerRef.current);
+    const snapshot = normalizeProfile(profile);
+    setProfile(prev => dismissArticleLessLikeThis(normalizeProfile(prev), article));
+    setReaderFeedSnapshot(prev => (prev ? prev.filter(story => story.lead.id !== article.id) : prev));
+    setUndoDismiss({ article, previousProfile: snapshot });
+    undoTimerRef.current = window.setTimeout(() => setUndoDismiss(null), 5200);
+  }, [profile, setProfile]);
+
+  const handleUndoDismiss = useCallback(() => {
+    if (!undoDismiss) return;
+    window.clearTimeout(undoTimerRef.current);
+    const restored = undoDismiss.previousProfile;
+    setProfile(restored);
+    setReaderFeedSnapshot(null);
+    setUndoDismiss(null);
+  }, [undoDismiss, setProfile]);
 
   const handleToggleQueue = (article: NewsArticle) => {
     setReadingQueueIds(prev => {
@@ -1008,7 +1057,7 @@ export default function App() {
     <div className={`opennews-canvas ${activeAudio ? 'has-mini-player' : ''}`} data-glass={preferences.glass} data-accent={preferences.accent}
       data-corners={preferences.corners} data-cards={preferences.cards} data-scale={preferences.textScale}
       data-feed-images={preferences.images}>
-      {!onboarded ? <Onboarding
+      {!onboarded ? <Suspense fallback={<ViewStatus title={t('loadingView')} />}><Onboarding
         {...appearance}
         sources={sources}
         onToggleSource={handleToggleSubscribe}
@@ -1018,7 +1067,7 @@ export default function App() {
           setOnboarded(true);
           openProfile('preferences');
         }}
-      /> : <>
+      /></Suspense> : <>
       <OfflineIndicator />
 
       {/* In-App Breaking Notification Banner */}
@@ -1098,10 +1147,12 @@ export default function App() {
                 <AudioBriefing
                   articles={homeSections.Heute.map(story => story.lead)}
                   config={aiConfig}
+                  ttsConfig={ttsConfig}
                   open={Boolean(location.briefing)}
                   onOpen={() => navigate({ briefing: true })}
                   onClose={goBack}
                   onOpenArticle={handleOpenArticle}
+                  onBeforeSpeak={() => setActiveAudio(null)}
                 />
               </Suspense>
             )}
@@ -1115,10 +1166,12 @@ export default function App() {
             onApplyPending={handleApplyPending}
             onRefresh={fetchLiveFeeds}
             onOpenSources={() => openSettings('feeds')}
+            onOpenDiscover={() => navigate({ tab: 'discover' })}
             onApplyStarterPack={sourceIds => handleSetSourceSubscriptions(sourceIds, true)}
             onOpenArticle={handleOpenArticle}
             onToggleBookmark={handleToggleBookmark}
             onToggleLike={handleToggleLike}
+            onDismissLessLikeThis={handleDismissLessLikeThis}
           />
         )}
 
@@ -1226,6 +1279,7 @@ export default function App() {
             sources={sources}
             formatPrefs={formatPrefs}
             aiConfig={aiConfig}
+            ttsConfig={ttsConfig}
             notifications={notifications}
             briefingSettings={briefingSettings}
             onBriefingSettings={setBriefingSettings}
@@ -1248,6 +1302,7 @@ export default function App() {
             }
             onUpdateFormatPrefs={setFormatPrefs}
             onUpdateAIConfig={updateAIConfig}
+            onUpdateTTSConfig={setTtsConfig}
             pushStatus={pushStatus}
             pushPermissionDenied={pushPermissionDenied}
             requestingPushPermission={requestingPushPermission}
@@ -1293,6 +1348,38 @@ export default function App() {
         </Suspense>
       )}
 
+      {/* Floating Undo Toast after Swipe-to-Dismiss ("Weniger davon") */}
+      <div className="undo-toast-anchor">
+        <AnimatePresence>
+          {undoDismiss && !activeArticle && (
+            <motion.div
+              key={undoDismiss.article.id}
+              role="status"
+              aria-live="polite"
+              initial={reducedMotion ? false : { opacity: 0, y: 18, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 12, scale: 0.97 }}
+              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+              className="undo-toast"
+            >
+              <span className="min-w-0 flex-1 truncate text-xs font-medium text-[var(--ink)]">
+                {t('swipeDismissedToast', {
+                  category: undoDismiss.article.category,
+                  source: undoDismiss.article.sourceName,
+                })}
+              </span>
+              <button
+                type="button"
+                onClick={handleUndoDismiss}
+                className="shrink-0 rounded-full bg-[var(--accent)] px-3.5 py-1.5 text-xs font-bold text-[var(--accent-ink)] transition-transform active:scale-95"
+              >
+                {t('undo')}
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
       {/* Article Reader Sheet */}
       <Suspense fallback={<button className="fixed inset-0 z-50 bg-black/60 text-white" onClick={goBack}>{t('loadingView')} {t('close')}</button>}>
       <AnimatePresence>
@@ -1313,6 +1400,7 @@ export default function App() {
             nextQueuedArticle={nextQueuedArticle}
             highlights={highlights}
             aiConfig={aiConfig}
+            ttsConfig={ttsConfig}
             fontSize={fontSize}
             fontFamily={fontFamily}
             readerTheme={readerTheme}
@@ -1334,6 +1422,7 @@ export default function App() {
             }}
             onRecordReadingDuration={handleRecordReadingDuration}
             onOpenAISettings={() => openSettings('ai')}
+            onBeforeSpeak={() => setActiveAudio(null)}
             showSummary={Boolean(location.summary)}
             onOpenSummary={() => navigate({ article: activeArticle, summary: true })}
             onClose={goBack}

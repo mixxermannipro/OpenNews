@@ -149,3 +149,22 @@ test('reduces the influence of learned interests before the 48-hour cutoff', () 
   };
   assert.equal(buildHomeSections([fresh, old], profile, [], now)['Für dich'][0].lead.id, 'fresh');
 });
+
+test('attenuates multilingual clickbait teasers in Heute while preserving chronology in Neueste', () => {
+  const now = new Date(2026, 10, 14, 18).getTime();
+  const enClickbait = {
+    ...article, id: 'cb-en', title: "You won't believe what happened at the summit",
+    link: 'https://example.org/cb-en', publishedAt: new Date(now - 60_000).toISOString(),
+  };
+  const frClickbait = {
+    ...article, id: 'cb-fr', title: "Vous n'allez pas croire cette décision",
+    link: 'https://example.org/cb-fr', publishedAt: new Date(now - 90_000).toISOString(),
+  };
+  const solid = {
+    ...article, id: 'solid', title: 'Parlament verabschiedet neuen Klimaschutzplan',
+    link: 'https://example.net/solid', sourceId: 'second', publishedAt: new Date(now - 20 * 60_000).toISOString(),
+  };
+  const sections = buildHomeSections([enClickbait, frClickbait, solid], createDefaultProfile(), [], now);
+  assert.equal(sections.Heute[0].lead.id, 'solid');
+  assert.equal(sections.Neueste[0].lead.id, 'cb-en');
+});
