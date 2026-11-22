@@ -353,6 +353,7 @@ npm run dev          # http://localhost:3000
 ```
 
 Das Repository ist privat — du brauchst Zugriff auf `mixxermannipro/OpenNews`.
+Wenn du eine npm-Abhängigkeit änderst, aktualisiere auch die `package-lock.json` und prüfe die Installation mit `npm ci`.
 
 ### Produktionsbuild
 
