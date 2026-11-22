@@ -357,7 +357,7 @@ test('moves between home sections while respecting both reduced-motion settings'
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.getByRole('button', { name: 'Profil', exact: true }).click();
   await page.getByRole('button', { name: 'Einstellungen', exact: true }).click();
-  await page.getByRole('button', { name: 'Navigation & Bewegung', exact: true }).click();
+  await page.getByRole('button', { name: 'Darstellung', exact: true }).click();
   await page.getByLabel('Animationen').selectOption('reduced');
   const dock = page.getByRole('navigation', { name: 'Mobile Navigation' });
   await dock.getByRole('button', { name: 'Heute', exact: true }).click();
