@@ -15,3 +15,7 @@ zu den Quellen kann die App damit nur teilweise prüfen.
 
 Der Test in `src/lib/aiClient.test.ts` prüft, dass ein präparierter Artikel
 mit einem eingebetteten Trenner den Datenblock nicht verlassen kann.
+
+## Offengelegte Zugangsdaten
+
+Widerrufe oder rotiere einen versehentlich eingecheckten Schlüssel sofort beim Aussteller. Melde den betroffenen Commit und die Art des Schlüssels vertraulich, damit der Projektinhaber die Bereinigung abstimmen kann.

@@ -14,7 +14,7 @@ bereits ausgefüllt und gespeichert. Offen bleibt nur die finale Einreichung zur
    Eingaben sind `OpenNews`, Paket `io.opennews.app` falls abgefragt,
    Standardsprache Deutsch (Deutschland), Typ **App**, **Free**. Google
    erhält Identitätsnachweise direkt von dir. Für die Unterlagen brauchst du
-   die bereits bestätigte Support-E-Mail `mixxermannipropvp@gmail.com`. [App einrichten](https://support.google.com/googleplay/android-developer/answer/9859152)
+   die im [Datenschutzdokument](datenschutz.md) genannte Support-E-Mail. [App einrichten](https://support.google.com/googleplay/android-developer/answer/9859152)
 2. **Betreiber und Inhalte bestätigen.** Gib den Namen und die
    ladungsfähige Anschrift des Betreibers und die geplante öffentliche
    Website an. Die bestätigte E-Mail dient auch als Datenschutzkontakt. Bestätige
