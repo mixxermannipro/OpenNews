@@ -15,10 +15,20 @@ git diff --check
 
 Für Sicherheitslücken gilt der [vertrauliche Meldeweg](SECURITY.md). Für die Zusammenarbeit gilt der [Verhaltenskodex](CODE_OF_CONDUCT.md).
 
-## Licensing and contribution rights
+## Lizenz und Beiträge
 
-OpenNews is **source-available, not OSI-approved open source**. See [LICENSE](LICENSE). Reading and proposing improvements is welcome, but the project license does not grant general permission to redistribute or commercially exploit OpenNews. Statutory rights, GitHub's terms and separate third-party licenses remain unaffected.
+OpenNews ist source-available. Für neu beigesteuerte Projektdateien gelten
+die Bedingungen in [LICENSE](LICENSE). Früher unter Apache-2.0 veröffentlichte
+Bestandteile und separat lizenzierte Inhalte behalten ihre Rechte.
 
-Submit only contributions you own or are authorized to license. By submitting a pull request, you grant the project maintainer a perpetual, worldwide, non-exclusive, royalty-free license to review, reproduce, modify, incorporate, and distribute your submitted contribution as part of OpenNews, including under the project's source-available terms. You retain ownership of your original contribution. Do not submit code if you cannot grant these rights.
+You retain ownership of your contribution. By intentionally submitting a pull
+request for inclusion, you grant the project maintainer a perpetual,
+worldwide, non-exclusive, royalty-free license to review, reproduce, modify,
+incorporate, maintain and distribute your contribution as part of the project,
+including under the published source-available terms and in the project's
+official releases. Only submit material for which you can grant these
+permissions. Identify any separately licensed portions and their notices
+in the pull request. Previously granted rights remain valid.
 
-Do not commit private data, API tokens, signing material, copyrighted screenshots, or third-party assets without appropriate rights.
+Entferne vor dem Einreichen Zugangsdaten und personenbezogene Angaben aus
+Logs, Testdaten und Bildschirmfotos. Kennzeichne separat lizenzierte Inhalte.

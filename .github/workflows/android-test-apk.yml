@@ -96,7 +96,7 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-      - name: Publish private pre-release
+      - name: Publish Android debug pre-release
         if: github.event_name == 'workflow_dispatch'
         env:
           GH_TOKEN: ${{ github.token }}
@@ -105,5 +105,5 @@ jobs:
           gh release create "$tag" android/app/build/outputs/apk/debug/app-debug.apk#OpenNews-debug.apk \
             --target "$GITHUB_SHA" \
             --title "OpenNews $tag – Android Debug Test" \
-            --notes "Private Android test build. Signed with the Android debug key; not for Play Store distribution. News feeds are downloaded on-device; some services may be incomplete during alpha testing." \
+            --notes "Public Android debug test build. Signed with the Android debug key; not for Play Store distribution. News feeds are downloaded on-device; some services may be incomplete during alpha testing." \
             --prerelease
