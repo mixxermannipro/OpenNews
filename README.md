@@ -486,7 +486,7 @@ Die App ist eine Capacitor-WebView mit `CapacitorHttp` (Feed- und KI-Aufrufe dir
 **CI:** Die App-Prüfungen laufen bei Pull Requests gegen `main`.
 
 - **Web CI** (`web-ci.yml`): Typprüfung, 116 Unit-Tests, Build, JavaScript-Budget und 14 Browsertests mit Playwright.
-- **OpenNews Android Test APK** (`android-test-apk.yml`): bei Änderungen an `src/**`, `scripts/**`, `native/android/**`, `public/**` und Build-Dateien sowie manuell über **Actions → Run workflow**. Richtet Node 22 und JDK 21 ein, prüft Typen, führt Unit-Tests und Build aus, erzeugt das Android-Projekt, baut `assembleDebug`, prüft, dass die APK vorhanden ist, lädt sie bei verfügbarem GitHub-Speicher als Artefakt (7 Tage) hoch, prüft bei Pull Requests den AAB-Bau mit einem Einmalschlüssel und veröffentlicht bei manuellem Lauf ein privates Pre-Release `v0.1.0-alpha.<Run-Nummer>`.
+- **OpenNews Android Test APK** (`android-test-apk.yml`): bei Änderungen an `src/**`, `scripts/**`, `native/android/**`, `public/**` und Build-Dateien sowie manuell über **Actions → Run workflow**. Richtet Node 22 und JDK 21 ein, prüft Typen, führt Unit-Tests und Build aus, erzeugt das Android-Projekt, baut `assembleDebug`, prüft, dass die APK vorhanden ist, lädt sie bei verfügbarem GitHub-Speicher als Artefakt (7 Tage) hoch, prüft bei Pull Requests den AAB-Bau mit einem Einmalschlüssel und veröffentlicht bei manuellem Lauf ein öffentliches Pre-Release `v0.1.0-alpha.<Run-Nummer>`.
 
 **Lokal:**
 
@@ -621,7 +621,9 @@ Das Repository ist privat und in einer frühen Alpha. Beiträge klein und prüfb
 
 ## Lizenz
 
-Für den eigenen Quellcode und die Produktwebsite gelten der [Rechtevorbehalt in LICENSE](LICENSE) und die [Lizenzhinweise im Website-Ordner](apps/website/README.md#lizenz). Nachrichten, Bilder und Marken Dritter unterliegen den jeweiligen Rechten. Abhängigkeiten behalten ihre eigenen Lizenzen.
+[LICENSE](LICENSE) erlaubt Einsicht, lokale Prüfung und Pull Requests für den erfassten Projektcode. Eigenständige Weiterveröffentlichung und kommerzielle Nutzung dieses Materials erfordern die Zustimmung des Rechteinhabers. Bereits unter [Apache-2.0](LICENSES/Apache-2.0.txt) veröffentlichte Bestandteile behalten ihre Rechte. Die Bedingungen für Beiträge stehen in [CONTRIBUTING](CONTRIBUTING.md).
+
+Nachrichten, Bilder, Logos, Schriftdateien und Abhängigkeiten unterliegen den jeweiligen Rechten und Lizenzbedingungen. Die [Website-Dokumentation](apps/website/README.md#lizenz) nennt die mitgelieferten Schriftlizenzen und die Hinweise zu App-Aufnahmen.
 
 ---
 

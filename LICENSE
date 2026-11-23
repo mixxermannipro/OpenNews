@@ -1,23 +1,38 @@
-OpenNews – Alle Rechte vorbehalten / All rights reserved
+OpenNews — Source Available
 
 Copyright (c) 2026 Manuel Blasaditsch
 
-Der eigene Quellcode und die eigenen Inhalte dieses Projektstands werden
-zur Einsicht bereitgestellt. Eine allgemeine Erlaubnis zur Nutzung,
-Vervielfältigung, Änderung, Weitergabe oder Wiederveröffentlichung wird
-nicht erteilt. Soweit eine Handlung nicht bereits gesetzlich oder durch
-die Nutzungsbedingungen von GitHub erlaubt ist, bedarf sie der vorherigen
-Zustimmung des jeweiligen Rechteinhabers.
+Deutsche Zusammenfassung: Eigener Code und eigene Inhalte dürfen eingesehen
+und lokal geprüft und geändert werden, soweit dies der Bewertung oder einem
+Beitrag zum Projekt dient. GitHub-Forks und Pull Requests sind dafür zulässig.
+Eigenständige Verbreitung, Wiederveröffentlichung, öffentlicher Betrieb und
+kommerzielle Nutzung des hiervon erfassten Materials bedürfen der vorherigen
+schriftlichen Zustimmung des jeweiligen Rechteinhabers. Bereits erteilte
+Apache-2.0-Rechte, gesetzliche Rechte, die GitHub-Nutzungsbedingungen und
+separate Lizenzen bleiben wirksam.
 
-Gesetzliche Rechte, die für öffentliche Repositories geltenden GitHub-
-Nutzungsbedingungen und bereits erteilte Lizenzen bleiben unberührt.
-Dateien und Abhängigkeiten mit eigenen Lizenzhinweisen behalten ihre
-jeweilige Lizenz. Rechte an Inhalten Dritter verbleiben bei den
-jeweiligen Rechteinhabern.
+Scope
 
-This project's own source code and content are provided for inspection.
-No general permission is granted to use, copy, modify, distribute, or
-republish them. Prior permission from the relevant rights holder is
-required where an action is not already permitted by law or by GitHub's
-Terms of Service. Statutory rights, GitHub's Terms of Service, previously
-granted licenses, and separate third-party licenses remain unaffected.
+These terms apply to project-owned code and content under the source-available
+policy introduced on main with commit 899349b, including new contributions
+accepted under this policy where the maintainer has the necessary rights.
+They do not change rights in any material previously licensed under Apache-2.0,
+including portions carried forward into later versions. The last main commit
+before the policy switch was d6cd0de2ab7fe5c97678fc9a04e62d2ee5dcd839.
+See LICENSES/Apache-2.0.txt for the prior license text. Rights already granted on
+any other branch, tag, release or copy are also unaffected.
+
+Third-party dependencies, fonts, assets, trademarks and publisher content
+remain subject to the respective third-party terms and rights.
+
+You may read the covered source and make local copies, modifications and
+test builds solely to evaluate it or prepare a contribution to this project.
+You may use GitHub forks and pull requests to submit and discuss those
+contributions. The repository's CONTRIBUTING.md explains the terms for
+submitting your own changes.
+
+Publishing or distributing the covered material or builds outside the
+contribution workflow, operating a public or hosted version, and commercial
+use require prior written permission from the relevant rights holder.
+All other rights in covered material are reserved. Rights granted by law,
+GitHub's Terms of Service or a separate license remain in effect.

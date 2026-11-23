@@ -58,4 +58,4 @@ Den Google-Play-Link erst bei öffentlicher Freigabe als `VITE_PLAY_STORE_URL` s
 
 ## Lizenz
 
-Für den eigenen Quellcode, die Texte und die Gestaltung gilt der [Rechtevorbehalt des Projekts](../../LICENSE). Für Schriften gelten die [beiliegenden OFL-Lizenzen](public/fonts/), für Inhalte Dritter die Rechte der jeweiligen Inhaber.
+Für eigenen Code und eigene Inhalte gelten die [Source-Available-Bedingungen](../../LICENSE). Bereits erteilte [Apache-2.0-Rechte](../../LICENSES/Apache-2.0.txt) bleiben wirksam. Für Schibsted Grotesk und Source Serif 4 gelten die [beiliegenden OFL-Lizenzen](public/fonts/). Nachrichten, Vorschaubilder und Marken in App-Aufnahmen unterliegen den Rechten der jeweiligen Inhaber.
