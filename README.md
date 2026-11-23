@@ -29,7 +29,7 @@ Datenschutzfreundliche, Apple-inspirierte Nachrichten-App für freie RSS-, Atom-
 ---
 
 > [!NOTE]
-> **Alpha:** OpenNews steht bei `0.1.0-alpha.1`. Web und PWA sind nutzbar, Android ist ein privater Debug-Build. Artikelvolltext und BYOK-KI sind Beta. iOS ist mit WidgetKit- und Brückendateien vorbereitet, aber ohne geprüften Xcode-Build. Ein Play-Store-Release steht noch aus.
+> **Alpha:** OpenNews steht bei `0.1.0-alpha.1`. Die [Web-App](https://opennews-app.pages.dev/app/) läuft direkt im Browser und lässt sich als PWA installieren. Android ist im geschlossenen Google-Play-Test. Die [Produktwebsite](https://opennews-app.pages.dev/) zeigt die wichtigsten Ansichten. Artikelvolltext und KI mit eigenem Schlüssel sind Beta. Der iOS-Build mit WidgetKit wurde noch nicht in Xcode geprüft.
 
 ## Was ist OpenNews?
 
@@ -82,15 +82,19 @@ Die App zeigt die Hauptmeldung auf einer großen Bildkarte. Darunter wechseln si
 
 ## Screenshots
 
-Aufnahmen der laufenden App vom 14. November 2026 im dunklen Modus, mit echten Meldungen aus öffentlichen Feeds und einem frischen Browserprofil im Handyformat. Die Beiträge wechseln mit den Feeds.
+Aufnahmen aus Android 16 vom 21. November 2026. Die App zeigt Beispielmeldungen im dunklen Modus.
 
-| Heute | Für dich | Entdecken |
+| Heute | Für dich | Neueste |
 | :---: | :---: | :---: |
-| <img src="docs/screenshots/startseite.jpeg" width="240" alt="Heute im dunklen Modus" /> | <img src="docs/screenshots/fuer-dich.jpeg" width="240" alt="Für dich im dunklen Modus" /> | <img src="docs/screenshots/entdecken.jpeg" width="240" alt="Entdecken im dunklen Modus" /> |
+| <img src="apps/website/public/screenshots/heute.webp" width="240" alt="Heute mit Aufmacher und Schlagzeilen" /> | <img src="apps/website/public/screenshots/fuer-dich.webp" width="240" alt="Für dich mit persönlichen Empfehlungen" /> | <img src="apps/website/public/screenshots/neueste.webp" width="240" alt="Neueste mit chronologisch sortierten Meldungen" /> |
 
-| Video & Audio | Profil | Artikel-Reader |
+| Entdecken | Video & Audio | Artikel-Reader |
 | :---: | :---: | :---: |
-| <img src="docs/screenshots/medien.jpeg" width="240" alt="Video & Audio im dunklen Modus" /> | <img src="docs/screenshots/profil.jpeg" width="240" alt="Profil im dunklen Modus" /> | <img src="docs/screenshots/artikel.jpeg" width="240" alt="Artikel-Reader im dunklen Modus" /> |
+| <img src="apps/website/public/screenshots/entdecken.webp" width="240" alt="Entdecken mit Themen und Quellensuche" /> | <img src="apps/website/public/screenshots/medien.webp" width="240" alt="Video und Audio mit kurzen Clips" /> | <img src="apps/website/public/screenshots/artikel.webp" width="240" alt="Artikelansicht mit Text, Bild und Lesezeichen" /> |
+
+<img src="apps/website/public/screenshots/widget.webp" width="240" alt="Scrollbarer OpenNews-Feed auf dem Android-Startbildschirm" />
+
+[Android-Widget einrichten und anpassen](docs/android-widget.md)
 
 Die [Regeln für die Inhaltsauswahl](docs/content-ranking.md) und die [mobile Vergleichsstichprobe](docs/benchmark-72.md) dokumentieren die Auswahl.
 
