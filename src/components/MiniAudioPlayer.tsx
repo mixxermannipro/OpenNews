@@ -53,6 +53,9 @@ export function MiniAudioPlayer({
   useEffect(() => {
     engagedRef.current = false;
     lastSavedRef.current = 0;
+    setCurrentTime(initialSeconds);
+    setDuration(0);
+    setPlaying(false);
     const el = audioRef.current;
     if (!el) return;
 

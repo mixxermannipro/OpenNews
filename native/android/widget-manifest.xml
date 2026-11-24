@@ -12,3 +12,5 @@
         </activity>
         <service android:name=".WidgetFeedService" android:exported="false"
             android:permission="android.permission.BIND_REMOTEVIEWS" />
+        <service android:name=".WidgetRefreshService" android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />

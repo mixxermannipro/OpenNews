@@ -41,9 +41,11 @@ fi
 
 cp -r native/android/widget/. android/app/src/main/res/
 install -Dm644 native/android/notifications/ic_stat_opennews.xml android/app/src/main/res/drawable/ic_stat_opennews.xml
-if grep -q 'OpenNewsWidget' "$manifest" && ! grep -q '\.WidgetFeedService' "$manifest"; then
+if grep -q 'OpenNewsWidget' "$manifest" && { ! grep -q '\.WidgetFeedService' "$manifest" || ! grep -q '\.WidgetRefreshService' "$manifest"; }; then
   sed -i '/<activity android:name="\.WidgetSettingsActivity"/,/<\/activity>/d' "$manifest"
   sed -i '/<receiver android:name="\.OpenNewsWidget"/,/<\/receiver>/d' "$manifest"
+  sed -i '/<service android:name="\.WidgetFeedService"/,/\/>/d' "$manifest"
+  sed -i '/<service android:name="\.WidgetRefreshService"/,/\/>/d' "$manifest"
 fi
 if ! grep -q 'OpenNewsWidget' "$manifest"; then
   sed -i '/<\/application>/e cat native/android/widget-manifest.xml' "$manifest"

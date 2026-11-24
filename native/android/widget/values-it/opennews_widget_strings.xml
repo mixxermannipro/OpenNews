@@ -31,4 +31,12 @@
     <string name="widget_metadata">Fonte e ora di pubblicazione</string>
     <string name="widget_save_settings">Salva impostazioni</string>
     <string name="widget_preview">Notizie dalle tue fonti</string>
+    <string name="widget_refresh_section">Aggiornamento in background</string>
+    <string name="widget_refresh_interval">Intervallo di aggiornamento</string>
+    <string name="widget_refresh_off">Disattivato (solo manuale)</string>
+    <string name="widget_refresh_15m">Ogni 15 minuti</string>
+    <string name="widget_refresh_30m">Ogni 30 minuti</string>
+    <string name="widget_refresh_1h">Ogni ora</string>
+    <string name="widget_refresh_2h">Ogni 2 ore</string>
+    <string name="widget_refresh_4h">Ogni 4 ore</string>
 </resources>

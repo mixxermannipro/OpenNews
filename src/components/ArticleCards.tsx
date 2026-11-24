@@ -103,11 +103,14 @@ export function SwipeableArticleCard({
 }) {
   const { t } = useI18n();
   const shellRef = useRef<HTMLDivElement>(null);
+  const dismissTimerRef = useRef<number | undefined>(undefined);
   const touchRef = useRef<{ x: number; y: number; dx: number; time: number; axis: SwipeAxis; buzzed: boolean } | null>(null);
   const [offsetX, setOffsetX] = useState(0);
   const [dragging, setDragging] = useState(false);
   const [ready, setReady] = useState(false);
   const [dismissingDir, setDismissingDir] = useState<-1 | 0 | 1>(0);
+
+  React.useEffect(() => () => window.clearTimeout(dismissTimerRef.current), []);
 
   if (!enabled || !onDismiss) {
     return <>{children}</>;
@@ -170,7 +173,8 @@ export function SwipeableArticleCard({
           setDragging(false);
           setDismissingDir(dir);
           setOffsetX(dir * (width + 40));
-          window.setTimeout(() => {
+          window.clearTimeout(dismissTimerRef.current);
+          dismissTimerRef.current = window.setTimeout(() => {
             onDismiss(article);
           }, 210);
         } else {
@@ -292,10 +296,10 @@ export function HeadlineArticleCard({ article, lead = false, onOpen, ...actions 
     ? 'text-rose-700 dark:text-rose-400'
     : (CATEGORY_TEXT_STYLES[article.category] || 'text-[var(--accent)]');
   const localizedCategory = categoryLabel(article.category);
-  const articleType = classifyArticleType(article);
+  const articleType = React.useMemo(() => classifyArticleType(article), [article]);
   const typeKey = TYPE_LABEL_KEY[articleType];
   const kicker = typeKey ? `${t(typeKey)} · ${localizedCategory}` : localizedCategory;
-  const clickbait = detectAndClarifyClickbait(article);
+  const clickbait = React.useMemo(() => detectAndClarifyClickbait(article), [article]);
 
   return (
     <article className={`settings-group article-card article-card-interactive min-w-0 overflow-hidden ${lead ? 'article-card-lead' : ''}`}>
@@ -376,7 +380,7 @@ export const CompactArticleCard: React.FC<CardActionsProps> = ({
     ? 'text-rose-700 dark:text-rose-400'
     : (CATEGORY_TEXT_STYLES[article.category] || 'text-[var(--accent)]');
   const localizedCategory = categoryLabel(article.category);
-  const articleType = classifyArticleType(article);
+  const articleType = React.useMemo(() => classifyArticleType(article), [article]);
   const typeKey = TYPE_LABEL_KEY[articleType];
   const kicker = typeKey ? `${t(typeKey)} · ${localizedCategory}` : localizedCategory;
 

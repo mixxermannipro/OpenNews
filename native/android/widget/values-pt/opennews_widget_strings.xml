@@ -31,4 +31,12 @@
     <string name="widget_metadata">Fonte e horário de publicação</string>
     <string name="widget_save_settings">Salvar configurações</string>
     <string name="widget_preview">Notícias das suas fontes</string>
+    <string name="widget_refresh_section">Atualização em segundo plano</string>
+    <string name="widget_refresh_interval">Intervalo de atualização</string>
+    <string name="widget_refresh_off">Desativada (somente manual)</string>
+    <string name="widget_refresh_15m">A cada 15 minutos</string>
+    <string name="widget_refresh_30m">A cada 30 minutos</string>
+    <string name="widget_refresh_1h">A cada hora</string>
+    <string name="widget_refresh_2h">A cada 2 horas</string>
+    <string name="widget_refresh_4h">A cada 4 horas</string>
 </resources>

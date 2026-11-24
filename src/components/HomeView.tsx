@@ -148,10 +148,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
   const canSwipeDismiss = Boolean(onDismissLessLikeThis) && (isToday || selectedCategory === 'Für dich');
 
+  const bookmarkedSet = useMemo(() => new Set(profile.bookmarkedIds), [profile.bookmarkedIds]);
+  const likedSet = useMemo(() => new Set(profile.likedIds), [profile.likedIds]);
+
   const cardProps = ({ lead: article }: HomeStory) => ({
     article,
-    isBookmarked: profile.bookmarkedIds.includes(article.id),
-    isLiked: profile.likedIds.includes(article.id),
+    isBookmarked: bookmarkedSet.has(article.id),
+    isLiked: likedSet.has(article.id),
     onOpen: onOpenArticle,
     onToggleBookmark,
     onToggleLike,

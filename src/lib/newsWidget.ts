@@ -3,12 +3,22 @@ import type { NewsArticle } from '../types/news';
 
 type WidgetArticle = NewsArticle & { widgetSaved?: boolean };
 
+export interface WidgetFeedSource {
+  id: string;
+  name: string;
+  url: string;
+  category: string;
+  accentColor: string;
+  shortCode: string;
+}
+
 export interface WidgetSnapshot {
   today: WidgetArticle[];
   personal: WidgetArticle[];
   latest: WidgetArticle[];
   language?: string;
   theme?: 'system' | 'light' | 'dark';
+  feeds?: WidgetFeedSource[];
 }
 
 export interface WidgetLaunch {

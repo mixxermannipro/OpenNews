@@ -24,4 +24,5 @@
     <item name="widget_pref_images" type="id" />
     <item name="widget_pref_summaries" type="id" />
     <item name="widget_pref_metadata" type="id" />
+    <item name="widget_pref_refresh" type="id" />
 </resources>

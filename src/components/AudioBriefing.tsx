@@ -291,8 +291,11 @@ export function AudioBriefing({ articles, config, ttsConfig, open, onOpen, onClo
 
   const handleOpenBulletArticle = (article: NewsArticle) => {
     if (state !== 'idle') stop();
-    onClose();
-    onOpenArticle?.(article);
+    if (onOpenArticle) {
+      onOpenArticle(article);
+    } else {
+      onClose();
+    }
   };
 
   const canSpeak = cloudTTS || android || 'speechSynthesis' in window;

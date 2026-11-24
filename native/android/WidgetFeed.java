@@ -26,7 +26,7 @@ final class WidgetFeed {
     static final int COMPACT = 0, STANDARD = 1, EXPANDED = 2;
     static final int AUTO = 0, DENSE = 1, EDITORIAL = 2;
     static final int SYSTEM = 0, LIGHT = 1, DARK = 2;
-    static final String[] SETTINGS = {"section-", "topic-", "source-", "density-", "theme-", "images-", "summaries-", "metadata-"};
+    static final String[] SETTINGS = {"section-", "topic-", "source-", "density-", "theme-", "images-", "summaries-", "metadata-", WidgetRefreshService.PREF_REFRESH};
 
     final Context context;
     final int id, section, density;

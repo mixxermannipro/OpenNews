@@ -63,6 +63,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
   const [radarInput, setRadarInput] = useState('');
   const [muteInput, setMuteInput] = useState('');
   const [muteDuration, setMuteDuration] = useState<MuteDuration>('7d');
+  const [filtersOpen, setFiltersOpen] = useState(() => trackedKeywords.length > 0 || mutedKeywords.length > 0);
 
   const filtered = useMemo(
     () => category === 'Alle' ? articles : articles.filter(article => article.category === category),
@@ -178,8 +179,9 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
 
           {/* Collapsible Keyword Radar & Mute Filter Panel */}
           <details
-            className="settings-group overflow-hidden"
-            open={trackedKeywords.length > 0 || mutedKeywords.length > 0}
+            className="settings-group cluster-disclosure overflow-hidden"
+            open={filtersOpen}
+            onToggle={event => setFiltersOpen(event.currentTarget.open)}
           >
             <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-bold text-[var(--ink)] [&::-webkit-details-marker]:hidden">
               <span className="inline-flex items-center gap-2">
