@@ -65,12 +65,12 @@ OpenNews bündelt Nachrichten aus frei zugänglichen Feeds in einer ruhigen Ober
 | **Darstellung** | System/Hell/Dunkel, Akzentfarbe, Kartendichte, Textgröße, Bilder im Feed, reduzierte Bewegung |
 | **Sicherung** | Export und Import von Abos, Reaktionen und Lesezeichen als JSON-Datei bis 5 MB; bleibt auf dem Gerät |
 | **Diagnose** | Freiwillige lokale Fehleraufzeichnung ohne Fehlertexte, Adressen oder Gerätekennungen; Export als JSON, optionales Senden der Fehlerart an den eigenen Server |
-| **Widget** | Scrollbarer Android-Feed mit Größenanpassung, Filter und Erscheinungsbild je Widget; iOS-WidgetKit für drei Größen mit Reitern, benötigt Xcode |
+| **Widget** | Scrollbarer Android-Feed mit Größenanpassung, Filter, Erscheinungsbild und konfigurierbarer Hintergrund-Aktualisierung (Aus, 15/30 Min., 1/2/4 Std.) je Widget; iOS-WidgetKit für drei Größen mit Reitern, benötigt Xcode |
 | **PWA** | Installierbar, Service Worker mit Auto-Update, Offline-Hinweis, maskierbares Icon |
 | **Android** | Capacitor-WebView, direkte HTTP-Aufrufe, nativer Zurück-Knopf, Share-Dialog, Systemstimme und lokale Übersetzung |
 | **Benachrichtigungen** | Android-Push für unterstützte abonnierte Quellen mit eingerichtetem Firebase. Im Web erscheinen Hinweise in der geöffneten App. |
 
-Beim App-Start werden die Feeds einmal priorisiert geladen. Ziehe auf „Heute“, „Für dich“ oder „Neueste“ nach unten oder tippe auf die Aktualisieren-Schaltfläche im Kopf, um sie neu abzurufen. Bist du bereits weiter unten im Feed, bleiben gelesene Positionen stabil und neue Beiträge erscheinen über einen kompakten Hinweis zum Hochspringen. Beim Schließen eines Artikels bleibt die geöffnete Liste erhalten. Der Android-Feed bietet eine Aktualisieren-Taste im Kopf oder in den Widget-Einstellungen. Das iOS-Widget hat eine eigene Aktualisieren-Taste.
+Beim App-Start werden die Feeds einmal priorisiert geladen. Ziehe auf „Heute“, „Für dich“ oder „Neueste“ nach unten oder tippe auf die Aktualisieren-Schaltfläche im Kopf, um sie neu abzurufen. Bist du bereits weiter unten im Feed, bleiben gelesene Positionen stabil und neue Beiträge erscheinen über einen kompakten Hinweis zum Hochspringen. Beim Schließen eines Artikels bleibt die geöffnete Liste erhalten. Das Android-Widget aktualisiert sich auf Wunsch automatisch im Hintergrund (Standard: alle 30 Minuten, in den Widget-Einstellungen wählbar zwischen Aus, 15 Min., 30 Min., 1 Std., 2 Std. und 4 Std.) und bietet zusätzlich eine Aktualisieren-Taste im Kopf oder in den Widget-Einstellungen. Das iOS-Widget hat eine eigene Aktualisieren-Taste.
 
 **Einstellungen:** Die Android-Freigabe erscheint beim Einschalten von Eilmeldungen oder der täglichen Erinnerung. Nach einer Ablehnung führt ein Link zur Benachrichtigungsseite von Android. Im Browser erscheinen Hinweise beim Aktualisieren der geöffneten App. Die automatische Übersetzung steht unter **Lesen**, das Zurücksetzen der Empfehlungen unter **KI & Personalisierung**. Sicherung und Diagnose stehen unter **Datenschutz**.
 
@@ -192,6 +192,7 @@ OpenNews/
 │       └── [[path]].ts                 # Cloudflare Pages Functions (/api/* für die Web-App)
 │
 ├── e2e/
+│   ├── full-walkthrough.spec.ts        # End-to-End-Komplettprüfung aller Ansichten und Dialoge
 │   └── news.spec.ts                    # Browsertests für Kernabläufe
 │
 ├── native/
@@ -205,6 +206,7 @@ OpenNews/
 │   │   ├── OpenNewsWidget.java         # Android-Widget
 │   │   ├── WidgetFeed.java             # Filter und Meldungszeilen
 │   │   ├── WidgetFeedService.java      # Scrollbare Liste bis Android 11
+│   │   ├── WidgetRefreshService.java   # Konfigurierbare Hintergrund-Aktualisierung (JobScheduler)
 │   │   ├── widget/                     # Layout, Bilder und Farben des Widgets
 │   │   ├── sync-icons.sh               # Launcher-Icons aus dem Logo
 │   │   └── sync-plugins.sh             # Native Dateien ins Android-Projekt kopieren
@@ -616,7 +618,7 @@ Das Repository ist privat und in einer frühen Alpha. Beiträge klein und prüfb
 | BYOK-KI | Beta, abhängig von Anbieter und Schlüssel |
 | Tagesüberblick | Lokal synthetisiertes Themen-Briefing mit Vorlesen 2.0, optional mit Anbieter-KI |
 | Diagnose | lokal verfügbar, Senden optional |
-| Tests | 106 Unit-Tests und 14 Playwright-Browsertests |
+| Tests | 116 Unit-Tests und 15 Playwright-Browsertests |
 | Eigener Quellcode | Alle Rechte vorbehalten |
 
 ## Lizenz

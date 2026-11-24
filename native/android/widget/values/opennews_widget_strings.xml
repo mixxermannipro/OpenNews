@@ -31,4 +31,12 @@
     <string name="widget_metadata">Source and publication time</string>
     <string name="widget_save_settings">Save settings</string>
     <string name="widget_preview">News from your sources</string>
+    <string name="widget_refresh_section">Background refresh</string>
+    <string name="widget_refresh_interval">Refresh interval</string>
+    <string name="widget_refresh_off">Off (manual only)</string>
+    <string name="widget_refresh_15m">Every 15 minutes</string>
+    <string name="widget_refresh_30m">Every 30 minutes</string>
+    <string name="widget_refresh_1h">Every hour</string>
+    <string name="widget_refresh_2h">Every 2 hours</string>
+    <string name="widget_refresh_4h">Every 4 hours</string>
 </resources>

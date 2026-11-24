@@ -61,6 +61,16 @@ public class OpenNewsWidget extends AppWidgetProvider {
     }
 
     @Override
+    public void onEnabled(Context context) {
+        WidgetRefreshService.sync(context);
+    }
+
+    @Override
+    public void onDisabled(Context context) {
+        WidgetRefreshService.cancel(context);
+    }
+
+    @Override
     public void onDeleted(Context context, int[] ids) {
         SharedPreferences.Editor editor = store(context).edit();
         for (int id : ids) {
@@ -68,6 +78,7 @@ public class OpenNewsWidget extends AppWidgetProvider {
             editor.remove("page-" + id);
         }
         editor.apply();
+        WidgetRefreshService.sync(context);
     }
 
     @Override
@@ -78,6 +89,7 @@ public class OpenNewsWidget extends AppWidgetProvider {
     @Override
     public void onUpdate(Context context, AppWidgetManager manager, int[] ids) {
         updateWidgets(context, manager, ids, false);
+        WidgetRefreshService.sync(context);
     }
 
     void updateWidgets(Context context, AppWidgetManager manager, int[] ids, boolean resetScroll) {

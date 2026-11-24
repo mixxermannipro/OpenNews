@@ -276,13 +276,17 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
     return () => document.removeEventListener('selectionchange', checkSelection);
   }, []);
 
+  const quoteTimerRef = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(quoteTimerRef.current), []);
+
   const handleSaveQuote = () => {
     if (!selectedQuote) return;
     onAddHighlight(article, selectedQuote);
     window.getSelection()?.removeAllRanges();
     setSelectedQuote('');
     setQuoteToast(t('readerHighlightSaved'));
-    window.setTimeout(() => setQuoteToast(''), 2200);
+    window.clearTimeout(quoteTimerRef.current);
+    quoteTimerRef.current = window.setTimeout(() => setQuoteToast(''), 2200);
   };
 
   const saveOffline = async () => {
@@ -728,13 +732,15 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
     >
       <motion.div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 bg-black/60 backdrop-blur-[2px]"
+        onClick={onClose}
+        className="absolute inset-0 bg-black/60 backdrop-blur-[2px]"
         initial={reducedMotion ? false : { opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: reducedMotion ? 0 : 0.22, ease: 'easeOut' }}
       />
       <motion.div
+        onClick={event => event.stopPropagation()}
         initial={reducedMotion ? false : { opacity: 0, y: 26, scale: 0.99 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={reducedMotion ? undefined : { opacity: 0, y: 20, transition: { duration: 0.2, ease: [0.32, 0, 0.35, 1] } }}

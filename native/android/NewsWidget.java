@@ -45,14 +45,24 @@ public class NewsWidget extends Plugin {
         String theme = call.getString("theme");
         if (theme != null) snapshot.put("theme", theme);
         String json = snapshot.toString();
+        com.getcapacitor.JSArray feeds = call.getArray("feeds");
+        String feedsJson = feeds != null ? feeds.toString() : null;
         getActivity().runOnUiThread(() -> {
             Context context = getContext();
             android.content.SharedPreferences store = OpenNewsWidget.store(context);
-            if (!json.equals(store.getString("snapshot", ""))) {
-                store.edit().putString("snapshot", json).apply();
+            android.content.SharedPreferences.Editor editor = store.edit();
+            boolean snapshotChanged = !json.equals(store.getString("snapshot", ""));
+            if (snapshotChanged) editor.putString("snapshot", json);
+            if (feedsJson != null && !feedsJson.equals(store.getString(WidgetRefreshService.PREF_FEEDS, ""))) {
+                editor.putString(WidgetRefreshService.PREF_FEEDS, feedsJson);
+            }
+            editor.apply();
+            if (snapshotChanged) {
                 AppWidgetManager manager = AppWidgetManager.getInstance(context);
                 int[] ids = manager.getAppWidgetIds(new ComponentName(context, OpenNewsWidget.class));
                 new OpenNewsWidget().onUpdate(context, manager, ids);
+            } else {
+                WidgetRefreshService.sync(context);
             }
             call.resolve();
         });

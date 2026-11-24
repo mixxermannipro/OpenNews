@@ -96,6 +96,10 @@ public class WidgetSettingsActivity extends Activity {
         Switch summaries = toggle(content, R.id.widget_pref_summaries, R.string.widget_summaries, feed.summaries);
         Switch metadata = toggle(content, R.id.widget_pref_metadata, R.string.widget_metadata, feed.metadata);
 
+        heading(content, R.string.widget_refresh_section, 20);
+        Spinner refreshInterval = option(content, R.id.widget_pref_refresh, R.string.widget_refresh_interval,
+            names(WidgetRefreshService.INTERVAL_LABELS), WidgetRefreshService.intervalIndex(store, id));
+
         Button save = button(content, R.string.widget_save_settings);
         save.setOnClickListener(view -> {
             if (!OpenNewsWidget.ownsWidget(manager, id)) {
@@ -105,6 +109,10 @@ public class WidgetSettingsActivity extends Activity {
             int selectedSection = section.getSelectedItemPosition();
             String selectedTopic = topicKeys.get(topic.getSelectedItemPosition());
             String selectedSource = sourceKeys.get(source.getSelectedItemPosition());
+            int refreshPos = refreshInterval.getSelectedItemPosition();
+            int selectedMinutes = refreshPos >= 0 && refreshPos < WidgetRefreshService.INTERVAL_MINUTES.length
+                ? WidgetRefreshService.INTERVAL_MINUTES[refreshPos]
+                : WidgetRefreshService.DEFAULT_INTERVAL_MINUTES;
             boolean filterChanged = selectedSection != feed.section
                 || !savedTopic.equals(selectedTopic) || !savedSource.equals(selectedSource);
             store.edit().putInt("section-" + id, selectedSection)
@@ -115,7 +123,9 @@ public class WidgetSettingsActivity extends Activity {
                 .putBoolean("images-" + id, images.isChecked())
                 .putBoolean("summaries-" + id, summaries.isChecked())
                 .putBoolean("metadata-" + id, metadata.isChecked())
+                .putInt(WidgetRefreshService.PREF_REFRESH + id, selectedMinutes)
                 .apply();
+            WidgetRefreshService.sync(this);
             new OpenNewsWidget().updateWidgets(this, manager, new int[]{id}, filterChanged);
             setResult(RESULT_OK, new Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id));
             finish();

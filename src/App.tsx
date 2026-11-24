@@ -259,7 +259,9 @@ export default function App() {
   useEffect(() => { setReaderFeedSnapshot(null); }, [activeTab, homeCategory]);
   const [feedClock, setFeedClock] = useState(Date.now);
   useEffect(() => {
-    const updateClock = () => setFeedClock(Date.now());
+    const updateClock = () => {
+      if (!document.hidden) setFeedClock(Date.now());
+    };
     const timer = window.setInterval(updateClock, 60_000);
     document.addEventListener('visibilitychange', updateClock);
     return () => {
@@ -618,15 +620,13 @@ export default function App() {
 
   const allArticles = useMemo(() => distinctArticles(activeArticles), [activeArticles]);
 
-  const activeStoryClusters = useMemo(() => clusterStories(activeArticles), [activeArticles]);
-
   const perspectiveArticles = useMemo(() => {
     if (!activeArticle) return [];
-    const cluster = activeStoryClusters
+    const cluster = clusterStories(activeArticles)
       .find(story => story.reports.some(report => report.id === activeArticle.id));
     if (!cluster) return [];
     return [...new Map(cluster.reports.map(report => [report.sourceId, report])).values()].slice(0, 6);
-  }, [activeArticle, activeStoryClusters]);
+  }, [activeArticle, activeArticles]);
 
   const homeSections = useMemo(
     () => {
@@ -635,6 +635,10 @@ export default function App() {
       return buildHomeSections(activeArticles, { ...normalizedProfile, topicWeights }, sources, feedClock);
     },
     [activeArticles, normalizedProfile, sources, preferences.topics, feedClock]
+  );
+  const todayLeadArticles = useMemo(
+    () => homeSections.Heute.map(story => story.lead),
+    [homeSections.Heute]
   );
   useLayoutEffect(() => {
     latestHomeStories.current = homeSections[homeCategory];
@@ -669,6 +673,15 @@ export default function App() {
     };
   }, [onboarded]);
 
+  // Prefetch ArticleReaderModal chunk on idle so the first article tap opens instantaneously
+  useEffect(() => {
+    if (!onboarded) return;
+    const timer = window.setTimeout(() => {
+      void import('./components/ArticleReaderModal').catch(() => {});
+    }, 2400);
+    return () => window.clearTimeout(timer);
+  }, [onboarded]);
+
   // Intelligent background offline preloading for saved/queued + top Today articles
   useEffect(() => {
     if (!onboarded || !cachedStorageReady || isLoadingFeeds || !homeSections.Heute.length) return;
@@ -701,11 +714,24 @@ export default function App() {
       ...lead, contentHtml: undefined, paragraphs: [], summary: lead.summary.slice(0, 400),
       ...(platform === 'android' && { widgetSaved: normalizedProfile.bookmarkedIds.includes(lead.id) }),
     }));
+    const feeds = platform === 'android'
+      ? activeSources
+        .filter(source => source.format !== 'podcast')
+        .slice(0, 25)
+        .map(source => ({
+          id: source.id,
+          name: source.name,
+          url: source.url,
+          category: source.category,
+          accentColor: source.accentColor,
+          shortCode: source.shortCode,
+        }))
+      : undefined;
     void import('./lib/newsWidget').then(({ NewsWidget }) => NewsWidget.update({
       today: snapshot('Heute'), personal: snapshot('Für dich'), latest: snapshot('Neueste'),
-      ...(platform === 'android' && { language: activeLanguage, theme }),
+      ...(platform === 'android' && { language: activeLanguage, theme, feeds }),
     })).catch(() => {});
-  }, [activeLanguage, cachedStorageReady, homeSections, isLoadingFeeds, normalizedProfile.bookmarkedIds, theme]);
+  }, [activeLanguage, activeSources, cachedStorageReady, homeSections, isLoadingFeeds, normalizedProfile.bookmarkedIds, theme]);
 
   const openSettings = (sec: SettingsSectionTab = 'overview') => {
     navigate({ tab: 'settings', settings: sec });
@@ -806,11 +832,11 @@ export default function App() {
   }, [undoDismiss, setProfile]);
 
   const handleToggleQueue = (article: NewsArticle) => {
-    setReadingQueueIds(prev => {
-      if (prev.includes(article.id)) return prev.filter(id => id !== article.id);
-      setSavedArticles(saved => ({ ...saved, [article.id]: article }));
-      return [...prev, article.id];
-    });
+    const alreadyQueued = readingQueueIds.includes(article.id);
+    if (!alreadyQueued) {
+      setSavedArticles(saved => (saved[article.id] ? saved : { ...saved, [article.id]: article }));
+    }
+    setReadingQueueIds(prev => (prev.includes(article.id) ? prev.filter(id => id !== article.id) : [...prev, article.id]));
   };
 
   const handleAddHighlight = (article: NewsArticle, quote: string) => {
@@ -1056,7 +1082,7 @@ export default function App() {
     <MotionConfig reducedMotion={preferences.motion === 'reduced' ? 'always' : 'user'}>
     <div className={`opennews-canvas ${activeAudio ? 'has-mini-player' : ''}`} data-glass={preferences.glass} data-accent={preferences.accent}
       data-corners={preferences.corners} data-cards={preferences.cards} data-scale={preferences.textScale}
-      data-feed-images={preferences.images}>
+      data-feed-images={preferences.images} data-nav-hidden={navigationHidden || undefined}>
       {!onboarded ? <Suspense fallback={<ViewStatus title={t('loadingView')} />}><Onboarding
         {...appearance}
         sources={sources}
@@ -1145,7 +1171,7 @@ export default function App() {
             briefing={(
               <Suspense fallback={null}>
                 <AudioBriefing
-                  articles={homeSections.Heute.map(story => story.lead)}
+                  articles={todayLeadArticles}
                   config={aiConfig}
                   ttsConfig={ttsConfig}
                   open={Boolean(location.briefing)}
@@ -1381,7 +1407,13 @@ export default function App() {
       </div>
 
       {/* Article Reader Sheet */}
-      <Suspense fallback={<button className="fixed inset-0 z-50 bg-black/60 text-white" onClick={goBack}>{t('loadingView')} {t('close')}</button>}>
+      <Suspense fallback={activeArticle ? (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-[2px]" onClick={goBack}>
+          <div className="reader-surface flex h-[100dvh] sm:h-[92vh] w-full max-w-3xl items-center justify-center sm:rounded-[30px] shadow-2xl">
+            <p className="text-sm font-medium text-[var(--muted)]">{t('loadingView')}</p>
+          </div>
+        </div>
+      ) : null}>
       <AnimatePresence>
         {activeArticle && (
           <ArticleReaderModal

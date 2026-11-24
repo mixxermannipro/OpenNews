@@ -31,4 +31,12 @@
     <string name="widget_metadata">Quelle und Veröffentlichungszeit</string>
     <string name="widget_save_settings">Einstellungen speichern</string>
     <string name="widget_preview">Meldungen aus deinen Quellen</string>
+    <string name="widget_refresh_section">Automatische Aktualisierung</string>
+    <string name="widget_refresh_interval">Aktualisierungsintervall</string>
+    <string name="widget_refresh_off">Aus (nur manuell)</string>
+    <string name="widget_refresh_15m">Alle 15 Minuten</string>
+    <string name="widget_refresh_30m">Alle 30 Minuten</string>
+    <string name="widget_refresh_1h">Jede Stunde</string>
+    <string name="widget_refresh_2h">Alle 2 Stunden</string>
+    <string name="widget_refresh_4h">Alle 4 Stunden</string>
 </resources>

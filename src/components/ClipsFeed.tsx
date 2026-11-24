@@ -95,7 +95,13 @@ export function ClipsFeed({
     if (dialog?.open) dialog.close();
     if (pushedHistoryRef.current) {
       pushedHistoryRef.current = false;
-      window.history.back();
+      if (after) {
+        const nextState = { ...(window.history.state ?? {}) };
+        delete nextState.opennewsClips;
+        window.history.replaceState(nextState, '');
+      } else {
+        window.history.back();
+      }
     }
     onCloseRef.current();
     const pending = exitActionRef.current;
