@@ -29,7 +29,7 @@ Datenschutzfreundliche, Apple-inspirierte Nachrichten-App für freie RSS-, Atom-
 ---
 
 > [!NOTE]
-> **Alpha:** OpenNews steht bei `0.1.0-alpha.1`. Die [Web-App](https://opennews-app.pages.dev/app/) läuft direkt im Browser und lässt sich als PWA installieren. Android ist im geschlossenen Google-Play-Test. Die [Produktwebsite](https://opennews-app.pages.dev/) zeigt die wichtigsten Ansichten. Artikelvolltext und KI mit eigenem Schlüssel sind Beta. Der iOS-Build mit WidgetKit wurde noch nicht in Xcode geprüft.
+> **Aktueller Stand (`0.1.0-alpha.1`):** Die Android-App ist im **Google Play Store** verfügbar. Die [Web-App](https://opennews-app.pages.dev/app/) läuft direkt im Browser und lässt sich als PWA installieren. Die [Produktwebsite](https://opennews-app.pages.dev/) zeigt die wichtigsten Ansichten. Artikelvolltext und KI mit eigenem Schlüssel sind Beta. Der iOS-Build mit WidgetKit wurde noch nicht in Xcode geprüft.
 
 ## Was ist OpenNews?
 
@@ -70,15 +70,9 @@ OpenNews bündelt Nachrichten aus frei zugänglichen Feeds in einer ruhigen Ober
 | **Android** | Capacitor-WebView, direkte HTTP-Aufrufe, nativer Zurück-Knopf, Share-Dialog, Systemstimme und lokale Übersetzung |
 | **Benachrichtigungen** | Android-Push für unterstützte abonnierte Quellen mit eingerichtetem Firebase. Im Web erscheinen Hinweise in der geöffneten App. |
 
-Beim App-Start werden die Feeds einmal priorisiert geladen. Ziehe auf „Heute“, „Für dich“ oder „Neueste“ nach unten oder tippe auf die Aktualisieren-Schaltfläche im Kopf, um sie neu abzurufen. Bist du bereits weiter unten im Feed, bleiben gelesene Positionen stabil und neue Beiträge erscheinen über einen kompakten Hinweis zum Hochspringen. Beim Schließen eines Artikels bleibt die geöffnete Liste erhalten. Das Android-Widget aktualisiert sich auf Wunsch automatisch im Hintergrund (Standard: alle 30 Minuten, in den Widget-Einstellungen wählbar zwischen Aus, 15 Min., 30 Min., 1 Std., 2 Std. und 4 Std.) und bietet zusätzlich eine Aktualisieren-Taste im Kopf oder in den Widget-Einstellungen. Das iOS-Widget hat eine eigene Aktualisieren-Taste.
-
-**Einstellungen:** Die Android-Freigabe erscheint beim Einschalten von Eilmeldungen oder der täglichen Erinnerung. Nach einer Ablehnung führt ein Link zur Benachrichtigungsseite von Android. Im Browser erscheinen Hinweise beim Aktualisieren der geöffneten App. Die automatische Übersetzung steht unter **Lesen**, das Zurücksetzen der Empfehlungen unter **KI & Personalisierung**. Sicherung und Diagnose stehen unter **Datenschutz**.
-
-Unter **Profil → Einstellungen → Darstellung** kannst du die Übergänge beim Antippen, Wechseln und Öffnen von Dialogen reduzieren. OpenNews berücksichtigt auch die Bewegungseinstellung des Systems. Die Auswahlmarkierung gleitet zwischen Reitern, und der Aktualisierungspfeil folgt beim Herunterziehen der Geste.
-
 **Aufbewahrung:** 2, 4, 7, 14, 30 oder 90 Tage (Standard **4**), maximal **600** Beiträge im Speicher. Beim Aktualisieren werden neue Artikel zusammengeführt; Abos, Lesezeichen, Likes und Verlauf bleiben erhalten.
 
-Die App zeigt die Hauptmeldung auf einer großen Bildkarte. Darunter wechseln sich große redaktionelle Karten und kompakte Meldungen ab. Eilmeldungen, Berichte aus mehreren Quellen und früh platzierte Geschichten mit Bild können mehr Platz bekommen. Zwischen größeren Karten bleiben mehrere kompakte Meldungen. „Entdecken“ kombiniert Bildkacheln und Suche, „Video & Audio“ zeigt Video, Podcast und Hochformat-Clip in eigenen Vorschauen. Clips öffnen bildschirmfüllend. Mit Wischen oder den Pfeilen im Player wechselst du zum nächsten Clip. Direkte Videos starten mit Ton und behalten die Tonwahl beim Wechsel. YouTube-Clips verwenden die Steuerelemente von YouTube. Falls der Browser den automatischen Start blockiert, tippe im Player auf Wiedergabe. Im Profil sind persönliche Inhalte und Einstellungen in zwei Gruppen erreichbar.
+**Einstellungen & Hinweise:** Die Android-Benachrichtigungsfreigabe erscheint beim Einschalten von Eilmeldungen oder der täglichen Erinnerung. Automatische Übersetzung steht unter **Lesen**, das Zurücksetzen der Empfehlungen unter **KI & Personalisierung**, Sicherung und Diagnose unter **Datenschutz**, und reduzierte Bewegung unter **Profil → Einstellungen → Darstellung**.
 
 ## Screenshots
 
@@ -137,7 +131,7 @@ flowchart LR
 | Entwicklung | `npm run dev` | Browser → Vite-Middleware → Express-Routen (Port `3000`) |
 | Web-Produktion | `npm run build` + `NODE_ENV=production npm start` | Browser → Express → Feeds/Websites/KI |
 | PWA | installierte Web-App | wie Produktion; Assets im Service-Worker-Cache |
-| Android | Debug-APK | WebView → `CapacitorHttp` → Feeds/Websites/KI (kein Node-Server) |
+| Android | Google Play Store / APK | WebView → `CapacitorHttp` → Feeds/Websites/KI (kein Node-Server) |
 
 **Datenfluss:** Feed-URL → HTTP-Abruf → `parseFeedPayload()` → Normalisierung (Titel, Datum, Kategorie, Schlagwörter, Medien, Lesezeit) → `mergeFeedArticles()` (Merge, Aufbewahrung, 600er-Limit) → `buildHomeSections()` → React-Oberfläche.
 
@@ -180,7 +174,7 @@ OpenNews/
 │   └── website/                        # Produktwebsite für Cloudflare Pages
 │
 ├── docs/
-│   ├── screenshots/                    # Aktuelle App-Aufnahmen für diese README
+│   ├── screenshots/                    # Ergänzende App-Aufnahmen (README nutzt apps/website/public/screenshots/)
 │   ├── android-release.md              # Signierung und Play-Store-Checkliste
 │   ├── artikelvolltext.md              # Readability, Rechte, Offline-Kopien
 │   ├── datenschutz.md                  # Entwurf der Datenschutzerklärung
@@ -225,6 +219,7 @@ OpenNews/
 │   └── theme-init.js                   # Theme vor dem ersten Rendern setzen
 │
 ├── scripts/
+│   ├── build-pages.mjs                 # Baut Website + Web-App für Cloudflare Pages in dist-pages/
 │   ├── check-web-budget.mjs            # Prüft das JS-Budget von 170 KiB gzip
 │   └── push-news.ts                    # Feed-Dienst für Android-Push
 │
@@ -358,7 +353,6 @@ npm ci
 npm run dev          # http://localhost:3000
 ```
 
-Das Repository ist privat — du brauchst Zugriff auf `mixxermannipro/OpenNews`.
 Wenn du eine npm-Abhängigkeit änderst, aktualisiere auch die `package-lock.json` und prüfe die Installation mit `npm ci`.
 
 ### Produktionsbuild
@@ -379,7 +373,7 @@ NODE_ENV=production npm start
 4. **Lesen:** Artikel antippen — der Reader lädt nach Möglichkeit den Volltext.
 5. **Personalisieren:** Like, Dislike, Lesezeichen und Lesezeit formen die Empfehlungen.
 6. **KI (optional):** Unter **Profil → KI & Personalisierung** Anbieter und Schlüssel hinterlegen.
-7. **Installieren:** Installationshilfe für PWA oder APK im Profil.
+7. **Installieren:** Installationshilfe für PWA im Profil; die Android-App ist im Google Play Store verfügbar.
 
 ## Skripte
 
@@ -387,15 +381,17 @@ NODE_ENV=production npm start
 | --- | --- | --- |
 | `npm run dev` | `tsx server.ts` | Dev-Server mit Vite-Middleware auf Port `3000` |
 | `npm run build` | `vite build` | Produktionsbuild nach `dist/` inkl. PWA-Assets |
+| `npm run build:pages` | `node scripts/build-pages.mjs` | Baut Website und Web-App zusammen nach `dist-pages/` |
 | `npm start` | `tsx server.ts` | Express starten; mit `NODE_ENV=production` aus `dist/` |
 | `npm run preview` | `vite preview` | Statischen Build ansehen (ohne API) |
 | `npm run lint` | `tsc --noEmit` | TypeScript-Typprüfung |
 | `npm test` | `node --import tsx --test src/lib/*.test.ts` | 116 Unit-Tests |
-| `npm run test:e2e` | `playwright test` | 14 Browsertests |
+| `npm run test:e2e` | `playwright test` | 15 Browsertests |
 | `npm run push:worker` | `tsx scripts/push-news.ts` | Android-Push aus den Standardquellen senden |
 | `node scripts/check-web-budget.mjs` | Node | Prüft das Start-JavaScript gegen 170 KiB gzip |
 | `npm run clean` | `rm -rf dist server.js` | Build-Artefakte entfernen |
 | `npm run android:sync` | Build + `cap sync` + MainActivity + Icons | Web-Assets, natives Projekt und App-Symbole abgleichen |
+| `npm run android:release -- <code >` | `bash native/android/build-release.sh` | Signiertes Android App Bundle (`.aab`) für Google Play bauen |
 
 ## Konfiguration
 
@@ -460,7 +456,7 @@ Bei Parse- oder Quota-Fehlern fällt der Hook auf den Standardwert zurück, ohne
 
 **Grenzen:** maximal 20 Feeds pro Anfrage (5,5 s Timeout je Feed, bis zu 140 gecachte Feeds im Arbeitsspeicher für 90 s), 25 Beiträge pro Feed, 128 KB JSON-Body, 45 API-Anfragen pro Minute und IP, 10 KI-Anfragen pro Minute, 3.000 Zeichen, 20 s Timeout und 10 MB Audio je TTS-Anfrage, 4 MB je Feed-Antwort, 5 Weiterleitungen, 6 s für Volltext (bis zu 80 gecachte Extraktionen für 10 Min.), 5 s und 6 Treffer für die Feed-Erkennung, 6 parallele Abrufe im nativen Betrieb.
 
-**Sicherheit:** Android prüft eingegebene URLs vor dem Abruf auf lokale Hostnamen und nicht öffentliche IP-Adressen. Auf dem Webserver wird jede ausgehende Adresse wird per DNS aufgelöst; nur öffentliche Ziele sind erlaubt (kein Loopback, kein `10.*`, `192.168.*` oder `169.254.*`, keine Zugangsdaten in der URL). Helmet setzt Sicherheits-Header. In Produktion erlaubt die Content-Security-Policy für externe Bilder und Medien nur HTTPS. `/api/*` prüft `Origin` bzw. `Sec-Fetch-Site` und begrenzt Anfragen pro IP. Es gibt **keine Authentifizierung** — die API ist für lokalen bzw. privaten Betrieb gedacht. Feed-HTML wird bereinigt, OPML-Importe mit DOCTYPE/ENTITY werden abgelehnt. BYOK-Schlüssel werden nicht gespeichert oder protokolliert, liegen aber im Arbeitsspeicher des Servers.
+**Sicherheit:** Android prüft eingegebene URLs vor dem Abruf auf lokale Hostnamen und nicht öffentliche IP-Adressen. Auf dem Webserver wird jede ausgehende Adresse per DNS aufgelöst; nur öffentliche Ziele sind erlaubt (kein Loopback, kein `10.*`, `192.168.*` oder `169.254.*`, keine Zugangsdaten in der URL). Helmet setzt Sicherheits-Header. In Produktion erlaubt die Content-Security-Policy für externe Bilder und Medien nur HTTPS. `/api/*` prüft `Origin` bzw. `Sec-Fetch-Site` und begrenzt Anfragen pro IP. Es gibt **keine Authentifizierung** — die API ist für lokalen bzw. privaten Betrieb gedacht. Feed-HTML wird bereinigt, OPML-Importe mit DOCTYPE/ENTITY werden abgelehnt. BYOK-Schlüssel werden nicht gespeichert oder protokolliert, liegen aber im Arbeitsspeicher des Servers.
 
 **Diagnose:** Der Server nimmt nur bekannte Fehlerarten an und schreibt sie mit der auf Stunden gerundeten Empfangszeit ins Betriebsprotokoll. Es gibt keine Authentifizierung; schütze den Endpunkt über den vorgeschalteten Webserver und führe dort keine Zugriffsprotokolle für diesen Pfad.
 
@@ -487,7 +483,7 @@ Die App ist eine Capacitor-WebView mit `CapacitorHttp` (Feed- und KI-Aufrufe dir
 
 **CI:** Die App-Prüfungen laufen bei Pull Requests gegen `main`.
 
-- **Web CI** (`web-ci.yml`): Typprüfung, 116 Unit-Tests, Build, JavaScript-Budget und 14 Browsertests mit Playwright.
+- **Web CI** (`web-ci.yml`): Typprüfung, 116 Unit-Tests, Build, JavaScript-Budget und 15 Browsertests mit Playwright.
 - **OpenNews Android Test APK** (`android-test-apk.yml`): bei Änderungen an `src/**`, `scripts/**`, `native/android/**`, `public/**` und Build-Dateien sowie manuell über **Actions → Run workflow**. Richtet Node 22 und JDK 21 ein, prüft Typen, führt Unit-Tests und Build aus, erzeugt das Android-Projekt, baut `assembleDebug`, prüft, dass die APK vorhanden ist, lädt sie bei verfügbarem GitHub-Speicher als Artefakt (7 Tage) hoch, prüft bei Pull Requests den AAB-Bau mit einem Einmalschlüssel und veröffentlicht bei manuellem Lauf ein öffentliches Pre-Release `v0.1.0-alpha.<Run-Nummer>`.
 
 **Lokal:**
@@ -517,7 +513,7 @@ OpenNews nutzt die öffentlichen YouTube-Kanalfeeds unter anderem von tagesschau
 
 
 > [!NOTE]
-> Alle CI-Builds sind mit einem Debug-Schlüssel signiert. Wegen abweichender Signaturen lässt sich eine neue APK nicht über eine ältere installieren — vorher deinstallieren (lokale Daten gehen verloren). Die APK ist nicht für den Play Store bestimmt.
+> CI-Test-APKs sind mit einem Debug-Schlüssel signiert und nicht für den Play Store bestimmt. Wegen abweichender Signaturen lässt sich eine CI-APK nicht über eine Play-Store-Installation oder eine andere Debug-APK installieren — vorher deinstallieren (lokale Daten gehen verloren).
 
 Die technische Abnahme für Google Play prüft Ziel-API, Berechtigungen und 16-KB-Seitengröße am App-Paket. [Anleitung zur Paketprüfung](docs/android-release.md#ziel-api-und-16-kb-seitengröße-prüfen)
 
@@ -568,8 +564,6 @@ Meldet der Server zu viele Anfragen, warte vor der nächsten Feed-Aktualisierung
 
 ## Dokumentation
 
-Die [Design-Entwürfe aus der Konzeptphase](docs/design-mockups/aistudio/) liegen bei der Dokumentation.
-
 | Datei | Inhalt |
 | --- | --- |
 | [README.md](README.md) | Einstieg, Funktionen, Aufbau, Befehle, API und Datenschutz |
@@ -591,7 +585,7 @@ Dokumentation wird **im selben Pull Request** wie die Änderung gepflegt. Wer Be
 
 ## Mitwirken
 
-Das Repository ist privat und in einer frühen Alpha. Beiträge klein und prüfbar halten.
+OpenNews ist source-available (siehe [LICENSE](LICENSE) und [CONTRIBUTING.md](CONTRIBUTING.md)). Beiträge bitte klein und prüfbar halten.
 
 1. Branch von `main` anlegen, z. B. `feat/mikrofon-auswahl` oder `fix/absturz-leerer-text`.
 2. Eine logische Änderung pro Commit und pro Pull Request.
@@ -609,7 +603,7 @@ Das Repository ist privat und in einer frühen Alpha. Beiträge klein und prüfb
 | --- | --- |
 | Web-App | nutzbar |
 | PWA | nutzbar (Installation, Offline-Hinweis) |
-| Android | Alpha, Debug-APK |
+| Android | Im Google Play Store verfügbar |
 | iOS | vorbereitet (Brücken und WidgetKit), Build nur mit Xcode/macOS |
 | Android-Widget | Scrollbarer Feed mit lokalen Schlagzeilen, persönlichen Filtern und Reader-Verknüpfung |
 | iOS-Widget | vorbereitet, nicht geprüft |
@@ -619,7 +613,7 @@ Das Repository ist privat und in einer frühen Alpha. Beiträge klein und prüfb
 | Tagesüberblick | Lokal synthetisiertes Themen-Briefing mit Vorlesen 2.0, optional mit Anbieter-KI |
 | Diagnose | lokal verfügbar, Senden optional |
 | Tests | 116 Unit-Tests und 15 Playwright-Browsertests |
-| Eigener Quellcode | Alle Rechte vorbehalten |
+| Eigener Quellcode | Source-Available ([LICENSE](LICENSE)) |
 
 ## Lizenz
 
@@ -636,5 +630,3 @@ Nachrichten, Bilder, Logos, Schriftdateien und Abhängigkeiten unterliegen den j
 <sub>Version 0.1.0-alpha.1 · November 2026</sub>
 
 </div>
-
-Der [Android-Release-Leitfaden](docs/android-release.md) enthält Store-Checkliste und Signierschritte. Alle Dokumente sind im Abschnitt [Dokumentation](#dokumentation) aufgelistet.
