@@ -31,10 +31,14 @@ public class SecureSecrets extends Plugin {
     private static final Pattern SAFE_KEY = Pattern.compile("^[a-zA-Z0-9._-]{1,64}$");
     private static final Object LOCK = new Object();
 
+    static boolean isValidKey(String key) {
+        return key != null && SAFE_KEY.matcher(key).matches();
+    }
+
     @PluginMethod
     public void get(PluginCall call) {
         String key = call.getString("key", "");
-        if (!SAFE_KEY.matcher(key).matches()) {
+        if (!isValidKey(key)) {
             call.reject("Ungültiger Schlüsselname.");
             return;
         }
@@ -49,7 +53,7 @@ public class SecureSecrets extends Plugin {
     public void set(PluginCall call) {
         String key = call.getString("key", "");
         String value = call.getString("value", "");
-        if (!SAFE_KEY.matcher(key).matches()) {
+        if (!isValidKey(key)) {
             call.reject("Ungültiger Schlüsselname.");
             return;
         }
@@ -72,7 +76,7 @@ public class SecureSecrets extends Plugin {
     @PluginMethod
     public void remove(PluginCall call) {
         String key = call.getString("key", "");
-        if (!SAFE_KEY.matcher(key).matches()) {
+        if (!isValidKey(key)) {
             call.reject("Ungültiger Schlüsselname.");
             return;
         }

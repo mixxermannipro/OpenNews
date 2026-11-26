@@ -4,6 +4,9 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import org.junit.Test;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -179,10 +182,93 @@ public class OpenNewsAndroidUnitTests {
 
     @Test
     public void pushMonitorClampsInterval() {
-        assertEquals(15, NewsPushMonitorService.clampIntervalMinutes(5));
-        assertEquals(15, NewsPushMonitorService.clampIntervalMinutes(15));
+        assertEquals(30, NewsPushMonitorService.clampIntervalMinutes(5));
+        assertEquals(30, NewsPushMonitorService.clampIntervalMinutes(15));
         assertEquals(30, NewsPushMonitorService.clampIntervalMinutes(30));
+        assertEquals(60, NewsPushMonitorService.clampIntervalMinutes(45));
         assertEquals(60, NewsPushMonitorService.clampIntervalMinutes(60));
         assertEquals(60, NewsPushMonitorService.clampIntervalMinutes(120));
+    }
+
+    @Test
+    public void nativeDiagnosticsRoundsHourAndSanitizesTag() {
+        long ts = 1_795_719_543_293L;
+        long rounded = NativeDiagnostics.roundToHourMs(ts);
+        assertEquals(0L, rounded % 3_600_000L);
+        assertTrue(rounded <= ts && (ts - rounded) < 3_600_000L);
+        assertEquals(0L, NativeDiagnostics.roundToHourMs(-5L));
+
+        String key = NativeDiagnostics.formatErrorKey("push/monitor v2", new IllegalStateException("secret=abc"));
+        assertEquals("push_monitor_v2:IllegalStateException", key);
+    }
+
+    @Test
+    public void secureSecretsValidatesKeyNamesStrictly() {
+        assertTrue(SecureSecrets.isValidKey("ai_provider_key.v1"));
+        assertTrue(SecureSecrets.isValidKey("tts-openai-key"));
+        assertFalse(SecureSecrets.isValidKey(""));
+        assertFalse(SecureSecrets.isValidKey(null));
+        assertFalse(SecureSecrets.isValidKey("../secret"));
+        assertFalse(SecureSecrets.isValidKey("key with spaces"));
+    }
+
+    @Test
+    public void autoAudioCacheHashesDeterministicallyAndEvictsOldest() throws Exception {
+        String url = "https://example.org/podcast/episode-1.mp3";
+        assertEquals(AutoAudioCache.hashUrl(url), AutoAudioCache.hashUrl(url));
+        assertEquals(32, AutoAudioCache.hashUrl(url).length());
+
+        File tempDir = Files.createTempDirectory("opennews-cache-test").toFile();
+        try {
+            File oldest = new File(tempDir, "old.audio");
+            File newer = new File(tempDir, "new.audio");
+            try (FileOutputStream out = new FileOutputStream(oldest)) {
+                out.write(new byte[2048]);
+            }
+            try (FileOutputStream out = new FileOutputStream(newer)) {
+                out.write(new byte[2048]);
+            }
+            oldest.setLastModified(1000L);
+            newer.setLastModified(2000L);
+
+            AutoAudioCache.evictIfNeeded(tempDir, 2500L);
+            assertFalse(oldest.exists());
+            assertTrue(newer.exists());
+        } finally {
+            File[] files = tempDir.listFiles();
+            if (files != null) {
+                for (File f : files) f.delete();
+            }
+            tempDir.delete();
+        }
+    }
+
+    @Test
+    public void widgetRefreshParsesEmptyAndJsonFeedsAndMalformedDates() throws Exception {
+        JSONObject src = new JSONObject()
+            .put("id", "eu")
+            .put("name", "EU Feed")
+            .put("category", "Europa");
+
+        assertTrue(WidgetRefreshService.parseXmlFeed("", src).isEmpty());
+        assertTrue(WidgetRefreshService.parseJsonFeed("{not-json", src).isEmpty());
+        assertEquals(0L, WidgetRefreshService.parseDateMillis("not-a-valid-date"));
+        assertTrue(WidgetRefreshService.parseDateMillis("2026-11-26T12:00:00Z") > 0L);
+        assertEquals("Hallo & Welt", WidgetRefreshService.cleanText("<b>Hallo</b> &amp; Welt"));
+
+        String jsonFeed = new JSONObject()
+            .put("version", "https://jsonfeed.org/version/1.1")
+            .put("items", new JSONArray()
+                .put(new JSONObject()
+                    .put("id", "eu-1")
+                    .put("title", "Europäischer Bericht")
+                    .put("url", "https://example.org/eu/1")
+                    .put("date_published", "2026-11-26T12:00:00Z")
+                    .put("summary", "Zusammenfassung aus Brüssel.")))
+            .toString();
+        List<JSONObject> parsed = WidgetRefreshService.parseJsonFeed(jsonFeed, src);
+        assertEquals(1, parsed.size());
+        assertEquals("Europäischer Bericht", parsed.get(0).optString("title"));
+        assertEquals("https://example.org/eu/1", parsed.get(0).optString("link"));
     }
 }

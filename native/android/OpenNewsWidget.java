@@ -53,32 +53,37 @@ public class OpenNewsWidget extends AppWidgetProvider {
 
     @Override
     public void onReceive(Context context, Intent intent) {
-        super.onReceive(context, intent);
-        String action = intent.getAction();
-        if (PICK.equals(action)) {
-            int id = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID);
-            int section = intent.getIntExtra("section", -1);
-            AppWidgetManager manager = AppWidgetManager.getInstance(context);
-            if (section < 0 || section >= SECTIONS.length || !ownsWidget(manager, id)) return;
-            SharedPreferences preferences = store(context);
-            if (WidgetFeed.choice(preferences, "section-", id, SECTIONS.length) == section) return;
-            preferences.edit().putInt("section-" + id, section).apply();
-            updateWidgets(context, manager, new int[]{id}, true);
-            return;
-        }
-        if (REFRESH_NOW.equals(action)) {
-            int id = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID);
-            AppWidgetManager manager = AppWidgetManager.getInstance(context);
-            if (id != AppWidgetManager.INVALID_APPWIDGET_ID && !ownsWidget(manager, id)) return;
-            SharedPreferences store = store(context);
-            if (WidgetRefreshService.readFeeds(store).length() > 0) {
-                final PendingResult pending = goAsync();
-                WidgetRefreshService.refreshNowAsync(context.getApplicationContext(), () -> {
-                    try {
-                        pending.finish();
-                    } catch (Exception ignored) {}
-                });
+        try {
+            super.onReceive(context, intent);
+            if (intent == null) return;
+            String action = intent.getAction();
+            if (PICK.equals(action)) {
+                int id = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID);
+                int section = intent.getIntExtra("section", -1);
+                AppWidgetManager manager = AppWidgetManager.getInstance(context);
+                if (section < 0 || section >= SECTIONS.length || !ownsWidget(manager, id)) return;
+                SharedPreferences preferences = store(context);
+                if (WidgetFeed.choice(preferences, "section-", id, SECTIONS.length) == section) return;
+                preferences.edit().putInt("section-" + id, section).apply();
+                updateWidgets(context, manager, new int[]{id}, true);
+                return;
             }
+            if (REFRESH_NOW.equals(action)) {
+                int id = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID);
+                AppWidgetManager manager = AppWidgetManager.getInstance(context);
+                if (id != AppWidgetManager.INVALID_APPWIDGET_ID && !ownsWidget(manager, id)) return;
+                SharedPreferences store = store(context);
+                if (WidgetRefreshService.readFeeds(store).length() > 0) {
+                    final PendingResult pending = goAsync();
+                    WidgetRefreshService.refreshNowAsync(context.getApplicationContext(), () -> {
+                        try {
+                            pending.finish();
+                        } catch (Exception ignored) {}
+                    });
+                }
+            }
+        } catch (Throwable error) {
+            NativeDiagnostics.record(context, "widget_receive", error);
         }
     }
 
@@ -110,8 +115,12 @@ public class OpenNewsWidget extends AppWidgetProvider {
 
     @Override
     public void onUpdate(Context context, AppWidgetManager manager, int[] ids) {
-        updateWidgets(context, manager, ids, false);
-        WidgetRefreshService.sync(context);
+        try {
+            updateWidgets(context, manager, ids, false);
+            WidgetRefreshService.sync(context);
+        } catch (Throwable error) {
+            NativeDiagnostics.record(context, "widget_update", error);
+        }
     }
 
     void updateWidgets(Context context, AppWidgetManager manager, int[] ids, boolean resetScroll) {

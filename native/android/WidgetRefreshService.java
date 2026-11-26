@@ -162,6 +162,8 @@ public class WidgetRefreshService extends JobService {
         Thread worker = new Thread(() -> {
             try {
                 refreshFeedsBlocking(appContext, store, feeds, new AtomicBoolean(false));
+            } catch (Throwable error) {
+                NativeDiagnostics.record(appContext, "widget_manual_refresh", error);
             } finally {
                 store.edit().putBoolean(PREF_REFRESHING, false).apply();
                 notifyWidgetsUpdated(appContext);
@@ -222,6 +224,8 @@ public class WidgetRefreshService extends JobService {
                 if (updated && !cancelled.get()) {
                     notifyWidgetsUpdated(appContext);
                 }
+            } catch (Throwable error) {
+                NativeDiagnostics.record(appContext, "widget_bg_refresh", error);
             } finally {
                 jobFinished(params, false);
                 executor.shutdown();

@@ -169,3 +169,9 @@ auf den gesamten Lese- und Medienablauf.
   Angebots beantworten. Drittinhalte und eingebettete Videoplayer
   in die Prüfung einbeziehen. Die Altersfreigabe ergibt sich aus dem
   Fragebogen.
+
+## Absturzberichte, Diagnose und Akku-Intervall
+
+- **Android Vitals (Play Console):** Nach dem Rollout über den Google Play Store dient Android Vitals als primäre Quelle für Abstürze (Crashes) und blockierende Threads (ANRs), ohne dass OpenNews ein eigenes Tracking-SDK ausliefert.
+- **Lokale Fehlerzähler (`opennews_native_diagnostics`):** Die nativen Android-Dienste (`NewsPushMonitorService`, `OpenNewsWidget`, `WidgetRefreshService`, `OpenNewsAutoMediaService`) fangen unerwartete Ausnahmen ab und schreiben ausschließlich anonymisierte Fehlerzähler inklusive auf die volle Stunde gerundetem Zeitstempel lokal in `SharedPreferences` (maximal 20 Einträge, ohne URLs, Schlüssel oder Personenbezug).
+- **Stromsparende Hintergrund-Prüfung:** Der Push-Monitor nutzt unter Android feste `JobScheduler`-Intervalle von **30** oder **60 Minuten** (Standard `30` Minuten; ältere Werte werden auf `30` oder `60` Minuten begrenzt).

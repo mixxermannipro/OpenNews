@@ -156,6 +156,7 @@ public class OpenNewsAutoMediaService extends MediaLibraryService {
 
             @Override
             public void onPlayerError(@NonNull PlaybackException error) {
+                NativeDiagnostics.record(OpenNewsAutoMediaService.this, "auto_playback", error);
                 consecutivePlaybackErrors++;
                 if (player != null && consecutivePlaybackErrors <= 3 && player.hasNextMediaItem()) {
                     player.seekToNextMediaItem();
@@ -168,24 +169,28 @@ public class OpenNewsAutoMediaService extends MediaLibraryService {
             }
         });
 
-        String lang = store.getLanguage();
-        replay15Button = new CommandButton.Builder(CommandButton.ICON_SKIP_BACK_15)
-            .setDisplayName(AutoAudioCatalog.label(lang, "replay15"))
-            .setSessionCommand(new SessionCommand(ACTION_REPLAY_15, Bundle.EMPTY))
-            .setIconResId(R.drawable.ic_auto_replay_15)
-            .build();
+        try {
+            String lang = store.getLanguage();
+            replay15Button = new CommandButton.Builder(CommandButton.ICON_SKIP_BACK_15)
+                .setDisplayName(AutoAudioCatalog.label(lang, "replay15"))
+                .setSessionCommand(new SessionCommand(ACTION_REPLAY_15, Bundle.EMPTY))
+                .setIconResId(R.drawable.ic_auto_replay_15)
+                .build();
 
-        forward15Button = new CommandButton.Builder(CommandButton.ICON_SKIP_FORWARD_15)
-            .setDisplayName(AutoAudioCatalog.label(lang, "forward15"))
-            .setSessionCommand(new SessionCommand(ACTION_FORWARD_15, Bundle.EMPTY))
-            .setIconResId(R.drawable.ic_auto_forward_15)
-            .build();
+            forward15Button = new CommandButton.Builder(CommandButton.ICON_SKIP_FORWARD_15)
+                .setDisplayName(AutoAudioCatalog.label(lang, "forward15"))
+                .setSessionCommand(new SessionCommand(ACTION_FORWARD_15, Bundle.EMPTY))
+                .setIconResId(R.drawable.ic_auto_forward_15)
+                .build();
 
-        mediaSession = new MediaLibrarySession.Builder(this, player, new LibraryCallback())
-            .build();
-        mediaSession.setCustomLayout(ImmutableList.of(replay15Button, forward15Button));
+            mediaSession = new MediaLibrarySession.Builder(this, player, new LibraryCallback())
+                .build();
+            mediaSession.setCustomLayout(ImmutableList.of(replay15Button, forward15Button));
 
-        AutoFeedFetcher.refreshAsync(this, false);
+            AutoFeedFetcher.refreshAsync(this, false);
+        } catch (Throwable error) {
+            NativeDiagnostics.record(this, "auto_init", error);
+        }
     }
 
     @Nullable
