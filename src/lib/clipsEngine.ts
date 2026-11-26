@@ -142,7 +142,7 @@ export function formatMediaTime(seconds: number): string {
  * Extracts distinct media channels ordered by count for the Instagram-style
  * channel stories strip at the top of the Media view.
  */
-export type MediaTabFilter = 'all' | 'video' | 'audio' | 'clips';
+export type MediaTabFilter = 'all' | 'video' | 'audio' | 'radio' | 'clips';
 
 export interface MediaChannelSummary {
   sourceId: string;
@@ -163,6 +163,7 @@ export function extractMediaChannels(
     if (filter === 'audio') return media.type === 'audio';
     if (filter === 'video') return media.type !== 'audio';
     if (filter === 'clips') return media.type !== 'audio';
+    if (filter === 'radio') return false;
     return true;
   });
 

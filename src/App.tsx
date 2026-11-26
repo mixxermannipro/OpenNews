@@ -262,6 +262,7 @@ export default function App() {
   const [readingQueueIds, setReadingQueueIds] = useLocalStorage<string[]>('opennews_reading_queue', []);
   const [readingProgress, setReadingProgress] = useLocalStorage<Record<string, ReadingProgressEntry>>('opennews_reading_progress', {});
   const [audioPositions, setAudioPositions] = useLocalStorage<Record<string, AudioPositionEntry>>('opennews_audio_positions', {});
+  const [radioFavorites, setRadioFavorites] = useLocalStorage<string[]>('opennews_radio_favorites', []);
   const [activeAudio, setActiveAudio] = useState<ActiveAudioTrack | null>(null);
   const [audioQueue, setAudioQueue] = useState<ActiveAudioTrack[]>([]);
   const [briefingActive, setBriefingActive] = useState(false);
@@ -951,6 +952,26 @@ export default function App() {
     });
   };
 
+  const handlePlayRadioStation = useCallback((track: ActiveAudioTrack) => {
+    if (activeAudio?.media.url !== track.media.url) {
+      setBriefingStopSignal(n => n + 1);
+    }
+    setActiveAudio(current => {
+      if (current?.media.url === track.media.url) {
+        setAudioQueue([]);
+        return null;
+      }
+      setAudioQueue([]);
+      return track;
+    });
+  }, [activeAudio?.media.url]);
+
+  const handleToggleRadioFavorite = useCallback((stationId: string) => {
+    setRadioFavorites(prev => (
+      prev.includes(stationId) ? prev.filter(id => id !== stationId) : [stationId, ...prev]
+    ));
+  }, [setRadioFavorites]);
+
   const handleNextAudioTrack = useCallback(() => {
     setAudioQueue(previous => {
       if (previous.length === 0) return previous;
@@ -1339,9 +1360,12 @@ export default function App() {
             background={backgroundPlayback}
             activeAudioUrl={activeAudio?.media.url}
             audioPositions={audioPositions}
+            radioFavorites={radioFavorites}
             initialClipUrl={pendingClipUrl}
             onClearInitialClip={() => setPendingClipUrl(undefined)}
             onPlayAudio={handlePlayPersistentAudio}
+            onPlayRadio={handlePlayRadioStation}
+            onToggleRadioFavorite={handleToggleRadioFavorite}
             liked={normalizedProfile.likedIds}
             saved={normalizedProfile.bookmarkedIds}
             onLike={handleToggleLike}
@@ -1472,7 +1496,7 @@ export default function App() {
         <Suspense fallback={null}>
           <MiniAudioPlayer
             track={activeAudio}
-            initialSeconds={audioPositions[activeAudio.media.url]?.seconds ?? 0}
+            initialSeconds={activeAudio.isLive ? 0 : (audioPositions[activeAudio.media.url]?.seconds ?? 0)}
             background={backgroundPlayback}
             nextTrack={audioQueue[0]}
             onNextTrack={audioQueue.length > 0 ? handleNextAudioTrack : undefined}

@@ -21,11 +21,28 @@ export interface MediaExtraCopy {
   clearSearch: string;
   showMore: string;
   seekLabel: string;
+  radioTab: string;
+  liveRadioHeading: string;
+  liveRadioSubtitle: string;
+  radioAll: string;
+  radioDach: string;
+  radioInternational: string;
+  radioFavorites: string;
+  liveBadge: string;
+  radioConnecting: string;
+  radioPlaying: string;
+  radioPaused: string;
+  radioRetry: string;
+  radioFavoriteAdd: string;
+  radioFavoriteRemove: string;
+  radioEmptyFavorites: string;
+  radioSearchEmpty: string;
+  radioAllStations: string;
 }
 
 const COPY: Record<AppLanguage, MediaExtraCopy> = {
   de: {
-    searchPlaceholder: 'Videos, Podcasts oder Kanäle suchen …',
+    searchPlaceholder: 'Videos, Podcasts oder Radiosender suchen …',
     continueListening: 'Weiterhören',
     remainingMin: (min) => `noch ${min} Min.`,
     resumeEpisode: 'Fortsetzen',
@@ -45,9 +62,26 @@ const COPY: Record<AppLanguage, MediaExtraCopy> = {
     clearSearch: 'Suche zurücksetzen',
     showMore: 'Mehr anzeigen',
     seekLabel: 'Wiedergabeposition',
+    radioTab: 'Radio',
+    liveRadioHeading: 'Live-Nachrichtenradio',
+    liveRadioSubtitle: 'Öffentlich-rechtliche Inforadios aus DACH und aller Welt direkt per HTTPS.',
+    radioAll: 'Alle Sender',
+    radioDach: 'DACH',
+    radioInternational: 'International',
+    radioFavorites: 'Favoriten',
+    liveBadge: 'LIVE',
+    radioConnecting: 'Verbinde Stream …',
+    radioPlaying: 'Live-Stream aktiv',
+    radioPaused: 'Pausiert',
+    radioRetry: 'Neu verbinden',
+    radioFavoriteAdd: 'Sender als Favorit merken',
+    radioFavoriteRemove: 'Sender aus Favoriten entfernen',
+    radioEmptyFavorites: 'Noch keine Radio-Favoriten gespeichert. Tippe auf das Stern-Symbol bei einem Sender.',
+    radioSearchEmpty: 'Kein passender Radiosender gefunden.',
+    radioAllStations: 'Alle Sender',
   },
   en: {
-    searchPlaceholder: 'Search videos, podcasts, or channels …',
+    searchPlaceholder: 'Search videos, podcasts, or radio stations …',
     continueListening: 'Continue listening',
     remainingMin: (min) => `${min} min left`,
     resumeEpisode: 'Resume',
@@ -67,9 +101,26 @@ const COPY: Record<AppLanguage, MediaExtraCopy> = {
     clearSearch: 'Clear search',
     showMore: 'Show more',
     seekLabel: 'Playback position',
+    radioTab: 'Radio',
+    liveRadioHeading: 'Live News Radio',
+    liveRadioSubtitle: 'Public-service news radio streams from DACH and around the world over HTTPS.',
+    radioAll: 'All stations',
+    radioDach: 'DACH',
+    radioInternational: 'International',
+    radioFavorites: 'Favorites',
+    liveBadge: 'LIVE',
+    radioConnecting: 'Connecting stream …',
+    radioPlaying: 'Live stream playing',
+    radioPaused: 'Paused',
+    radioRetry: 'Reconnect',
+    radioFavoriteAdd: 'Save station as favorite',
+    radioFavoriteRemove: 'Remove station from favorites',
+    radioEmptyFavorites: 'No favorite radio stations yet. Tap the star icon on any station.',
+    radioSearchEmpty: 'No matching radio station found.',
+    radioAllStations: 'All stations',
   },
   fr: {
-    searchPlaceholder: 'Rechercher vidéos, podcasts ou chaînes …',
+    searchPlaceholder: 'Rechercher vidéos, podcasts ou radios …',
     continueListening: 'Reprendre l’écoute',
     remainingMin: (min) => `${min} min restantes`,
     resumeEpisode: 'Reprendre',
@@ -89,9 +140,26 @@ const COPY: Record<AppLanguage, MediaExtraCopy> = {
     clearSearch: 'Effacer la recherche',
     showMore: 'Afficher plus',
     seekLabel: 'Position de lecture',
+    radioTab: 'Radio',
+    liveRadioHeading: 'Radio d’info en direct',
+    liveRadioSubtitle: 'Radios d’information publiques DACH et internationales en HTTPS.',
+    radioAll: 'Toutes',
+    radioDach: 'DACH',
+    radioInternational: 'International',
+    radioFavorites: 'Favoris',
+    liveBadge: 'DIRECT',
+    radioConnecting: 'Connexion au flux …',
+    radioPlaying: 'Direct en cours',
+    radioPaused: 'En pause',
+    radioRetry: 'Reconnecter',
+    radioFavoriteAdd: 'Ajouter aux favoris',
+    radioFavoriteRemove: 'Retirer des favoris',
+    radioEmptyFavorites: 'Aucune radio favorite. Touchez l’étoile d’une station.',
+    radioSearchEmpty: 'Aucune station de radio trouvée.',
+    radioAllStations: 'Toutes les stations',
   },
   es: {
-    searchPlaceholder: 'Buscar vídeos, podcasts o canales …',
+    searchPlaceholder: 'Buscar vídeos, podcasts o emisoras …',
     continueListening: 'Seguir escuchando',
     remainingMin: (min) => `quedan ${min} min`,
     resumeEpisode: 'Reanudar',
@@ -111,9 +179,26 @@ const COPY: Record<AppLanguage, MediaExtraCopy> = {
     clearSearch: 'Borrar búsqueda',
     showMore: 'Mostrar más',
     seekLabel: 'Posición de reproducción',
+    radioTab: 'Radio',
+    liveRadioHeading: 'Radio informativa en directo',
+    liveRadioSubtitle: 'Emisoras públicas de noticias de DACH y del mundo vía HTTPS.',
+    radioAll: 'Todas',
+    radioDach: 'DACH',
+    radioInternational: 'Internacional',
+    radioFavorites: 'Favoritas',
+    liveBadge: 'EN VIVO',
+    radioConnecting: 'Conectando emisión …',
+    radioPlaying: 'Emisión en directo',
+    radioPaused: 'En pausa',
+    radioRetry: 'Reconectar',
+    radioFavoriteAdd: 'Guardar emisora en favoritas',
+    radioFavoriteRemove: 'Quitar emisora de favoritas',
+    radioEmptyFavorites: 'Aún no hay emisoras favoritas. Toca la estrella en cualquier emisora.',
+    radioSearchEmpty: 'No se encontró ninguna emisora.',
+    radioAllStations: 'Todas las emisoras',
   },
   it: {
-    searchPlaceholder: 'Cerca video, podcast o canali …',
+    searchPlaceholder: 'Cerca video, podcast o radio …',
     continueListening: 'Continua ad ascoltare',
     remainingMin: (min) => `${min} min rimasti`,
     resumeEpisode: 'Riprendi',
@@ -133,9 +218,26 @@ const COPY: Record<AppLanguage, MediaExtraCopy> = {
     clearSearch: 'Cancella ricerca',
     showMore: 'Mostra altri',
     seekLabel: 'Posizione di riproduzione',
+    radioTab: 'Radio',
+    liveRadioHeading: 'Radio news in diretta',
+    liveRadioSubtitle: 'Emittenti pubbliche di informazione DACH e internazionali in HTTPS.',
+    radioAll: 'Tutte',
+    radioDach: 'DACH',
+    radioInternational: 'Internazionale',
+    radioFavorites: 'Preferite',
+    liveBadge: 'LIVE',
+    radioConnecting: 'Connessione allo stream …',
+    radioPlaying: 'Diretta attiva',
+    radioPaused: 'In pausa',
+    radioRetry: 'Riconnetti',
+    radioFavoriteAdd: 'Salva stazione tra le preferite',
+    radioFavoriteRemove: 'Rimuovi stazione dalle preferite',
+    radioEmptyFavorites: 'Nessuna radio preferita. Tocca la stella su una stazione.',
+    radioSearchEmpty: 'Nessuna stazione radio trovata.',
+    radioAllStations: 'Tutte le stazioni',
   },
   pt: {
-    searchPlaceholder: 'Pesquisar vídeos, podcasts ou canais …',
+    searchPlaceholder: 'Pesquisar vídeos, podcasts ou rádios …',
     continueListening: 'Continuar a ouvir',
     remainingMin: (min) => `${min} min restantes`,
     resumeEpisode: 'Retomar',
@@ -155,6 +257,23 @@ const COPY: Record<AppLanguage, MediaExtraCopy> = {
     clearSearch: 'Limpar pesquisa',
     showMore: 'Mostrar mais',
     seekLabel: 'Posição de reprodução',
+    radioTab: 'Rádio',
+    liveRadioHeading: 'Rádio de notícias ao vivo',
+    liveRadioSubtitle: 'Emissoras públicas de notícias DACH e internacionais via HTTPS.',
+    radioAll: 'Todas',
+    radioDach: 'DACH',
+    radioInternational: 'Internacional',
+    radioFavorites: 'Favoritas',
+    liveBadge: 'AO VIVO',
+    radioConnecting: 'A ligar transmissão …',
+    radioPlaying: 'Transmissão ao vivo',
+    radioPaused: 'Em pausa',
+    radioRetry: 'Ligar novamente',
+    radioFavoriteAdd: 'Guardar rádio nas favoritas',
+    radioFavoriteRemove: 'Remover rádio das favoritas',
+    radioEmptyFavorites: 'Ainda não há rádios favoritas. Toque na estrela numa estação.',
+    radioSearchEmpty: 'Nenhuma estação de rádio encontrada.',
+    radioAllStations: 'Todas as estações',
   },
 };
 

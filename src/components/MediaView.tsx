@@ -8,10 +8,13 @@ import {
   Headphones,
   Heart,
   Layers,
+  Pause,
   Play,
   Plus,
+  Radio,
   Search,
   Share2,
+  Star,
   Video,
   X,
 } from 'lucide-react';
@@ -32,6 +35,13 @@ import {
 import { safeHref } from '../lib/contentIdentity';
 import { useI18n } from '../lib/i18n';
 import { getMediaCopy } from '../lib/mediaCopy';
+import {
+  buildRadioAudioTrack,
+  filterRadioStations,
+  RADIO_STATIONS,
+  type RadioFilterGroup,
+  type RadioStation,
+} from '../lib/radioCatalog';
 import type { AudioPositionEntry } from '../lib/readerExtras';
 import { shareArticle } from '../lib/shareArticle';
 import type { AIProviderConfig, NewsArticle, NewsSource } from '../types/news';
@@ -43,7 +53,7 @@ import { SourceIcon } from './SourceIcon';
 import { TranscriptSummary } from './TranscriptSummary';
 import { ViewStatus } from './ViewStatus';
 
-const FILTER_KEYS: MediaTabFilter[] = ['all', 'video', 'audio', 'clips'];
+const FILTER_KEYS: MediaTabFilter[] = ['all', 'video', 'audio', 'radio', 'clips'];
 
 function cleanSummaryPreview(article: NewsArticle): string {
   const raw = (article.summary || '').replace(/\s+/g, ' ').trim();
@@ -61,9 +71,12 @@ export function MediaView({
   background,
   activeAudioUrl,
   audioPositions = {},
+  radioFavorites = [],
   initialClipUrl,
   onClearInitialClip,
   onPlayAudio,
+  onPlayRadio,
+  onToggleRadioFavorite,
   onArticle,
   onSources,
   onToggleSubscribe,
@@ -82,9 +95,12 @@ export function MediaView({
   background: boolean;
   activeAudioUrl?: string;
   audioPositions?: Record<string, AudioPositionEntry>;
+  radioFavorites?: string[];
   initialClipUrl?: string;
   onClearInitialClip?: () => void;
   onPlayAudio?: (article: NewsArticle, media: PlayableMedia, queue?: ActiveAudioTrack[]) => void;
+  onPlayRadio?: (track: ActiveAudioTrack) => void;
+  onToggleRadioFavorite?: (stationId: string) => void;
   onArticle: (article: NewsArticle) => void;
   onSources: () => void;
   onToggleSubscribe?: (sourceId: string) => void;
@@ -98,6 +114,7 @@ export function MediaView({
   const { lang, t, categoryLabel, formatRelative } = useI18n();
   const copy = getMediaCopy(lang);
   const [filter, setFilter] = useState<MediaTabFilter>(initialClipUrl ? 'clips' : 'all');
+  const [radioGroup, setRadioGroup] = useState<RadioFilterGroup>('all');
   const [selectedChannel, setSelectedChannel] = useState<string | null>(null);
   const [mediaQuery, setMediaQuery] = useState('');
   const [playingUrl, setPlayingUrl] = useState<string>();
@@ -189,14 +206,42 @@ export function MediaView({
     all: t('mediaFilterAll'),
     video: t('mediaFilterVideo'),
     audio: t('mediaFilterAudio'),
+    radio: copy.radioTab,
     clips: t('mediaFilterClips'),
   };
+
+  const quickRadioStations = useMemo(
+    () => filterRadioStations(RADIO_STATIONS, { language: lang, favoriteIds: radioFavorites }).slice(0, 8),
+    [lang, radioFavorites],
+  );
+
+  const visibleRadioStations = useMemo(
+    () => filterRadioStations(RADIO_STATIONS, {
+      query: mediaQuery,
+      group: radioGroup,
+      language: lang,
+      favoriteIds: radioFavorites,
+    }),
+    [mediaQuery, radioGroup, lang, radioFavorites],
+  );
 
   const filterCounts: Record<MediaTabFilter, number> = {
     all: searchedEntries.length,
     video: allVideoCount,
     audio: allAudioCount,
+    radio: RADIO_STATIONS.length,
     clips: allClipsCount,
+  };
+
+  const triggerRadioStation = (station: RadioStation) => {
+    const track = buildRadioAudioTrack(station);
+    if (onPlayRadio) {
+      onPlayRadio(track);
+      return;
+    }
+    if (onPlayAudio) {
+      onPlayAudio(track.article, track.media);
+    }
   };
 
   const handleShare = (article: NewsArticle, mediaUrl: string) => {
@@ -625,12 +670,15 @@ export function MediaView({
   const hasSearchQuery = mediaQuery.trim().length > 0;
   const showClipsDialog = filter === 'clips' && clipsPlaylist.length > 0;
   const showEmptyClipsInline = filter === 'clips' && clipsPlaylist.length === 0;
+  const showRadioHub = filter === 'radio';
+  const showRadioQuickStrip = (filter === 'all' || filter === 'audio') && !hasSearchQuery;
   const showShortsShelf = (filter === 'all' || filter === 'video') && clipsPreview.length > 0;
   const showVideos = (filter === 'all' || filter === 'video') && videoItems.length > 0;
   const showAudio = (filter === 'all' || filter === 'audio') && audioItems.length > 0;
   const showContinueListening = (filter === 'all' || filter === 'audio') && continueListening.length > 0;
-  const showSearchEmpty = hasAnyMedia && hasSearchQuery && filteredEntries.length === 0;
+  const showSearchEmpty = !showRadioHub && hasAnyMedia && hasSearchQuery && filteredEntries.length === 0;
   const showFormatEmpty =
+    !showRadioHub &&
     !showSearchEmpty &&
     filter !== 'clips' &&
     hasAnyMedia &&
@@ -694,7 +742,7 @@ export function MediaView({
                 }}
               >
                 <span>{filterLabels[key]}</span>
-                {hasAnyMedia && key !== 'all' && count > 0 && (
+                {(hasAnyMedia || key === 'radio') && key !== 'all' && count > 0 && (
                   <span className="ml-1 text-[11px] opacity-65 tabular-nums">{count}</span>
                 )}
               </button>
@@ -703,7 +751,7 @@ export function MediaView({
         </div>
 
         {/* Inline Media Search */}
-        {hasAnyMedia && (
+        {(hasAnyMedia || showRadioHub) && (
           <div className="relative w-full sm:w-64 lg:w-72">
             <Search
               className="pointer-events-none absolute left-4 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--muted)]"
@@ -732,7 +780,7 @@ export function MediaView({
       </div>
 
       {/* Tab-Aware Channel Strip */}
-      {channels.length > 1 && filter !== 'clips' && (
+      {channels.length > 1 && filter !== 'clips' && filter !== 'radio' && (
         <div
           role="region"
           aria-label={t('sourcesTitle')}
@@ -862,7 +910,7 @@ export function MediaView({
       )}
 
       {/* Global Empty State (no media sources subscribed yet) */}
-      {!hasAnyMedia && filter !== 'clips' && (
+      {!hasAnyMedia && filter !== 'clips' && filter !== 'radio' && (
         loading ? (
           <ViewStatus title={t('mediaLoading')} />
         ) : (
@@ -884,6 +932,146 @@ export function MediaView({
             </div>
           </div>
         )
+      )}
+
+      {/* Full Live Radio Hub */}
+      {showRadioHub && (
+        <section aria-labelledby="media-radio-heading" className="screen-entry space-y-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1 rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-extrabold tracking-wider text-white">
+                <Radio className="h-3 w-3" aria-hidden="true" />
+                {copy.liveBadge}
+              </span>
+              <h2 id="media-radio-heading" className="text-xl font-bold tracking-tight text-[var(--ink)]">
+                {copy.liveRadioHeading}
+              </h2>
+            </div>
+            <p className="text-sm text-[var(--muted)]">{copy.liveRadioSubtitle}</p>
+          </div>
+
+          <div className="flex flex-wrap gap-2" role="group" aria-label={copy.liveRadioHeading}>
+            {(
+              [
+                ['all', copy.radioAll],
+                ['dach', copy.radioDach],
+                ['international', copy.radioInternational],
+                ['favorites', copy.radioFavorites],
+              ] as const
+            ).map(([groupKey, label]) => (
+              <button
+                key={groupKey}
+                type="button"
+                aria-pressed={radioGroup === groupKey}
+                onClick={() => setRadioGroup(groupKey)}
+                className={`choice-pill ${
+                  radioGroup === groupKey ? 'bg-[var(--accent)] text-[var(--accent-ink)] border-[var(--accent)]' : ''
+                }`}
+              >
+                {label}
+                {groupKey === 'favorites' && radioFavorites.length > 0 && (
+                  <span className="ml-1 text-[11px] opacity-75 tabular-nums">{radioFavorites.length}</span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          {visibleRadioStations.length === 0 ? (
+            <ViewStatus
+              title={radioGroup === 'favorites' && !hasSearchQuery ? copy.radioEmptyFavorites : copy.radioSearchEmpty}
+              action={
+                hasSearchQuery ? (
+                  <button type="button" className="choice-pill" onClick={() => setMediaQuery('')}>
+                    {copy.clearSearch}
+                  </button>
+                ) : radioGroup !== 'all' ? (
+                  <button type="button" className="choice-pill" onClick={() => setRadioGroup('all')}>
+                    {copy.radioAllStations}
+                  </button>
+                ) : undefined
+              }
+            />
+          ) : (
+            <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {visibleRadioStations.map((station) => {
+                const isPlaying = activeAudioUrl === station.streamUrl;
+                const isFav = radioFavorites.includes(station.id);
+                return (
+                  <li
+                    key={station.id}
+                    data-radio-id={station.id}
+                    className={`settings-group flex flex-col justify-between gap-3 p-3.5 transition-colors ${
+                      isPlaying ? 'ring-1 ring-[var(--accent)]/60' : ''
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <button
+                        type="button"
+                        onClick={() => triggerRadioStation(station)}
+                        aria-label={`${isPlaying ? t('mediaClipsPause') : t('mediaClipsPlay')}: ${station.name}`}
+                        className="relative grid h-12 w-12 shrink-0 place-items-center rounded-2xl text-xs font-extrabold tracking-tight text-white shadow-sm transition active:scale-95"
+                        style={{ backgroundColor: station.accentColor }}
+                      >
+                        <span>{station.shortCode}</span>
+                      </button>
+                      <div className="min-w-0 flex-1 space-y-0.5">
+                        <div className="flex items-center gap-1.5">
+                          <span className="rounded bg-[var(--control)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--muted)]">
+                            {station.region}
+                          </span>
+                          {isPlaying && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-red-600 px-1.5 py-0.5 text-[9.5px] font-extrabold text-white">
+                              {copy.liveBadge}
+                            </span>
+                          )}
+                        </div>
+                        <h3 className="truncate text-[15px] font-bold text-[var(--ink)]">{station.name}</h3>
+                        <p className="line-clamp-2 text-xs leading-relaxed text-[var(--muted)]">{station.subtitle}</p>
+                      </div>
+                      {onToggleRadioFavorite && (
+                        <button
+                          type="button"
+                          onClick={() => onToggleRadioFavorite(station.id)}
+                          aria-label={isFav ? copy.radioFavoriteRemove : copy.radioFavoriteAdd}
+                          aria-pressed={isFav}
+                          className={`grid h-9 w-9 shrink-0 place-items-center rounded-full transition hover:bg-[var(--control)] ${
+                            isFav ? 'text-amber-500' : 'text-[var(--muted)] hover:text-[var(--ink)]'
+                          }`}
+                        >
+                          <Star size={16} fill={isFav ? 'currentColor' : 'none'} aria-hidden="true" />
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between gap-2 border-t border-[var(--line)]/70 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => triggerRadioStation(station)}
+                        className={`inline-flex min-h-9 items-center gap-1.5 rounded-full px-3 text-xs font-bold transition ${
+                          isPlaying
+                            ? 'bg-[var(--accent)] text-[var(--accent-ink)]'
+                            : 'bg-[var(--control)] text-[var(--ink)] hover:bg-[var(--accent)] hover:text-[var(--accent-ink)]'
+                        }`}
+                      >
+                        {isPlaying ? <Pause size={13} fill="currentColor" aria-hidden="true" /> : <Play size={13} fill="currentColor" aria-hidden="true" />}
+                        <span>{isPlaying ? t('mediaNowPlaying') : copy.liveBadge}</span>
+                      </button>
+                      <a
+                        href={station.homepageUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex min-h-9 items-center gap-1 rounded-lg px-2 text-xs font-medium text-[var(--muted)] hover:text-[var(--ink)]"
+                      >
+                        <span>{copy.openOriginal}</span>
+                        <ExternalLink size={12} aria-hidden="true" />
+                      </a>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
       )}
 
       {/* Search returned 0 matches */}
@@ -1150,8 +1338,70 @@ export function MediaView({
         </section>
       )}
 
+      {/* Quick Live Radio Strip in All & Audio Tabs */}
+      {showRadioQuickStrip && (
+        <section aria-labelledby="media-radio-quick-heading" className="screen-entry space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1 rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-extrabold tracking-wider text-white">
+                {copy.liveBadge}
+              </span>
+              <h2 id="media-radio-quick-heading" className="text-xl font-bold tracking-tight text-[var(--ink)]">
+                {copy.liveRadioHeading}
+              </h2>
+            </div>
+            <button
+              type="button"
+              className="choice-pill inline-flex items-center gap-1"
+              onClick={() => {
+                setFilter('radio');
+                setPlayingUrl(undefined);
+              }}
+            >
+              {copy.radioAllStations}
+              <ChevronRight size={16} aria-hidden="true" />
+            </button>
+          </div>
+
+          <ul className="media-shorts-shelf -mx-4 flex gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
+            {quickRadioStations.map((station) => {
+              const isPlaying = activeAudioUrl === station.streamUrl;
+              return (
+                <li key={station.id} className="w-[15rem] shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => triggerRadioStation(station)}
+                    className={`settings-group article-card-interactive flex w-full items-center gap-3 p-3 text-left ${
+                      isPlaying ? 'ring-1 ring-[var(--accent)]/60' : ''
+                    }`}
+                  >
+                    <span
+                      className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-[11px] font-extrabold text-white shadow-sm"
+                      style={{ backgroundColor: station.accentColor }}
+                    >
+                      {station.shortCode}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-bold text-[var(--ink)]">{station.name}</p>
+                      <p className="truncate text-[11px] text-[var(--muted)]">
+                        {isPlaying ? copy.radioPlaying : `${station.region} · ${copy.liveBadge}`}
+                      </p>
+                    </div>
+                    <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full ${
+                      isPlaying ? 'bg-[var(--accent)] text-[var(--accent-ink)]' : 'bg-[var(--control)] text-[var(--ink)]'
+                    }`}>
+                      {isPlaying ? <Pause size={13} fill="currentColor" aria-hidden="true" /> : <Play size={13} fill="currentColor" aria-hidden="true" />}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+
       {/* Persistent Media Channel & Pack Discovery Shelf (zero dead-ends!) */}
-      {hasAnyMedia && filter !== 'clips' && !hasSearchQuery && (discoverChannels.length > 0 || contextualPacks.length > 0) && (
+      {hasAnyMedia && filter !== 'clips' && filter !== 'radio' && !hasSearchQuery && (discoverChannels.length > 0 || contextualPacks.length > 0) && (
         <section aria-labelledby="media-discover-channels-heading" className="space-y-4 border-t border-[var(--line)] pt-6">
           <div className="flex items-start justify-between gap-3">
             <div>

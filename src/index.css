@@ -505,7 +505,7 @@
   border-color: transparent;
 }
 .segmented-control .choice-pill[aria-pressed="false"] { background: transparent; }
-.media-tabs { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.media-tabs { grid-template-columns: repeat(var(--tab-count, 5), minmax(0, 1fr)); }
 
 .sliding-tabs { position: relative; isolation: isolate; }
 
