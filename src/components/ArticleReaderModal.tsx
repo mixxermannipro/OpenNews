@@ -1,8 +1,11 @@
-import { TranscriptSummary } from './TranscriptSummary';
 import { ReaderAudioBar } from './ReaderAudioBar';
-import { resolveSummaryStyle, SUMMARY_STYLES } from '../lib/summaryStyles';
-import { ArticlePerspectives } from './ArticlePerspectives';
-import { ArticleQuestions } from './ArticleQuestions';
+import { resolveSummaryStyle } from '../lib/summaryStyles';
+import { useReaderKeyboard } from './reader/useReaderKeyboard';
+import { ReaderToolbar } from './reader/ReaderToolbar';
+import { ReaderHeader } from './reader/ReaderHeader';
+import { ReaderChapterBar } from './reader/ReaderChapterBar';
+import { ReaderPaywallNotice } from './reader/ReaderPaywallNotice';
+import { ReaderSummaryDialog } from './reader/ReaderSummaryDialog';
 import { Capacitor } from '@capacitor/core';
 import { readOfflineArticle, removeOfflineArticle, storeOfflineArticle } from '../lib/offlineArticle';
 import { extractNativeArticle } from '../lib/nativeFeed';
@@ -12,27 +15,19 @@ import {
   ArrowRight,
   Bookmark,
   Check,
-  ChevronDown,
-  ChevronLeft,
-  Columns2,
   Download,
   Ellipsis,
   ExternalLink,
   Headphones,
   Heart,
   Highlighter,
-  History,
   ListPlus,
   Loader2,
-  Newspaper,
   Play,
-  Search,
-  Settings,
   Share2,
   Sparkles,
   Square,
   ThumbsDown,
-  Type,
   Video,
   Volume2,
   X,
@@ -190,7 +185,7 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
   onEnableFullText,
   onDisableFullText,
 }: ArticleReaderModalProps) => {
-  const { lang, locale, t, categoryLabel, formatRelative, formatHeaderDate } = useI18n();
+  const { lang, locale, t, categoryLabel, formatRelative } = useI18n();
   const copy = useMemo(() => getReaderCopy(lang), [lang]);
   const openTimestampRef = useRef<number>(Date.now());
   const recordedRef = useRef<boolean>(false);
@@ -759,42 +754,10 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
     };
   }, [article.id, onSaveReadingProgress]);
 
-  // Desktop keyboard shortcuts (Prev/Next, Bookmark, Queue, Newspaper mode, Escape)
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (showSummary || event.metaKey || event.ctrlKey || event.altKey) return;
-      const target = event.target as HTMLElement | null;
-      if (target && (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable)) {
-        return;
-      }
-      if (event.key === 'Escape' && showTypography) {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        setShowTypography(false);
-        return;
-      }
-      if ((event.key === 'ArrowLeft' || event.key === 'k') && previousArticle) {
-        event.preventDefault();
-        onOpenArticle(previousArticle);
-      } else if ((event.key === 'ArrowRight' || event.key === 'j') && nextArticle) {
-        event.preventDefault();
-        onOpenArticle(nextArticle);
-      } else if (event.key === 'b') {
-        event.preventDefault();
-        onToggleBookmark(article);
-      } else if (event.key === 'q') {
-        event.preventDefault();
-        onToggleQueue(article);
-      } else if (event.key === 'n') {
-        event.preventDefault();
-        onNewspaperMode(!newspaperMode);
-      }
-    };
-    window.addEventListener('keydown', onKeyDown, true);
-    return () => window.removeEventListener('keydown', onKeyDown, true);
-  }, [
+  useReaderKeyboard({
     showSummary,
     showTypography,
+    setShowTypography,
     previousArticle,
     nextArticle,
     article,
@@ -803,7 +766,7 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
     onToggleBookmark,
     onToggleQueue,
     onNewspaperMode,
-  ]);
+  });
 
   const showShareMessage = (message: string) => {
     window.clearTimeout(shareTimerRef.current);
@@ -910,157 +873,27 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
             }
           }}
         >
-          <div className="reader-toolbar reader-toolbar-glass sticky top-0 z-20 px-4 pb-2.5 sm:px-7">
-            <div className="flex items-center justify-between gap-2">
-              <button
-                type="button"
-                onClick={onClose}
-                ref={backButton}
-                className="choice-pill inline-flex min-h-11 shrink-0 items-center gap-1 pr-3.5 pl-2.5"
-              >
-                <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-                {t('back')}
-              </button>
-
-              <p
-                className={`min-w-0 flex-1 truncate text-center text-xs font-semibold text-[var(--ink)] transition-opacity duration-200 ${
-                  compactHeader ? 'opacity-100' : 'opacity-0 pointer-events-none'
-                }`}
-                aria-hidden={!compactHeader}
-              >
-                {title}
-              </p>
-
-              <div className="flex shrink-0 items-center gap-1">
-                <button
-                  type="button"
-                  className="glass-icon"
-                  aria-label={t('readerNewspaperMode')}
-                  aria-pressed={newspaperMode}
-                  title={t('readerNewspaperMode')}
-                  onClick={() => onNewspaperMode(!newspaperMode)}
-                >
-                  <Newspaper size={18} className={newspaperMode ? 'text-[var(--accent)]' : undefined} aria-hidden="true" />
-                </button>
-
-                <div ref={typographyRef} className="relative shrink-0">
-                  <button
-                    type="button"
-                    className="glass-icon"
-                    aria-label={t('readerTypography')}
-                    aria-expanded={showTypography}
-                    onClick={() => setShowTypography(open => !open)}
-                  >
-                    <Type size={18} aria-hidden="true" />
-                  </button>
-                  {showTypography && (
-                    <div className="settings-group absolute right-0 top-[calc(100%+0.5rem)] z-30 w-72 space-y-3.5 p-4 shadow-xl">
-                      <div className="space-y-1.5">
-                        <span className="block text-xs font-semibold text-[var(--muted)]">{t('readerThemeLabel')}</span>
-                        <div className="grid grid-cols-2 gap-1.5">
-                          {([
-                            ['paper', t('readerThemePaper'), '#f4f2ec'],
-                            ['sepia', t('readerThemeSepia'), '#f5edd9'],
-                            ['night', t('readerThemeNight'), '#08090c'],
-                            ['default', t('readerThemeDefault'), 'linear-gradient(135deg, #f5f3ee 50%, #0f1013 50%)'],
-                          ] as const).map(([id, label, swatch]) => (
-                            <button
-                              key={id}
-                              type="button"
-                              className="choice-pill inline-flex items-center justify-center gap-1.5 text-xs"
-                              aria-pressed={readerTheme === id}
-                              onClick={() => onReaderTheme(id)}
-                            >
-                              <span
-                                className="h-3 w-3 shrink-0 rounded-full border border-black/20 dark:border-white/25"
-                                style={{ background: swatch }}
-                                aria-hidden="true"
-                              />
-                              <span>{label}</span>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <span className="block text-xs font-semibold text-[var(--muted)]">{t('readerFont')}</span>
-                        <div className="segmented-control" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
-                          <button
-                            type="button"
-                            className="choice-pill"
-                            aria-pressed={fontFamily === 'sans'}
-                            onClick={() => onFontFamily('sans')}
-                          >
-                            Sans
-                          </button>
-                          <button
-                            type="button"
-                            className="choice-pill font-editorial-serif"
-                            aria-pressed={fontFamily === 'serif'}
-                            onClick={() => onFontFamily('serif')}
-                          >
-                            Serif
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <span className="block text-xs font-semibold text-[var(--muted)]">{t('readerTextSize')}</span>
-                        <div className="segmented-control">
-                          {([['normal', 'A'], ['large', 'A+'], ['xlarge', 'A++']] as const).map(([id, label]) => (
-                            <button
-                              key={id}
-                              type="button"
-                              className="choice-pill"
-                              aria-pressed={fontSize === id}
-                              onClick={() => onFontSize(id)}
-                            >
-                              {label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between gap-2 border-t border-[var(--line)] pt-2.5">
-                        <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--ink)]">
-                          <Newspaper size={14} aria-hidden="true" />
-                          {t('readerNewspaperMode')}
-                        </span>
-                        <button
-                          type="button"
-                          className="choice-pill text-xs"
-                          aria-pressed={newspaperMode}
-                          onClick={() => onNewspaperMode(!newspaperMode)}
-                        >
-                          {newspaperMode ? copy.onLabel : copy.offLabel}
-                        </button>
-                      </div>
-
-                      {newspaperMode && (
-                        <div className="hidden lg:flex items-center justify-between gap-2">
-                          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--ink)]">
-                            <Columns2 size={14} aria-hidden="true" />
-                            {t('readerNewspaperColumns')}
-                          </span>
-                          <button
-                            type="button"
-                            className="choice-pill text-xs"
-                            aria-pressed={twoColumns}
-                            onClick={() => setTwoColumns(v => !v)}
-                          >
-                            {twoColumns ? '2' : '1'}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-            <div className="reader-progress-track" aria-hidden="true">
-              <div ref={progressBarRef} className="reader-progress-fill" />
-            </div>
-          </div>
+          <ReaderToolbar
+            backButtonRef={backButton}
+            typographyRef={typographyRef}
+            progressBarRef={progressBarRef}
+            title={title}
+            compactHeader={compactHeader}
+            newspaperMode={newspaperMode}
+            showTypography={showTypography}
+            readerTheme={readerTheme}
+            fontFamily={fontFamily}
+            fontSize={fontSize}
+            twoColumns={twoColumns}
+            copy={copy}
+            onClose={onClose}
+            onNewspaperMode={onNewspaperMode}
+            onToggleTypography={() => setShowTypography(open => !open)}
+            onReaderTheme={onReaderTheme}
+            onFontFamily={onFontFamily}
+            onFontSize={onFontSize}
+            onToggleTwoColumns={() => setTwoColumns(v => !v)}
+          />
 
           <article
             ref={articleRef}
@@ -1070,159 +903,40 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
                 : 'max-w-[44rem]'
             }`}
           >
-            {newspaperMode ? (
-              <header className="reader-newspaper-masthead">
-                <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--muted)]">
-                  <span className="inline-flex items-center gap-1.5 text-[var(--ink)]">
-                    <SourceIcon
-                      source={{ id: article.sourceId, shortCode: article.sourceShortCode, accentColor: article.sourceColor }}
-                      size="h-4 w-4 rounded-[3px] text-[7px]"
-                    />
-                    {article.sourceName}
-                  </span>
-                  <span>{formatHeaderDate(new Date(article.publishedAt || Date.now()))}</span>
-                </div>
-                <p className="mt-2 text-xs font-bold uppercase tracking-[0.08em] text-[var(--accent)]">
-                  {kicker}
-                </p>
-                <h1
-                  ref={registerBlockNode('title')}
-                  className={`reader-speech-para mt-2 text-[1.75rem] sm:text-[2.35rem] font-extrabold leading-[1.12] tracking-[-0.02em] text-[var(--ink)] [text-wrap:balance] ${
-                    activeBlockId === 'title' ? 'reader-speaking-active' : ''
-                  }`}
-                >
-                  {title}
-                </h1>
-                <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[var(--muted)] tabular-nums">
-                  {article.author && (
-                    <>
-                      <span>{article.author}</span>
-                      <span aria-hidden="true">·</span>
-                    </>
-                  )}
-                  <span>{formatRelative(article.publishedAt)}</span>
-                  <span aria-hidden="true">·</span>
-                  <span>{t('readerReadMinutes', { min: readingMinutes })}</span>
-                  {offlineSaved && (
-                    <>
-                      <span aria-hidden="true">·</span>
-                      <span className="text-[var(--accent)]">{t('readerOfflineReady')}</span>
-                    </>
-                  )}
-                </div>
-              </header>
-            ) : (
-              <>
-                <p className="text-xs font-bold tracking-wide text-[var(--accent)]">
-                  {kicker}
-                </p>
+            <ReaderHeader
+              article={article}
+              title={title}
+              kicker={kicker}
+              newspaperMode={newspaperMode}
+              effectiveSerif={effectiveSerif}
+              readingMinutes={readingMinutes}
+              offlineSaved={offlineSaved}
+              activeBlockId={activeBlockId}
+              registerBlockNode={registerBlockNode}
+              translate={translate}
+              translationError={translationError}
+              hasTranslation={translation?.source === originalParagraphs}
+              showOriginal={showOriginal}
+              onToggleOriginal={() => setShowOriginal(current => !current)}
+              resumeBannerPct={resumeBannerPct}
+              onBackToTop={() => {
+                scrollContainerRef.current?.scrollTo({ top: 0, behavior: reducedMotion ? 'auto' : 'smooth' });
+                setResumeBannerPct(null);
+              }}
+              onDismissResumeBanner={() => setResumeBannerPct(null)}
+              copy={copy}
+            />
 
-                <h1
-                  ref={registerBlockNode('title')}
-                  className={`reader-speech-para mt-2 text-[1.6rem] sm:text-[2.1rem] font-extrabold leading-[1.15] tracking-[-0.025em] text-[var(--ink)] [text-wrap:balance] ${effectiveSerif ? 'font-editorial-serif' : ''} ${
-                    activeBlockId === 'title' ? 'reader-speaking-active' : ''
-                  }`}
-                >
-                  {title}
-                </h1>
-
-                {translate && (
-                  <div className="mt-3 text-sm" role="status">
-                    {translationError ? 'Übersetzung gerade nicht verfügbar. Für den Modell-Download wird WLAN benötigt.'
-                      : translation?.source === originalParagraphs ? (
-                        <button type="button" className="choice-pill" onClick={() => setShowOriginal(current => !current)}>
-                          {showOriginal ? 'Deutsch anzeigen' : 'Original anzeigen'}
-                        </button>
-                      ) : 'Übersetzung wird vorbereitet …'}
-                  </div>
-                )}
-
-                <div className="mt-3.5 flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-[var(--line)] pb-4 text-xs text-[var(--muted)] tabular-nums">
-                  <span className="inline-flex items-center gap-1.5 font-semibold text-[var(--ink)]">
-                    <SourceIcon
-                      source={{ id: article.sourceId, shortCode: article.sourceShortCode, accentColor: article.sourceColor }}
-                      size="h-4 w-4 rounded-[4px] text-[7px]"
-                    />
-                    {article.sourceName}
-                  </span>
-                  {article.author && (
-                    <>
-                      <span aria-hidden="true">·</span>
-                      <span>{article.author}</span>
-                    </>
-                  )}
-                  <span aria-hidden="true">·</span>
-                  <span>{formatRelative(article.publishedAt)}</span>
-                  <span aria-hidden="true">·</span>
-                  <span>{t('readerReadMinutes', { min: readingMinutes })}</span>
-                  {offlineSaved && (
-                    <>
-                      <span aria-hidden="true">·</span>
-                      <span className="font-medium text-[var(--accent)]">{t('readerOfflineReady')}</span>
-                    </>
-                  )}
-                </div>
-              </>
-            )}
-
-            {resumeBannerPct !== null && (
-              <div
-                role="status"
-                className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-[var(--line)] bg-[var(--panel-2)] px-3.5 py-2 text-xs text-[var(--ink)]"
-              >
-                <span className="font-medium tabular-nums">{copy.resumeReading(resumeBannerPct)}</span>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      scrollContainerRef.current?.scrollTo({ top: 0, behavior: reducedMotion ? 'auto' : 'smooth' });
-                      setResumeBannerPct(null);
-                    }}
-                    className="rounded-full px-2.5 py-1 font-semibold text-[var(--accent)] hover:bg-[var(--control)]"
-                  >
-                    {copy.backToTop}
-                  </button>
-                  <button
-                    type="button"
-                    aria-label={t('close')}
-                    onClick={() => setResumeBannerPct(null)}
-                    className="grid h-7 w-7 place-items-center rounded-full text-[var(--muted)] hover:bg-[var(--control)] hover:text-[var(--ink)]"
-                  >
-                    <X size={13} aria-hidden="true" />
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {headingItems.length >= 3 && (
-              <details className="mt-4 rounded-2xl border border-[var(--line)] bg-[var(--panel-2)] px-3.5 py-2.5 text-sm">
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-xs font-semibold text-[var(--ink)]">
-                  <span>{copy.chaptersLabel(headingItems.length)}</span>
-                  <ChevronDown size={15} className="text-[var(--muted)]" aria-hidden="true" />
-                </summary>
-                <ol className="mt-2.5 space-y-1 border-t border-[var(--line)] pt-2">
-                  {headingItems.map((item, idx) => (
-                    <li key={item.blockId}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          blockNodesRef.current.get(item.blockId)?.scrollIntoView({
-                            behavior: reducedMotion ? 'auto' : 'smooth',
-                            block: 'start',
-                          });
-                        }}
-                        className="flex min-h-10 w-full items-baseline gap-2.5 rounded-xl px-2 py-1.5 text-left text-xs font-medium text-[var(--ink)] transition-colors hover:bg-[var(--control)] hover:text-[var(--accent)]"
-                      >
-                        <span className="shrink-0 font-bold text-[var(--muted)] tabular-nums">
-                          {String(idx + 1).padStart(2, '0')}
-                        </span>
-                        <span className="line-clamp-2 leading-snug">{item.text}</span>
-                      </button>
-                    </li>
-                  ))}
-                </ol>
-              </details>
-            )}
+            <ReaderChapterBar
+              items={headingItems}
+              label={copy.chaptersLabel(headingItems.length)}
+              onJumpTo={blockId => {
+                blockNodesRef.current.get(blockId)?.scrollIntoView({
+                  behavior: reducedMotion ? 'auto' : 'smooth',
+                  block: 'start',
+                });
+              }}
+            />
 
             <div className={`reader-prose mt-6 space-y-5 ${textSizeClass} ${effectiveSerif ? 'font-editorial-serif' : ''}`}>
               {lead && (
@@ -1281,112 +995,21 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
               </div>
             )}
 
-            {!allowFullText && !offlineSaved && !loadingFullText && (
-              <section
-                aria-label={copy.fullTextOptInTitle}
-                className="mt-6 space-y-3 rounded-2xl border border-[var(--line)] bg-[var(--panel-2)] p-4 sm:p-5"
-              >
-                <div className="space-y-1">
-                  <p className="text-sm font-bold text-[var(--ink)]">{copy.fullTextOptInTitle}</p>
-                  <p className="text-xs leading-relaxed text-[var(--muted)]">{copy.fullTextOptInDesc}</p>
-                </div>
-                <div className="flex flex-wrap items-center gap-2 pt-0.5">
-                  {onEnableFullText && article.sourceId && (
-                    <button
-                      type="button"
-                      onClick={() => onEnableFullText(article.sourceId)}
-                      className="primary-action inline-flex items-center gap-1.5 px-4 text-xs"
-                    >
-                      {copy.fullTextOptInEnable}
-                    </button>
-                  )}
-                  {safeArticleHref && (
-                    <a
-                      href={safeArticleHref}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="choice-pill inline-flex items-center gap-1.5 text-xs"
-                    >
-                      <ExternalLink size={14} aria-hidden="true" />
-                      {copy.paywallOpenSource}
-                    </a>
-                  )}
-                </div>
-              </section>
-            )}
-
-            {allowFullText && !loadingFullText && (publisherOptOut || blockedWall || fullTextUnavailable) && (
-              <section
-                aria-label={copy.paywallTitle}
-                className="mt-6 space-y-3.5 rounded-2xl border border-[var(--line)] bg-[var(--panel-2)] p-4 sm:p-5"
-              >
-                <div className="space-y-1">
-                  <p className="text-sm font-bold text-[var(--ink)]">{copy.paywallTitle}</p>
-                  <p className="text-xs leading-relaxed text-[var(--muted)]">
-                    {publisherOptOut ? copy.fullTextOptOutDesc : copy.paywallDesc}
-                  </p>
-                </div>
-
-                {freeAlternatives.length > 0 && (
-                  <div className="space-y-2 border-t border-[var(--line)] pt-3">
-                    <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-[var(--muted)]">
-                      {copy.paywallAlternativesTitle}
-                    </p>
-                    <ul className="divide-y divide-[var(--line)] rounded-xl border border-[var(--line)] bg-[var(--panel)] px-3">
-                      {freeAlternatives.map(alt => (
-                        <li key={alt.id}>
-                          <button
-                            type="button"
-                            onClick={() => onOpenArticle(alt)}
-                            className="group flex min-h-12 w-full items-center justify-between gap-3 py-2.5 text-left"
-                          >
-                            <div className="min-w-0 flex-1 space-y-0.5">
-                              <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[var(--muted)]">
-                                <SourceIcon
-                                  source={{ id: alt.sourceId, shortCode: alt.sourceShortCode, accentColor: alt.sourceColor }}
-                                  size="h-4 w-4 rounded-[4px] text-[7px]"
-                                />
-                                {alt.sourceName} · {formatRelative(alt.publishedAt)}
-                              </span>
-                              <p className="line-clamp-2 text-xs font-bold leading-snug text-[var(--ink)] group-hover:text-[var(--accent)]">
-                                {alt.title}
-                              </p>
-                            </div>
-                            <span className="shrink-0 text-xs font-semibold text-[var(--accent)]">
-                              {copy.paywallReadInApp}
-                            </span>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                <div className="flex flex-wrap items-center gap-2 pt-0.5">
-                  {safeArticleHref && (
-                    <a
-                      href={safeArticleHref}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="choice-pill inline-flex items-center gap-1.5 text-xs"
-                    >
-                      <ExternalLink size={14} aria-hidden="true" />
-                      {copy.paywallOpenSource}
-                    </a>
-                  )}
-                  {onSearchTopic && (
-                    <button
-                      type="button"
-                      onClick={onSearchTopic}
-                      className="choice-pill inline-flex items-center gap-1.5 text-xs"
-                    >
-                      <Search size={14} aria-hidden="true" />
-                      {copy.paywallSearchMore}
-                    </button>
-                  )}
-                </div>
-              </section>
-            )}
+            <ReaderPaywallNotice
+              allowFullText={allowFullText}
+              offlineSaved={offlineSaved}
+              loadingFullText={loadingFullText}
+              publisherOptOut={publisherOptOut}
+              blockedWall={blockedWall}
+              fullTextUnavailable={fullTextUnavailable}
+              sourceId={article.sourceId}
+              safeArticleHref={safeArticleHref}
+              freeAlternatives={freeAlternatives}
+              copy={copy}
+              onEnableFullText={onEnableFullText}
+              onOpenArticle={onOpenArticle}
+              onSearchTopic={onSearchTopic}
+            />
 
             {/* Intelligent Related Cross-Media Links (Article -> Video / Clip / Podcast in-app) */}
             {relatedMedia.length > 0 && (
@@ -1710,159 +1333,34 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
         </div>
       </div>
 
-      <dialog
-        ref={summaryDialog}
-        id="reader-summary"
-        data-reader-theme={resolvedSurfaceTheme}
-        className="motion-dialog reader-summary"
-        aria-labelledby="reader-summary-title"
-        onCancel={event => { event.preventDefault(); onClose(); }}
-        onClick={event => { if (event.target === event.currentTarget) onClose(); }}
-      >
-        <div className="reader-summary-content space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-[var(--accent)]" aria-hidden="true" />
-              <h2 id="reader-summary-title" className="text-base font-bold text-[var(--ink)]">
-                {t('readerSummaryTitle')}
-              </h2>
-            </div>
-
-            <button type="button" autoFocus className="glass-icon" aria-label={t('close')} onClick={onClose}>
-              <X size={20} aria-hidden="true" />
-            </button>
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="text-xs font-medium text-[var(--muted)]">
-              {aiLoading ? t('readerAnalyzing') : aiResult?.providerLabel}
-            </span>
-            <button
-              type="button"
-              onClick={handleRunBYOK}
-              disabled={aiLoading}
-              className="primary-action min-h-[44px] px-4 py-2 text-xs"
-            >
-              {aiLoading ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-              ) : hasBYOKKey ? (
-                <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-              ) : (
-                <Settings className="h-3.5 w-3.5" aria-hidden="true" />
-              )}
-              {deviceSummary ? t('readerRunDeviceAI') : hasBYOKKey ? t('readerRefreshAI') : t('readerConnectAI')}
-            </button>
-          </div>
-
-          {(hasBYOKKey || (deviceSummary && Capacitor.getPlatform() !== 'android')) && (
-            <label className="flex flex-wrap items-center justify-between gap-2 text-sm">
-              <span>{t('readerSummaryStyle')}</span>
-              <select
-                className="preference-input"
-                value={style}
-                disabled={aiLoading}
-                onChange={event => {
-                  setAiResult(generateLocalExtractiveSummary({ ...article, paragraphs: originalParagraphs }));
-                  setStyle(resolveSummaryStyle(event.target.value));
-                }}
-              >
-                {Object.entries(SUMMARY_STYLES).map(([id, preset]) => <option key={id} value={id}>{preset.label}</option>)}
-              </select>
-            </label>
-          )}
-          {aiError && (
-            <div className="rounded-2xl bg-rose-500/10 p-3 text-xs text-rose-600 dark:text-rose-400">
-              {aiError}
-            </div>
-          )}
-
-          {aiResult && (
-            <div className="space-y-3 text-sm leading-relaxed text-[var(--ink)]">
-              <ul className="space-y-2.5 pl-4 list-disc marker:text-[var(--accent)]">
-                {aiResult.bullets.map((b, i) => (
-                  <li key={i}>{b}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* "What happened so far" (Local Archive + Optional BYOK AI Context) */}
-          {showSummary && (priorCoverage.length > 0 || hasBYOKKey) && (
-            <div className="space-y-2.5 border-t border-[var(--line)] pt-3.5">
-              <div className="flex items-center gap-1.5 text-sm font-bold text-[var(--ink)]">
-                <History size={15} className="text-[var(--accent)]" aria-hidden="true" />
-                <span>{t('readerContextTitle')}</span>
-              </div>
-
-              {hasBYOKKey && (
-                <div className="space-y-2">
-                  {!contextBullets && (
-                    <button
-                      type="button"
-                      className="choice-pill inline-flex items-center gap-1.5 text-xs"
-                      disabled={contextLoading || loadingFullText}
-                      onClick={() => void handleLoadContext()}
-                    >
-                      {contextLoading && <Loader2 size={13} className="animate-spin" aria-hidden="true" />}
-                      {t('readerContextLoad')}
-                    </button>
-                  )}
-                  {contextError && <p className="text-xs text-rose-500">{t('retry')}</p>}
-                  {contextBullets && (
-                    <ul className="space-y-1.5 pl-4 text-sm list-disc marker:text-[var(--accent)]">
-                      {contextBullets.map((item, idx) => <li key={idx}>{item}</li>)}
-                    </ul>
-                  )}
-                </div>
-              )}
-
-              {priorCoverage.length > 0 && (
-                <div className="space-y-1.5">
-                  <p className="text-xs font-medium text-[var(--muted)]">{t('readerContextPrior')}</p>
-                  <ul className="divide-y divide-[var(--line)] rounded-xl border border-[var(--line)] bg-[var(--panel-2)] px-3">
-                    {priorCoverage.map(prev => (
-                      <li key={prev.id}>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            onClose();
-                            onOpenArticle(prev);
-                          }}
-                          className="flex min-h-11 w-full flex-col justify-center py-2 text-left hover:text-[var(--accent)]"
-                        >
-                          <span className="text-[11px] font-medium text-[var(--muted)]">
-                            {prev.sourceName} · {formatRelative(prev.publishedAt)}
-                          </span>
-                          <span className="text-xs font-semibold leading-snug text-[var(--ink)]">
-                            {prev.title}
-                          </span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          )}
-
-          {showSummary && hasBYOKKey && (
-            <ArticleQuestions
-              article={{ ...article, paragraphs: originalParagraphs }}
-              config={aiConfig}
-              disabled={loadingFullText}
-            />
-          )}
-          {showSummary && hasBYOKKey && perspectiveArticles.length >= 2 && (
-            <ArticlePerspectives
-              key={perspectiveArticles.map(report => report.id).join(',')}
-              articles={perspectiveArticles}
-              config={aiConfig}
-            />
-          )}
-          {showSummary && (article.transcript || article.audioUrl || article.videoUrl || article.youtubeId) && (
-            <TranscriptSummary article={article} config={aiConfig} />
-          )}
-        </div>
-      </dialog>
+      <ReaderSummaryDialog
+        dialogRef={summaryDialog}
+        resolvedSurfaceTheme={resolvedSurfaceTheme}
+        article={article}
+        originalParagraphs={originalParagraphs}
+        perspectiveArticles={perspectiveArticles}
+        aiConfig={aiConfig}
+        aiLoading={aiLoading}
+        aiResult={aiResult}
+        aiError={aiError}
+        hasBYOKKey={hasBYOKKey}
+        deviceSummary={deviceSummary}
+        style={style}
+        showSummary={showSummary}
+        priorCoverage={priorCoverage}
+        contextBullets={contextBullets}
+        contextLoading={contextLoading}
+        contextError={contextError}
+        loadingFullText={loadingFullText}
+        onChangeStyle={nextStyle => {
+          setAiResult(generateLocalExtractiveSummary({ ...article, paragraphs: originalParagraphs }));
+          setStyle(nextStyle);
+        }}
+        onRunBYOK={handleRunBYOK}
+        onLoadContext={() => void handleLoadContext()}
+        onOpenArticle={onOpenArticle}
+        onClose={onClose}
+      />
     </div>
   );
 };

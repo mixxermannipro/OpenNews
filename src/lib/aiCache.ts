@@ -3,6 +3,7 @@ import { resolveRetention, type Retention } from './preferences';
 
 const day = 86_400_000;
 const store = 'results';
+export const MAX_AI_CACHE_ENTRIES = 150;
 type Entry<T = unknown> = { created: number; value: T };
 let database: Promise<IDBDatabase> | undefined;
 let generation = 0;
@@ -55,17 +56,32 @@ async function mutate(action: (store: IDBObjectStore) => void) {
     const transaction = db.transaction(store, 'readwrite');
     transaction.oncomplete = () => resolve();
     transaction.onabort = () => reject(transaction.error);
+    transaction.onerror = () => reject(transaction.error);
     action(transaction.objectStore(store));
   });
 }
 
 export function pruneAIResults(retention: Retention) {
   return mutate(results => {
+    const items: Array<{ key: IDBValidKey; created: number }> = [];
     const request = results.openCursor();
     request.onsuccess = () => {
       const cursor = request.result;
-      if (!cursor) return;
-      if (!isFreshAIResult(cursor.value, retention, Date.now())) cursor.delete();
+      if (!cursor) {
+        if (items.length > MAX_AI_CACHE_ENTRIES) {
+          items.sort((a, b) => a.created - b.created);
+          const overflow = items.length - MAX_AI_CACHE_ENTRIES;
+          for (let i = 0; i < overflow; i++) {
+            results.delete(items[i].key);
+          }
+        }
+        return;
+      }
+      if (!isFreshAIResult(cursor.value, retention, Date.now())) {
+        cursor.delete();
+      } else {
+        items.push({ key: cursor.key, created: Number(cursor.value?.created ?? 0) });
+      }
       cursor.continue();
     };
   });
@@ -75,6 +91,26 @@ export function clearAIResults() {
   generation++;
   pending.clear();
   return mutate(results => { results.clear(); });
+}
+
+async function evictOldestFraction(fraction = 0.25) {
+  return mutate(results => {
+    const items: Array<{ key: IDBValidKey; created: number }> = [];
+    const request = results.openCursor();
+    request.onsuccess = () => {
+      const cursor = request.result;
+      if (!cursor) {
+        items.sort((a, b) => a.created - b.created);
+        const dropCount = Math.max(1, Math.ceil(items.length * fraction));
+        for (let i = 0; i < Math.min(dropCount, items.length); i++) {
+          results.delete(items[i].key);
+        }
+        return;
+      }
+      items.push({ key: cursor.key, created: Number(cursor.value?.created ?? 0) });
+      cursor.continue();
+    };
+  });
 }
 
 async function readResult<T>(key: string) {
@@ -99,9 +135,16 @@ export async function withAIResult<T>(
     const cached = await readResult<T>(key).catch(() => undefined);
     if (cached && started === generation && isFreshAIResult(cached, currentRetention(), Date.now())) return cached.value;
     const value = await load();
-    await mutate(results => {
+    const save = () => mutate(results => {
       if (started === generation) results.put({ created: Date.now(), value }, key);
-    }).catch(() => undefined);
+    });
+    await save().catch(async (err) => {
+      const name = (err as { name?: string } | null)?.name;
+      if (name === 'QuotaExceededError') {
+        await evictOldestFraction(0.35).catch(() => {});
+        await save().catch(() => {});
+      }
+    });
     return value;
   })();
   pending.set(identity, request);
