@@ -68,6 +68,8 @@ export function AudioBriefing({
   const cloud = hasCloudAI(config);
   const cloudTTS = hasCloudTTS(ttsConfig, config);
   const lastStopSignalRef = useRef(stopSignal);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+  const restoreFocusRef = useRef(true);
 
   const localBriefing = useMemo(
     () => synthesizeLocalBriefing(articles, lang, new Date(), 5),
@@ -174,6 +176,11 @@ export function AudioBriefing({
   useEffect(() => () => {
     request.current++;
     stopSpeaking();
+    const target = previousFocusRef.current;
+    previousFocusRef.current = null;
+    if (restoreFocusRef.current && target && target.isConnected) {
+      target.focus({ preventScroll: true });
+    }
   }, [stopSpeaking]);
 
   useEffect(() => {
@@ -185,9 +192,19 @@ export function AudioBriefing({
   // Closing the dialog keeps playback running seamlessly in the floating mini player
   useLayoutEffect(() => {
     const element = dialog.current;
-    if (open && !element?.open) element?.showModal();
-    if (!open && element?.open) {
-      element.close();
+    if (open) {
+      restoreFocusRef.current = true;
+      if (!previousFocusRef.current && document.activeElement instanceof HTMLElement) {
+        previousFocusRef.current = document.activeElement;
+      }
+      if (element && !element.open) element.showModal();
+    } else {
+      if (element?.open) element.close();
+      const target = previousFocusRef.current;
+      previousFocusRef.current = null;
+      if (restoreFocusRef.current && target && target.isConnected) {
+        target.focus({ preventScroll: true });
+      }
     }
   }, [open]);
 
@@ -370,6 +387,7 @@ export function AudioBriefing({
   };
 
   const handleOpenBulletArticle = (article: NewsArticle) => {
+    restoreFocusRef.current = false;
     if (onOpenArticle) {
       onOpenArticle(article, briefingArticles);
     } else {
@@ -388,7 +406,7 @@ export function AudioBriefing({
         ref={dialog}
         className="motion-dialog briefing-dialog"
         aria-labelledby="briefing-title"
-        onCancel={event => { event.preventDefault(); onClose(); }}
+        onCancel={event => { event.preventDefault(); stop(); onClose(); }}
         onClick={event => { if (event.target === event.currentTarget) onClose(); }}
       >
         <div className="reader-summary-content space-y-5">

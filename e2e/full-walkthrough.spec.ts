@@ -169,8 +169,7 @@ test('full end-to-end walkthrough across all views, dialogs, filters, settings, 
   const desktopNav = page.getByRole('navigation', { name: 'Hauptnavigation' });
   await desktopNav.getByRole('button', { name: 'Entdecken', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Entdecken' })).toBeVisible();
-  const filterSummary = page.locator('details.cluster-disclosure > summary').first();
-  await filterSummary.click();
+  await page.getByRole('button', { name: 'Radar & Filter' }).click();
   const radarInput = page.getByPlaceholder(/Stichwort|Thema/i).first();
   await expect(radarInput).toBeVisible();
   await radarInput.fill('Quanten');

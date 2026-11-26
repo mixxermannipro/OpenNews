@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
-import { AnimatePresence, motion } from 'motion/react';
 import {
   Check,
   Globe,
@@ -421,15 +420,8 @@ export const SourcesManager: React.FC<SourcesManagerProps> = ({
       </div>
 
       {/* Collapsible Custom Source / Website Discovery / OPML Panel */}
-      <AnimatePresence initial={false}>
-        {showCustomPanel && (
-          <motion.div
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-            className="space-y-3.5"
-          >
+      {showCustomPanel && (
+          <div className="motion-panel-in space-y-3.5">
             {/* Website Auto-Discovery */}
             <div className="settings-group space-y-3.5 p-4 sm:p-5">
               <div>
@@ -615,9 +607,8 @@ export const SourcesManager: React.FC<SourcesManagerProps> = ({
               </div>
               {transferStatus && <p role="status" className="text-xs text-[var(--muted)]">{transferStatus}</p>}
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+      )}
 
       {/* Curated 1-Tap Starter Packs */}
       {!hasActiveFilters && (

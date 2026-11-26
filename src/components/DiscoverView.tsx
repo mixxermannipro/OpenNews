@@ -1,9 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import { BellOff, Check, ChevronRight, Flame, Plus, Radar, SlidersHorizontal, X } from 'lucide-react';
-import politicsImage from '../assets/images/news_bundestag_berlin_1794556463691.jpg';
-import businessImage from '../assets/images/news_renewable_europe_1794556463653.jpg';
-import technologyImage from '../assets/images/news_ai_semiconductor_1794556462965.jpg';
-import europeImage from '../assets/images/news_eu_parliament_1794556462855.jpg';
+import politicsImage from '../assets/images/news_bundestag_berlin_1794556463691.webp';
+import businessImage from '../assets/images/news_renewable_europe_1794556463653.webp';
+import technologyImage from '../assets/images/news_ai_semiconductor_1794556462965.webp';
+import europeImage from '../assets/images/news_eu_parliament_1794556462855.webp';
 import type { NewsArticle, NewsCategory, NewsSource, PersonalizationProfile } from '../types/news';
 import { STARTER_PACKS } from '../lib/catalog';
 import { getDiscoverCopy } from '../lib/discoverCopy';

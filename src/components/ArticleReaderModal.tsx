@@ -40,7 +40,6 @@ import {
   Volume2,
   X,
 } from 'lucide-react';
-import { motion } from 'motion/react';
 import type {
   AIProviderConfig,
   AISummaryResult,
@@ -866,27 +865,17 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
       aria-label={`Artikel lesen: ${title}`}
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
     >
-      <motion.div
+      <div
         aria-hidden="true"
         onClick={onClose}
-        className="absolute inset-0 bg-black/60 backdrop-blur-[2px]"
-        initial={reducedMotion ? false : { opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: reducedMotion ? 0 : 0.22, ease: 'easeOut' }}
+        className={`absolute inset-0 bg-black/60 backdrop-blur-[2px] ${reducedMotion ? '' : 'reader-backdrop-enter'}`}
       />
-      <motion.div
+      <div
         onClick={event => event.stopPropagation()}
-        initial={reducedMotion ? false : { opacity: 0, y: 26, scale: 0.99 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={reducedMotion ? undefined : { opacity: 0, y: 20, transition: { duration: 0.2, ease: [0.32, 0, 0.35, 1] } }}
-        transition={reducedMotion ? { duration: 0 } : {
-          y: { type: 'spring', stiffness: 360, damping: 34, mass: 0.85 },
-          scale: { duration: 0.22, ease: [0.16, 1, 0.3, 1] },
-          opacity: { duration: 0.16, ease: 'easeOut' },
-        }}
         data-reader-theme={resolvedSurfaceTheme !== 'default' ? resolvedSurfaceTheme : undefined}
         className={`relative flex h-[100dvh] sm:h-[92vh] w-full flex-col overflow-hidden rounded-none sm:rounded-[30px] reader-surface shadow-2xl ring-1 ring-black/10 dark:ring-white/12 transition-[max-width] duration-300 ${
+          reducedMotion ? '' : 'reader-sheet-enter'
+        } ${
           newspaperMode && twoColumns ? 'max-w-5xl' : 'max-w-3xl'
         }`}
       >
@@ -1718,7 +1707,7 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
             </div>
           </details>
         </div>
-      </motion.div>
+      </div>
 
       <dialog
         ref={summaryDialog}

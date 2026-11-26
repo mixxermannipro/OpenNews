@@ -5,7 +5,6 @@ import { clusterStories } from './lib/storyClusters';
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Capacitor, SystemBars, SystemBarsStyle } from '@capacitor/core';
 import { Bell, Compass, Home, Clapperboard, User } from 'lucide-react';
-import { AnimatePresence, MotionConfig, motion } from 'motion/react';
 import type {
   AIProviderConfig,
   AppTab,
@@ -1215,7 +1214,6 @@ export default function App() {
 
   return (
     <I18nProvider lang={activeLanguage}>
-    <MotionConfig reducedMotion={preferences.motion === 'reduced' ? 'always' : 'user'}>
     <div className={`opennews-canvas ${hasFloatingPlayer ? 'has-mini-player' : ''}`} data-glass={preferences.glass} data-accent={preferences.accent}
       data-corners={preferences.corners} data-cards={preferences.cards} data-scale={preferences.textScale}
       data-feed-images={preferences.images} data-nav-hidden={navigationHidden || undefined}>
@@ -1233,16 +1231,11 @@ export default function App() {
       <OfflineIndicator />
 
       {/* In-App Breaking Notification Banner */}
-      <AnimatePresence>
-        {alertBanner && (
-          <motion.div
+      {alertBanner && (
+          <div
             key={alertBanner.title}
             role="status"
-            initial={reducedMotion ? false : { opacity: 0, y: -16, scale: 0.97 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={reducedMotion ? { opacity: 0 } : { opacity: 0, y: -12, scale: 0.97 }}
-            transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
-            className="liquid-glass-dock fixed left-1/2 z-[60] flex w-[92%] max-w-md -translate-x-1/2 items-center gap-3 rounded-2xl p-3.5 shadow-xl"
+            className="motion-banner-in liquid-glass-dock fixed left-1/2 z-[60] flex w-[92%] max-w-md -translate-x-1/2 items-center gap-3 rounded-2xl p-3.5 shadow-xl"
             style={{ top: 'max(1rem, env(safe-area-inset-top))' }}
           >
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--accent)] text-[var(--accent-ink)]">
@@ -1254,9 +1247,8 @@ export default function App() {
                 {alertBanner.title}
               </p>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+      )}
 
       <header className="app-header hidden md:block" inert={activeArticle ? true : undefined}>
         <div className="app-header-inner">
@@ -1275,13 +1267,7 @@ export default function App() {
                   aria-current={active ? 'page' : undefined}
                 >
                   {item.label}
-                  {active && (
-                    <motion.span
-                      layoutId={reducedMotion ? undefined : 'desktop-nav-underline'}
-                      className="desktop-nav-underline"
-                      transition={{ type: 'spring', stiffness: 460, damping: 36 }}
-                    />
-                  )}
+                  {active && <span className="desktop-nav-underline" />}
                 </button>
               );
             })}
@@ -1507,8 +1493,7 @@ export default function App() {
             return (
               <button key={id} type="button" onClick={action}
                 aria-current={active ? 'page' : undefined} aria-label={label} className="dock-tab">
-                {active && <motion.span layoutId={reducedMotion ? undefined : 'dock-selection'} className="dock-selection"
-                  transition={{ type: 'spring', stiffness: 440, damping: 34 }} />}
+                {active && <span className="dock-selection" />}
                 <Icon size={21} strokeWidth={active ? 2.25 : 1.9} aria-hidden="true" />
                 <span className="dock-label" aria-hidden="true">{shortLabel}</span>
               </button>
@@ -1560,34 +1545,28 @@ export default function App() {
 
       {/* Floating Undo Toast after Swipe-to-Dismiss ("Weniger davon") */}
       <div className="undo-toast-anchor">
-        <AnimatePresence>
-          {undoDismiss && !activeArticle && (
-            <motion.div
-              key={undoDismiss.article.id}
-              role="status"
-              aria-live="polite"
-              initial={reducedMotion ? false : { opacity: 0, y: 18, scale: 0.96 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 12, scale: 0.97 }}
-              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-              className="undo-toast"
+        {undoDismiss && !activeArticle && (
+          <div
+            key={undoDismiss.article.id}
+            role="status"
+            aria-live="polite"
+            className="undo-toast motion-toast-in"
+          >
+            <span className="min-w-0 flex-1 truncate text-xs font-medium text-[var(--ink)]">
+              {t('swipeDismissedToast', {
+                category: undoDismiss.article.category,
+                source: undoDismiss.article.sourceName,
+              })}
+            </span>
+            <button
+              type="button"
+              onClick={handleUndoDismiss}
+              className="shrink-0 rounded-full bg-[var(--accent)] px-3.5 py-1.5 text-xs font-bold text-[var(--accent-ink)] transition-transform active:scale-95"
             >
-              <span className="min-w-0 flex-1 truncate text-xs font-medium text-[var(--ink)]">
-                {t('swipeDismissedToast', {
-                  category: undoDismiss.article.category,
-                  source: undoDismiss.article.sourceName,
-                })}
-              </span>
-              <button
-                type="button"
-                onClick={handleUndoDismiss}
-                className="shrink-0 rounded-full bg-[var(--accent)] px-3.5 py-1.5 text-xs font-bold text-[var(--accent-ink)] transition-transform active:scale-95"
-              >
-                {t('undo')}
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
+              {t('undo')}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Article Reader Sheet */}
@@ -1598,8 +1577,7 @@ export default function App() {
           </div>
         </div>
       ) : null}>
-      <AnimatePresence>
-        {activeArticle && (
+      {activeArticle && (
           <ArticleReaderModal
             key={activeArticle.id}
             article={activeArticle}
@@ -1656,12 +1634,10 @@ export default function App() {
             articlePosition={readerNeighbors.index >= 0 ? { current: readerNeighbors.index + 1, total: readerNeighbors.total } : undefined}
             onSearchTopic={() => navigate({ tab: 'discover' })}
           />
-        )}
-      </AnimatePresence>
+      )}
       </Suspense>
       </>}
     </div>
-    </MotionConfig>
     </I18nProvider>
   );
 }
