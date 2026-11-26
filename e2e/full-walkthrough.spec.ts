@@ -141,6 +141,7 @@ test('full end-to-end walkthrough across all views, dialogs, filters, settings, 
   await briefingDialog.getByRole('button', { name: /Klimagipfel beschließt/ }).first().click();
   const reader = page.getByRole('dialog', { name: /Artikel lesen/ });
   await expect(reader).toBeVisible();
+  await reader.getByRole('button', { name: 'Volltext für diese Quelle laden' }).click();
   await expect(reader.getByText(/vollständige erste Absatz/).first()).toBeVisible();
   // Ensure it stays open after any async popstate tick
   await page.waitForTimeout(150);

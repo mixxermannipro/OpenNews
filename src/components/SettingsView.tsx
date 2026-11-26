@@ -69,6 +69,8 @@ interface SettingsViewProps {
   onUpdateFormatPrefs: (prefs: FormatPreferences) => void;
   onUpdateAIConfig: (config: AIProviderConfig) => void;
   onUpdateTTSConfig: (config: TTSProviderConfig) => void;
+  persistWebKeys?: boolean;
+  onTogglePersistWebKeys?: (persist: boolean) => void;
   onUpdateNotifications: (next: NotificationSettings) => void;
   onSendTestNotification: () => void;
   onResetAlgorithm: () => void;
@@ -98,6 +100,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onUpdateFormatPrefs,
   onUpdateAIConfig,
   onUpdateTTSConfig,
+  persistWebKeys = false,
+  onTogglePersistWebKeys,
   onUpdateNotifications,
   onSendTestNotification,
   onResetAlgorithm,
@@ -708,6 +712,40 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </span>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {section === 'ai' && !Capacitor.isNativePlatform() && onTogglePersistWebKeys && (
+        <div className="liquid-glass rounded-[26px] p-5 space-y-3">
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-1">
+              <h2 className="text-sm font-bold text-[var(--ink)]">{getSettingsCopy(lang).webKeysPersistLabel}</h2>
+              <p className="text-xs leading-relaxed text-[var(--muted)]">
+                {getSettingsCopy(lang).webKeysPersistHelp}
+              </p>
+              {!persistWebKeys && (
+                <p className="text-xs font-medium text-[var(--accent)]">
+                  {getSettingsCopy(lang).webKeysSessionActive}
+                </p>
+              )}
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={persistWebKeys}
+              aria-label={getSettingsCopy(lang).webKeysPersistLabel}
+              onClick={() => onTogglePersistWebKeys(!persistWebKeys)}
+              className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors ${
+                persistWebKeys ? 'bg-amber-600 dark:bg-amber-500' : 'bg-[var(--control)] ring-1 ring-inset ring-[var(--line)]'
+              }`}
+            >
+              <span
+                className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                  persistWebKeys ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
           </div>
         </div>
       )}

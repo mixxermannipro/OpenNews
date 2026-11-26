@@ -204,6 +204,8 @@ test('reads a saved article offline', async ({ page, context }) => {
   await enterApp(page);
   await page.getByText(title, { exact: true }).filter({ visible: true }).first().click();
   const reader = page.getByRole('dialog', { name: /Artikel lesen/ });
+  await expect(reader.getByText('Dieser Beitrag stammt aus einem simulierten Feed.').first()).toBeVisible();
+  await reader.getByRole('button', { name: 'Volltext für diese Quelle laden' }).click();
   await expect(reader.getByText(/Volltext stammt/).first()).toBeVisible();
   await reader.getByRole('button', { name: 'Offline speichern' }).click();
   await expect(reader.getByText('Text offline verfügbar.')).toBeVisible();
