@@ -1,4 +1,5 @@
 import { TranscriptSummary } from './TranscriptSummary';
+import { ReaderAudioBar } from './ReaderAudioBar';
 import { resolveSummaryStyle, SUMMARY_STYLES } from '../lib/summaryStyles';
 import { ArticlePerspectives } from './ArticlePerspectives';
 import { ArticleQuestions } from './ArticleQuestions';
@@ -23,15 +24,11 @@ import {
   History,
   ListPlus,
   Loader2,
-  Moon,
   Newspaper,
-  Pause,
   Play,
   Search,
   Settings,
   Share2,
-  SkipBack,
-  SkipForward,
   Sparkles,
   Square,
   ThumbsDown,
@@ -1552,75 +1549,21 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
 
         {/* Read Aloud 2.0 Floating Synchronized Playback Bar */}
         {speechState !== 'idle' && (
-          <div
-            role="region"
-            aria-label={t('readerReadAloud')}
-            className="mx-3 mb-2 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-[var(--line)] bg-[var(--glass-tint)] px-3 py-2 backdrop-blur-xl shadow-lg sm:mx-6"
-          >
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                className="grid h-10 w-10 place-items-center rounded-full text-[var(--ink)] hover:bg-[var(--control)]"
-                aria-label={t('readerSpeechPrev')}
-                onClick={() => speakFromIndex(Math.max(0, speechIndex - 1))}
-              >
-                <SkipBack size={16} aria-hidden="true" />
-              </button>
-              <button
-                type="button"
-                className="grid h-10 w-10 place-items-center rounded-full bg-[var(--accent)] text-[var(--accent-ink)]"
-                aria-label={speechState === 'playing' ? t('briefingPause') : t('briefingResume')}
-                onClick={toggleSpeechPause}
-              >
-                {speechState === 'playing' ? <Pause size={16} fill="currentColor" aria-hidden="true" /> : <Play size={16} fill="currentColor" aria-hidden="true" />}
-              </button>
-              <button
-                type="button"
-                className="grid h-10 w-10 place-items-center rounded-full text-[var(--ink)] hover:bg-[var(--control)]"
-                aria-label={t('readerSpeechNext')}
-                onClick={() => speakFromIndex(Math.min(speechBlocks.length - 1, speechIndex + 1))}
-              >
-                <SkipForward size={16} aria-hidden="true" />
-              </button>
-              <span className="ml-1 inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--muted)] tabular-nums">
-                {speechLoading && <Loader2 size={13} className="animate-spin text-[var(--accent)]" aria-hidden="true" />}
-                {Math.max(1, speechIndex + 1)} / {speechBlocks.length}
-              </span>
-              {speechStatus && (
-                <span className="hidden sm:inline max-w-[14rem] truncate text-[11px] text-[var(--muted)]" role="status">
-                  {speechStatus}
-                </span>
-              )}
-            </div>
-
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                className="choice-pill min-h-9 px-2.5 text-xs tabular-nums"
-                aria-label={t('mediaAudioSpeed')}
-                onClick={cycleSpeechRate}
-              >
-                {speechRate}×
-              </button>
-              <button
-                type="button"
-                className="choice-pill inline-flex min-h-9 items-center gap-1 px-2.5 text-xs tabular-nums"
-                aria-label={t('readerSpeechSleep')}
-                onClick={cycleSleepTimer}
-              >
-                <Moon size={13} aria-hidden="true" />
-                {sleepMinutes > 0 ? `${sleepMinutes}m` : t('readerSpeechOff')}
-              </button>
-              <button
-                type="button"
-                className="grid h-10 w-10 place-items-center rounded-full text-[var(--muted)] hover:bg-[var(--control)] hover:text-[var(--ink)]"
-                aria-label={t('readerStopAloud')}
-                onClick={stopSpeech}
-              >
-                <Square size={15} fill="currentColor" aria-hidden="true" />
-              </button>
-            </div>
-          </div>
+          <ReaderAudioBar
+            speechState={speechState}
+            speechLoading={speechLoading}
+            speechIndex={speechIndex}
+            totalBlocks={speechBlocks.length}
+            speechStatus={speechStatus}
+            speechRate={speechRate}
+            sleepMinutes={sleepMinutes}
+            onPrev={() => speakFromIndex(Math.max(0, speechIndex - 1))}
+            onTogglePause={toggleSpeechPause}
+            onNext={() => speakFromIndex(Math.min(speechBlocks.length - 1, speechIndex + 1))}
+            onCycleRate={cycleSpeechRate}
+            onCycleSleep={cycleSleepTimer}
+            onStop={stopSpeech}
+          />
         )}
 
         <div

@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.res.Configuration;
+import android.graphics.Bitmap;
 import android.os.Build;
 import android.util.TypedValue;
 import android.view.View;
@@ -100,8 +101,12 @@ final class WidgetFeed {
         boolean brief = size == COMPACT || density == DENSE;
         boolean lead = index == 0 && !brief && (density == EDITORIAL || size == EXPANDED);
         boolean wideLead = lead && size == EXPANDED;
+        String imageUrl = article.optString("imageUrl");
+        Bitmap thumb = (images && !brief && !imageUrl.isEmpty())
+            ? WidgetImageCache.loadCachedBitmap(context, imageUrl)
+            : null;
         int illustration = illustration(article.optString("category"));
-        boolean hasImage = images && !brief && illustration != 0;
+        boolean hasImage = images && !brief && (thumb != null || illustration != 0);
         String summary = abbreviated(article.optString("summary"), 180);
         String title = abbreviated(article.optString("title"), 260);
         boolean showSummary = summaries && lead && !summary.equalsIgnoreCase(title) && usefulSummary(summary);
@@ -124,8 +129,14 @@ final class WidgetFeed {
         }
         row.setViewVisibility(R.id.widget_article_hero, hasImage && wideLead ? View.VISIBLE : View.GONE);
         row.setViewVisibility(R.id.widget_article_thumb, hasImage && !wideLead ? View.VISIBLE : View.GONE);
-        if (hasImage) row.setImageViewResource(wideLead ? R.id.widget_article_hero : R.id.widget_article_thumb,
-            illustration);
+        if (hasImage) {
+            int targetView = wideLead ? R.id.widget_article_hero : R.id.widget_article_thumb;
+            if (thumb != null) {
+                row.setImageViewBitmap(targetView, thumb);
+            } else {
+                row.setImageViewResource(targetView, illustration);
+            }
+        }
 
         String articleId = article.optString("id");
         Intent open = new Intent().putExtra(NewsWidget.ARTICLE, articleId);

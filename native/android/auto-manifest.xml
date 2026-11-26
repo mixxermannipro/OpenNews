@@ -13,3 +13,8 @@
                 <action android:name="android.media.browse.MediaBrowserService" />
             </intent-filter>
         </service>
+        <provider
+            android:name=".AutoArtworkProvider"
+            android:authorities="${applicationId}.autoartwork"
+            android:exported="true"
+            android:grantUriPermissions="true" />

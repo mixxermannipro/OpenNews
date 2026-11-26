@@ -1,9 +1,21 @@
 import { useEffect, useRef, useState } from 'react';
-import { ExternalLink, Headphones, Pause, Play, Radio, RotateCcw, RotateCw, SkipForward, X } from 'lucide-react';
+import { ExternalLink, Headphones, Moon, Pause, Play, Radio, RotateCcw, RotateCw, SkipForward, X } from 'lucide-react';
 import type { PlayableMedia } from '../lib/articleMedia';
 import { safeHref } from '../lib/contentIdentity';
 import { useI18n } from '../lib/i18n';
 import { getMediaCopy } from '../lib/mediaCopy';
+import {
+  addNativeAudioListener,
+  isNativeAudioAvailable,
+  pauseNativeAudio,
+  playNativeAudio,
+  resumeNativeAudio,
+  seekNativeAudio,
+  seekNativeAudioBy,
+  setNativeAudioSpeed,
+  stopNativeAudio,
+  type NativeAudioPlaybackState,
+} from '../lib/nativeAudio';
 import type { NewsArticle } from '../types/news';
 import { ArticleImage } from './ArticleImage';
 
@@ -21,6 +33,9 @@ export interface ActiveAudioTrack {
 }
 
 const SPEEDS = [1, 1.25, 1.5, 2] as const;
+type SleepTimerChoice = null | 15 | 30 | 45 | 'end-of-episode';
+const EPISODE_SLEEP_CHOICES: readonly SleepTimerChoice[] = [null, 15, 30, 45, 'end-of-episode'];
+const LIVE_SLEEP_CHOICES: readonly SleepTimerChoice[] = [null, 15, 30, 45];
 
 export function formatAudioClock(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 0) return '0:00';
@@ -57,6 +72,7 @@ export function MiniAudioPlayer({
 }) {
   const { lang, t } = useI18n();
   const copy = getMediaCopy(lang);
+  const nativeMode = isNativeAudioAvailable();
   const audioRef = useRef<HTMLAudioElement>(null);
   const isLive = Boolean(track.isLive);
   const [playing, setPlaying] = useState(false);
@@ -65,6 +81,11 @@ export function MiniAudioPlayer({
   const [currentTime, setCurrentTime] = useState(isLive ? 0 : initialSeconds);
   const [duration, setDuration] = useState(isLive ? 0 : (track.media.durationSec || track.article.durationSec || 0));
   const [speedIndex, setSpeedIndex] = useState(0);
+  const [sleepChoice, setSleepChoice] = useState<SleepTimerChoice>(null);
+  const [sleepRemainingMin, setSleepRemainingMin] = useState<number | null>(null);
+  const sleepEndsAtRef = useRef<number | null>(null);
+  const sleepChoiceRef = useRef<SleepTimerChoice>(sleepChoice);
+  sleepChoiceRef.current = sleepChoice;
   const lastSavedRef = useRef(0);
   const engagedRef = useRef(false);
   const playStartRef = useRef<number | null>(null);
@@ -74,9 +95,56 @@ export function MiniAudioPlayer({
   onSavePositionRef.current = onSavePosition;
   const onEngagedRef = useRef(onEngaged);
   onEngagedRef.current = onEngaged;
+  const durationRef = useRef(duration);
+  durationRef.current = duration;
+  const currentTimeRef = useRef(currentTime);
+  currentTimeRef.current = currentTime;
 
   const speed = isLive ? 1 : SPEEDS[speedIndex];
   const progress = !isLive && duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
+
+  useEffect(() => {
+    if (isLive && sleepChoice === 'end-of-episode') {
+      setSleepChoice(null);
+    }
+  }, [isLive, sleepChoice]);
+
+  useEffect(() => {
+    if (typeof sleepChoice !== 'number') {
+      sleepEndsAtRef.current = null;
+      setSleepRemainingMin(null);
+      return;
+    }
+    const endAt = Date.now() + sleepChoice * 60_000;
+    sleepEndsAtRef.current = endAt;
+    setSleepRemainingMin(sleepChoice);
+    const id = window.setInterval(() => {
+      const target = sleepEndsAtRef.current;
+      if (!target) return;
+      const remMs = target - Date.now();
+      if (remMs <= 0) {
+        window.clearInterval(id);
+        sleepEndsAtRef.current = null;
+        setSleepRemainingMin(null);
+        setSleepChoice(null);
+        if (nativeMode) {
+          void pauseNativeAudio().catch(() => {});
+        } else {
+          audioRef.current?.pause();
+        }
+        return;
+      }
+      setSleepRemainingMin(Math.max(1, Math.ceil(remMs / 60_000)));
+    }, 15_000);
+    return () => window.clearInterval(id);
+  }, [sleepChoice, nativeMode]);
+
+  const cycleSleepTimer = () => {
+    const choices = isLive ? LIVE_SLEEP_CHOICES : EPISODE_SLEEP_CHOICES;
+    const idx = choices.indexOf(sleepChoice);
+    const next = choices[(idx + 1) % choices.length];
+    setSleepChoice(next);
+  };
 
   useEffect(() => {
     engagedRef.current = false;
@@ -88,6 +156,78 @@ export function MiniAudioPlayer({
     setDuration(initialDur);
     setPlaying(false);
     setBuffering(isLive);
+
+    if (nativeMode) {
+      let active = true;
+      let handlePromise: ReturnType<typeof addNativeAudioListener> | undefined;
+      const applyNativeState = (state: NativeAudioPlaybackState) => {
+        if (!active || (state.url && state.url !== track.media.url)) return;
+        setPlaying(state.playing);
+        setBuffering(state.buffering);
+        setAudioError(state.error);
+        if (!isLive) {
+          setCurrentTime(state.currentTime);
+          if (state.duration > 0) setDuration(state.duration);
+          const now = Date.now();
+          if (state.playing && now - lastSavedRef.current >= 3000) {
+            lastSavedRef.current = now;
+            onSavePositionRef.current(track.media.url, state.currentTime, state.duration || durationRef.current);
+          }
+        }
+        if (state.playing && !playStartRef.current) {
+          playStartRef.current = Date.now();
+        } else if (!state.playing && playStartRef.current) {
+          if (!engagedRef.current) {
+            const secs = Math.round((Date.now() - playStartRef.current) / 1000);
+            if (secs >= 5) {
+              engagedRef.current = true;
+              onEngagedRef.current(track.article, secs);
+            }
+          }
+          playStartRef.current = null;
+        }
+        if (state.ended) {
+          if (!isLive) {
+            onSavePositionRef.current(track.media.url, state.duration || state.currentTime, state.duration || state.currentTime);
+          }
+          if (sleepChoiceRef.current === 'end-of-episode') {
+            setSleepChoice(null);
+            return;
+          }
+          if (onNextTrackRef.current) {
+            onNextTrackRef.current();
+          }
+        }
+      };
+
+      handlePromise = addNativeAudioListener(applyNativeState);
+      void playNativeAudio({
+        url: track.media.url,
+        title: track.article.title,
+        artist: isLive ? `${track.article.sourceName} · ${copy.liveBadge}` : track.article.sourceName,
+        artworkUrl: track.article.imageUrl,
+        isLive,
+        initialSeconds: safeInitial,
+        speed: isLive ? 1 : SPEEDS[speedIndex],
+        stationId: track.radioStation?.id,
+      })
+        .then(applyNativeState)
+        .catch(() => {
+          if (active) {
+            setBuffering(false);
+            setAudioError(true);
+          }
+        });
+
+      return () => {
+        active = false;
+        if (!isLive) {
+          onSavePositionRef.current(track.media.url, currentTimeRef.current, durationRef.current || 0);
+        }
+        void handlePromise?.then((h) => h.remove()).catch(() => {});
+      };
+    }
+
     const el = audioRef.current;
     if (!el) return;
 
@@ -164,6 +304,10 @@ export function MiniAudioPlayer({
       if (!isLive) {
         onSavePositionRef.current(track.media.url, el.duration || currentTime, el.duration || currentTime);
       }
+      if (sleepChoiceRef.current === 'end-of-episode') {
+        setSleepChoice(null);
+        return;
+      }
       if (onNextTrackRef.current) {
         onNextTrackRef.current();
       }
@@ -206,23 +350,32 @@ export function MiniAudioPlayer({
       el.removeEventListener('ended', handleEnded);
       el.removeEventListener('error', handleError);
     };
-  }, [track.media.url, isLive]);
+  }, [track.media.url, isLive, nativeMode]);
 
   useEffect(() => {
+    if (nativeMode) {
+      if (!isLive) void setNativeAudioSpeed(speed).catch(() => {});
+      return;
+    }
     if (audioRef.current) audioRef.current.playbackRate = speed;
-  }, [speed]);
+  }, [speed, isLive, nativeMode]);
 
   useEffect(() => {
     if (background) return;
     const onHide = () => {
-      if (document.hidden) audioRef.current?.pause();
+      if (!document.hidden) return;
+      if (nativeMode) {
+        void pauseNativeAudio().catch(() => {});
+      } else {
+        audioRef.current?.pause();
+      }
     };
     document.addEventListener('visibilitychange', onHide);
     return () => document.removeEventListener('visibilitychange', onHide);
-  }, [background]);
+  }, [background, nativeMode]);
 
   useEffect(() => {
-    if (!('mediaSession' in navigator)) return;
+    if (nativeMode || !('mediaSession' in navigator)) return;
     navigator.mediaSession.metadata = new MediaMetadata({
       title: track.article.title,
       artist: isLive ? `${track.article.sourceName} · ${copy.liveBadge}` : track.article.sourceName,
@@ -245,9 +398,21 @@ export function MiniAudioPlayer({
       navigator.mediaSession.setActionHandler('seekforward', null);
       navigator.mediaSession.setActionHandler('nexttrack', null);
     };
-  }, [track, nextTrack, onNextTrack, isLive, copy.liveBadge]);
+  }, [track, nextTrack, onNextTrack, isLive, copy.liveBadge, nativeMode]);
 
   const togglePlay = () => {
+    if (nativeMode) {
+      if (playing) {
+        void pauseNativeAudio().catch(() => {});
+      } else {
+        if (isLive) setBuffering(true);
+        void resumeNativeAudio().catch(() => {
+          setBuffering(false);
+          setAudioError(true);
+        });
+      }
+      return;
+    }
     const el = audioRef.current;
     if (!el) return;
     if (el.paused) {
@@ -268,6 +433,23 @@ export function MiniAudioPlayer({
   };
 
   const retryLiveStream = () => {
+    if (nativeMode) {
+      setAudioError(false);
+      setBuffering(true);
+      void playNativeAudio({
+        url: track.media.url,
+        title: track.article.title,
+        artist: `${track.article.sourceName} · ${copy.liveBadge}`,
+        artworkUrl: track.article.imageUrl,
+        isLive: true,
+        speed: 1,
+        stationId: track.radioStation?.id,
+      }).catch(() => {
+        setBuffering(false);
+        setAudioError(true);
+      });
+      return;
+    }
     const el = audioRef.current;
     if (!el) return;
     setAudioError(false);
@@ -281,15 +463,26 @@ export function MiniAudioPlayer({
   };
 
   const seekBy = (delta: number) => {
+    if (isLive) return;
+    if (nativeMode) {
+      void seekNativeAudioBy(delta).then((state) => setCurrentTime(state.currentTime)).catch(() => {});
+      return;
+    }
     const el = audioRef.current;
-    if (!el || isLive) return;
+    if (!el) return;
     el.currentTime = Math.max(0, Math.min(el.duration || duration || Infinity, el.currentTime + delta));
     setCurrentTime(el.currentTime);
   };
 
   const seekTo = (nextSeconds: number) => {
+    if (isLive) return;
+    if (nativeMode) {
+      const clamped = Math.max(0, Math.min(duration || nextSeconds, nextSeconds));
+      void seekNativeAudio(clamped).then((state) => setCurrentTime(state.currentTime)).catch(() => {});
+      return;
+    }
     const el = audioRef.current;
-    if (!el || isLive) return;
+    if (!el) return;
     const clamped = Math.max(0, Math.min(el.duration || duration || nextSeconds, nextSeconds));
     try {
       el.currentTime = clamped;
@@ -299,6 +492,20 @@ export function MiniAudioPlayer({
     }
   };
 
+  const handleClose = () => {
+    if (nativeMode) {
+      void stopNativeAudio().catch(() => {});
+    }
+    onClose();
+  };
+
+  const sleepBadge =
+    typeof sleepChoice === 'number'
+      ? copy.sleepRemaining(sleepRemainingMin ?? sleepChoice)
+      : sleepChoice === 'end-of-episode'
+        ? copy.sleepEndOfEpisode
+        : '';
+
   const externalHref = safeHref(track.article.linkIsFeed ? track.media.url : track.article.link) ?? safeHref(track.media.url);
 
   return (
@@ -306,12 +513,14 @@ export function MiniAudioPlayer({
       aria-label={t('mediaNowPlaying')}
       className="mini-audio-player"
     >
-      <audio
-        ref={audioRef}
-        src={track.media.url}
-        preload={isLive ? 'none' : 'metadata'}
-        playsInline
-      />
+      {!nativeMode && (
+        <audio
+          ref={audioRef}
+          src={track.media.url}
+          preload={isLive ? 'none' : 'metadata'}
+          playsInline
+        />
+      )}
 
       <div className="px-3.5 pt-3 pb-2.5 space-y-2">
         {/* Main Track Info + Transport Row */}
@@ -445,7 +654,21 @@ export function MiniAudioPlayer({
             )}
             <button
               type="button"
-              onClick={onClose}
+              onClick={cycleSleepTimer}
+              aria-label={copy.sleepTimer}
+              title={sleepBadge ? `${copy.sleepTimer}: ${sleepBadge}` : copy.sleepTimer}
+              className={`inline-flex h-9 items-center gap-1 rounded-full px-2 text-[11px] font-bold transition ${
+                sleepChoice
+                  ? 'bg-[var(--accent)]/15 text-[var(--accent)]'
+                  : 'text-[var(--muted)] hover:bg-[var(--control)] hover:text-[var(--ink)]'
+              }`}
+            >
+              <Moon size={14} aria-hidden="true" />
+              {sleepBadge && <span className="tabular-nums">{sleepBadge}</span>}
+            </button>
+            <button
+              type="button"
+              onClick={handleClose}
               aria-label={t('miniPlayerClose')}
               className="grid h-9 w-9 place-items-center rounded-full text-[var(--muted)] transition hover:bg-[var(--control)] hover:text-[var(--ink)]"
             >

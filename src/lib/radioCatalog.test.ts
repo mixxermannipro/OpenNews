@@ -8,8 +8,12 @@ import {
   RADIO_STATIONS,
 } from './radioCatalog.ts';
 
-test('radio catalog contains unique verified HTTPS stations', () => {
-  assert.ok(RADIO_STATIONS.length >= 20);
+test('radio catalog contains 50 unique verified HTTPS stations covering news and music', () => {
+  assert.ok(RADIO_STATIONS.length >= 50);
+  const musicStations = RADIO_STATIONS.filter((s) => s.category === 'music');
+  const newsStations = RADIO_STATIONS.filter((s) => s.category !== 'music');
+  assert.ok(musicStations.length >= 25);
+  assert.ok(newsStations.length >= 24);
   const seenIds = new Set<string>();
   const seenUrls = new Set<string>();
 
@@ -58,6 +62,14 @@ test('filterRadioStations prioritizes favorites, matches umlauts/aliases, and fi
   assert.ok(intlOnly.length >= 8);
   assert.ok(intlOnly.every((station) => !['DE', 'AT', 'CH'].includes(station.region)));
 
+  const newsOnly = filterRadioStations(RADIO_STATIONS, { group: 'news' });
+  assert.ok(newsOnly.length >= 24);
+  assert.ok(newsOnly.every((station) => station.category !== 'music'));
+
+  const musicOnly = filterRadioStations(RADIO_STATIONS, { group: 'music' });
+  assert.ok(musicOnly.length >= 25);
+  assert.ok(musicOnly.every((station) => station.category === 'music'));
+
   const favOnly = filterRadioStations(RADIO_STATIONS, {
     group: 'favorites',
     favoriteIds: ['dlf', 'srf4-news'],
@@ -65,7 +77,7 @@ test('filterRadioStations prioritizes favorites, matches umlauts/aliases, and fi
   assert.deepEqual(favOnly.map((s) => s.id), ['dlf', 'srf4-news']);
 });
 
-test('buildRadioAudioTrack constructs a live track without podcast duration', () => {
+test('buildRadioAudioTrack constructs a live track for both news and music stations', () => {
   const station = RADIO_STATIONS[0];
   const track = buildRadioAudioTrack(station);
   assert.equal(track.isLive, true);
@@ -73,4 +85,10 @@ test('buildRadioAudioTrack constructs a live track without podcast duration', ()
   assert.equal(track.media.url, station.streamUrl);
   assert.equal(track.radioStation?.id, station.id);
   assert.equal(track.article.title, station.name);
+
+  const musicStation = RADIO_STATIONS.find((s) => s.id === 'swr3');
+  assert.ok(musicStation);
+  assert.equal(musicStation.category, 'music');
+  const musicTrack = buildRadioAudioTrack(musicStation);
+  assert.equal(musicTrack.article.category, 'Kultur');
 });

@@ -139,6 +139,9 @@ final class AutoFeedFetcher {
             } else if (anyReachable) {
                 store.touchLastRefreshAt();
             }
+            if (store.isWifiPrebuffer() && AutoAudioCache.isOnUnmeteredNetwork(appContext)) {
+                AutoAudioCache.prebufferTopUpdates(appContext, store.getRecentUpdateEpisodes());
+            }
             return totalEpisodes;
         } finally {
             pool.shutdownNow();
@@ -263,7 +266,7 @@ final class AutoFeedFetcher {
         } catch (JSONException ignored) {}
     }
 
-    private static boolean isPublicHost(String host) {
+    static boolean isPublicHost(String host) {
         if (host == null || host.isEmpty()) return false;
         String lower = host.toLowerCase(Locale.ROOT);
         if ("localhost".equals(lower) || lower.endsWith(".local") || lower.endsWith(".internal")) return false;
@@ -391,7 +394,7 @@ final class AutoFeedFetcher {
         }
     }
 
-    private static boolean isPlayableAudioUrl(String url, String type) {
+    static boolean isPlayableAudioUrl(String url, String type) {
         if (url == null || !url.startsWith("https://")) return false;
         String lowerType = type != null ? type.toLowerCase(Locale.ROOT) : "";
         if (lowerType.startsWith("audio/")) return true;
@@ -400,7 +403,7 @@ final class AutoFeedFetcher {
         return lowerUrl.contains(".mp3") || lowerUrl.contains(".m4a") || lowerUrl.contains(".aac") || lowerUrl.contains(".ogg");
     }
 
-    private static String cleanText(String raw) {
+    static String cleanText(String raw) {
         if (raw == null || raw.isEmpty()) return "";
         String noHtml = HTML_TAG.matcher(raw).replaceAll(" ");
         String decoded = decodeEntities(noHtml);

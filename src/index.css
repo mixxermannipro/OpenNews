@@ -1587,3 +1587,10 @@
   content-visibility: auto;
   contain-intrinsic-size: auto 180px;
 }
+
+.media-video-card,
+.media-audio-card,
+.source-card {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 240px;
+}

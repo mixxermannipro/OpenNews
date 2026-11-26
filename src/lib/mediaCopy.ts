@@ -25,6 +25,8 @@ export interface MediaExtraCopy {
   liveRadioHeading: string;
   liveRadioSubtitle: string;
   radioAll: string;
+  radioNews: string;
+  radioMusic: string;
   radioDach: string;
   radioInternational: string;
   radioFavorites: string;
@@ -38,6 +40,10 @@ export interface MediaExtraCopy {
   radioEmptyFavorites: string;
   radioSearchEmpty: string;
   radioAllStations: string;
+  sleepTimer: string;
+  sleepOff: string;
+  sleepEndOfEpisode: string;
+  sleepRemaining: (min: number) => string;
 }
 
 const COPY: Record<AppLanguage, MediaExtraCopy> = {
@@ -63,9 +69,11 @@ const COPY: Record<AppLanguage, MediaExtraCopy> = {
     showMore: 'Mehr anzeigen',
     seekLabel: 'Wiedergabeposition',
     radioTab: 'Radio',
-    liveRadioHeading: 'Live-Nachrichtenradio',
-    liveRadioSubtitle: 'Öffentlich-rechtliche Inforadios aus DACH und aller Welt direkt per HTTPS.',
+    liveRadioHeading: 'Live-Radio & Musik',
+    liveRadioSubtitle: 'Öffentlich-rechtliche Info- und Musiksender aus DACH und aller Welt direkt per HTTPS.',
     radioAll: 'Alle Sender',
+    radioNews: 'Nachrichten',
+    radioMusic: 'Musik',
     radioDach: 'DACH',
     radioInternational: 'International',
     radioFavorites: 'Favoriten',
@@ -79,6 +87,10 @@ const COPY: Record<AppLanguage, MediaExtraCopy> = {
     radioEmptyFavorites: 'Noch keine Radio-Favoriten gespeichert. Tippe auf das Stern-Symbol bei einem Sender.',
     radioSearchEmpty: 'Kein passender Radiosender gefunden.',
     radioAllStations: 'Alle Sender',
+    sleepTimer: 'Schlaftimer',
+    sleepOff: 'Aus',
+    sleepEndOfEpisode: 'Folgenende',
+    sleepRemaining: (min) => `${min}m`,
   },
   en: {
     searchPlaceholder: 'Search videos, podcasts, or radio stations …',
@@ -102,9 +114,11 @@ const COPY: Record<AppLanguage, MediaExtraCopy> = {
     showMore: 'Show more',
     seekLabel: 'Playback position',
     radioTab: 'Radio',
-    liveRadioHeading: 'Live News Radio',
-    liveRadioSubtitle: 'Public-service news radio streams from DACH and around the world over HTTPS.',
+    liveRadioHeading: 'Live News & Music Radio',
+    liveRadioSubtitle: 'Public-service news and curated music streams from DACH and around the world over HTTPS.',
     radioAll: 'All stations',
+    radioNews: 'News',
+    radioMusic: 'Music',
     radioDach: 'DACH',
     radioInternational: 'International',
     radioFavorites: 'Favorites',
@@ -118,6 +132,10 @@ const COPY: Record<AppLanguage, MediaExtraCopy> = {
     radioEmptyFavorites: 'No favorite radio stations yet. Tap the star icon on any station.',
     radioSearchEmpty: 'No matching radio station found.',
     radioAllStations: 'All stations',
+    sleepTimer: 'Sleep timer',
+    sleepOff: 'Off',
+    sleepEndOfEpisode: 'End of episode',
+    sleepRemaining: (min) => `${min}m`,
   },
   fr: {
     searchPlaceholder: 'Rechercher vidéos, podcasts ou radios …',
@@ -141,9 +159,11 @@ const COPY: Record<AppLanguage, MediaExtraCopy> = {
     showMore: 'Afficher plus',
     seekLabel: 'Position de lecture',
     radioTab: 'Radio',
-    liveRadioHeading: 'Radio d’info en direct',
-    liveRadioSubtitle: 'Radios d’information publiques DACH et internationales en HTTPS.',
+    liveRadioHeading: 'Radio d’info et musique en direct',
+    liveRadioSubtitle: 'Radios publiques d’information et de musique DACH et internationales en HTTPS.',
     radioAll: 'Toutes',
+    radioNews: 'Actualités',
+    radioMusic: 'Musique',
     radioDach: 'DACH',
     radioInternational: 'International',
     radioFavorites: 'Favoris',
@@ -157,6 +177,10 @@ const COPY: Record<AppLanguage, MediaExtraCopy> = {
     radioEmptyFavorites: 'Aucune radio favorite. Touchez l’étoile d’une station.',
     radioSearchEmpty: 'Aucune station de radio trouvée.',
     radioAllStations: 'Toutes les stations',
+    sleepTimer: 'Minuteur de veille',
+    sleepOff: 'Désactivé',
+    sleepEndOfEpisode: 'Fin de l’épisode',
+    sleepRemaining: (min) => `${min}m`,
   },
   es: {
     searchPlaceholder: 'Buscar vídeos, podcasts o emisoras …',
@@ -180,9 +204,11 @@ const COPY: Record<AppLanguage, MediaExtraCopy> = {
     showMore: 'Mostrar más',
     seekLabel: 'Posición de reproducción',
     radioTab: 'Radio',
-    liveRadioHeading: 'Radio informativa en directo',
-    liveRadioSubtitle: 'Emisoras públicas de noticias de DACH y del mundo vía HTTPS.',
+    liveRadioHeading: 'Radio de noticias y música en directo',
+    liveRadioSubtitle: 'Emisoras públicas de noticias y música de DACH y del mundo vía HTTPS.',
     radioAll: 'Todas',
+    radioNews: 'Noticias',
+    radioMusic: 'Música',
     radioDach: 'DACH',
     radioInternational: 'Internacional',
     radioFavorites: 'Favoritas',
@@ -196,6 +222,10 @@ const COPY: Record<AppLanguage, MediaExtraCopy> = {
     radioEmptyFavorites: 'Aún no hay emisoras favoritas. Toca la estrella en cualquier emisora.',
     radioSearchEmpty: 'No se encontró ninguna emisora.',
     radioAllStations: 'Todas las emisoras',
+    sleepTimer: 'Temporizador',
+    sleepOff: 'Desactivado',
+    sleepEndOfEpisode: 'Fin del episodio',
+    sleepRemaining: (min) => `${min}m`,
   },
   it: {
     searchPlaceholder: 'Cerca video, podcast o radio …',
@@ -219,9 +249,11 @@ const COPY: Record<AppLanguage, MediaExtraCopy> = {
     showMore: 'Mostra altri',
     seekLabel: 'Posizione di riproduzione',
     radioTab: 'Radio',
-    liveRadioHeading: 'Radio news in diretta',
-    liveRadioSubtitle: 'Emittenti pubbliche di informazione DACH e internazionali in HTTPS.',
+    liveRadioHeading: 'Radio news e musica in diretta',
+    liveRadioSubtitle: 'Emittenti pubbliche di informazione e musica DACH e internazionali in HTTPS.',
     radioAll: 'Tutte',
+    radioNews: 'Notizie',
+    radioMusic: 'Musica',
     radioDach: 'DACH',
     radioInternational: 'Internazionale',
     radioFavorites: 'Preferite',
@@ -235,6 +267,10 @@ const COPY: Record<AppLanguage, MediaExtraCopy> = {
     radioEmptyFavorites: 'Nessuna radio preferita. Tocca la stella su una stazione.',
     radioSearchEmpty: 'Nessuna stazione radio trovata.',
     radioAllStations: 'Tutte le stazioni',
+    sleepTimer: 'Timer di spegnimento',
+    sleepOff: 'Off',
+    sleepEndOfEpisode: 'Fine episodio',
+    sleepRemaining: (min) => `${min}m`,
   },
   pt: {
     searchPlaceholder: 'Pesquisar vídeos, podcasts ou rádios …',
@@ -258,9 +294,11 @@ const COPY: Record<AppLanguage, MediaExtraCopy> = {
     showMore: 'Mostrar mais',
     seekLabel: 'Posição de reprodução',
     radioTab: 'Rádio',
-    liveRadioHeading: 'Rádio de notícias ao vivo',
-    liveRadioSubtitle: 'Emissoras públicas de notícias DACH e internacionais via HTTPS.',
+    liveRadioHeading: 'Rádio de notícias e música ao vivo',
+    liveRadioSubtitle: 'Emissoras públicas de notícias e música DACH e internacionais via HTTPS.',
     radioAll: 'Todas',
+    radioNews: 'Notícias',
+    radioMusic: 'Música',
     radioDach: 'DACH',
     radioInternational: 'Internacional',
     radioFavorites: 'Favoritas',
@@ -274,6 +312,10 @@ const COPY: Record<AppLanguage, MediaExtraCopy> = {
     radioEmptyFavorites: 'Ainda não há rádios favoritas. Toque na estrela numa estação.',
     radioSearchEmpty: 'Nenhuma estação de rádio encontrada.',
     radioAllStations: 'Todas as estações',
+    sleepTimer: 'Temporizador',
+    sleepOff: 'Desligado',
+    sleepEndOfEpisode: 'Fim do episódio',
+    sleepRemaining: (min) => `${min}m`,
   },
 };
 

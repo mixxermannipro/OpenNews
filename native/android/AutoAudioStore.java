@@ -25,6 +25,7 @@ final class AutoAudioStore {
     private static final String KEY_AUTOPLAY = "autoplayQueue";
     private static final String KEY_SHOW_RADIO = "showLiveRadio";
     private static final String KEY_DIRECT_REFRESH = "directFeedRefresh";
+    private static final String KEY_WIFI_PREBUFFER = "wifiPrebuffer";
     private static final String KEY_LANGUAGE = "language";
     private static final String KEY_FEEDS = "feedsJson";
     private static final String KEY_RADIO_FAVS = "radioFavsJson";
@@ -134,10 +135,16 @@ final class AutoAudioStore {
         }
     }
 
+    private final Context appContext;
     private final SharedPreferences prefs;
 
     AutoAudioStore(Context context) {
-        this.prefs = context.getApplicationContext().getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+        this.appContext = context.getApplicationContext();
+        this.prefs = this.appContext.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+    }
+
+    synchronized boolean isWifiPrebuffer() {
+        return prefs.getBoolean(KEY_WIFI_PREBUFFER, true);
     }
 
     synchronized String getMode() {
@@ -182,6 +189,7 @@ final class AutoAudioStore {
             editor.putBoolean(KEY_AUTOPLAY, settings.optBoolean("autoplayQueue", true));
             editor.putBoolean(KEY_SHOW_RADIO, settings.optBoolean("showLiveRadio", true));
             editor.putBoolean(KEY_DIRECT_REFRESH, settings.optBoolean("directFeedRefresh", true));
+            editor.putBoolean(KEY_WIFI_PREBUFFER, settings.optBoolean("wifiPrebuffer", true));
         }
         String language = payload.optString("language");
         if (!language.isEmpty()) editor.putString(KEY_LANGUAGE, language);
@@ -452,6 +460,7 @@ final class AutoAudioStore {
             status.put("mode", getMode());
             status.put("activeFeeds", getActiveFeeds().size());
             status.put("cachedEpisodes", episodeCount);
+            status.put("cachedAudioCount", AutoAudioCache.getCachedCount(appContext));
             status.put("radioStations", AutoAudioCatalog.RADIO_STATIONS.size());
             status.put("queueCount", getQueueEpisodes().size());
             status.put("lastRefreshAt", getLastRefreshAt());

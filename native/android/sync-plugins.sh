@@ -1,10 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cp native/android/*.java android/app/src/main/java/io/opennews/app/
+mkdir -p android/app/src/test/java/io/opennews/app
+if compgen -G "native/android/test/*.java" > /dev/null; then
+  cp native/android/test/*.java android/app/src/test/java/io/opennews/app/
+fi
 gradle=android/app/build.gradle
 cp native/android/release-version.gradle android/app/release-version.gradle
 if ! grep -Fxq "apply from: 'release-version.gradle'" "$gradle"; then
   printf "\napply from: 'release-version.gradle'\n" >> "$gradle"
+fi
+if ! grep -q 'org.json:json' "$gradle"; then
+  sed -i "/testImplementation \"junit:junit:/a\    testImplementation 'org.json:json:20240303'" "$gradle"
+fi
+if ! grep -q 'returnDefaultValues' "$gradle"; then
+  sed -i "/^android {/a\    testOptions { unitTests.returnDefaultValues = true }" "$gradle"
 fi
 if ! grep -q 'com.google.mlkit:translate' "$gradle"; then
   sed -i "/^dependencies {/a\    implementation 'com.google.mlkit:translate:17.0.3'" "$gradle"
@@ -41,11 +51,18 @@ fi
 if ! grep -q 'android.permission.WAKE_LOCK' "$manifest"; then
   sed -i '/<\/manifest>/i\    <uses-permission android:name="android.permission.WAKE_LOCK" />' "$manifest"
 fi
+if ! grep -q 'android.permission.ACCESS_NETWORK_STATE' "$manifest"; then
+  sed -i '/<\/manifest>/i\    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />' "$manifest"
+fi
 
 # The optional GenAI plugin checks API 26 before calling either library.
 if ! grep -q 'tools:overrideLibrary' "$manifest"; then
   sed -i 's/<manifest /<manifest xmlns:tools="http:\/\/schemas.android.com\/tools" /' "$manifest"
   sed -i '/<manifest /a\    <uses-sdk tools:overrideLibrary="com.google.mlkit.genai.summarization,com.google.mlkit.genai.common" />' "$manifest"
+fi
+if grep -q 'NewsMessagingService' "$manifest" && ! grep -q 'NewsPushMonitorService' "$manifest"; then
+  sed -i '/<meta-data android:name="firebase_messaging_auto_init_enabled"/d' "$manifest"
+  sed -i '/<service android:name="\.NewsMessagingService"/,/<\/service>/d' "$manifest"
 fi
 if ! grep -q 'NewsMessagingService' "$manifest"; then
   sed -i '/<\/application>/e cat native/android/push-manifest.xml' "$manifest"
@@ -62,6 +79,11 @@ if grep -q 'OpenNewsWidget' "$manifest" && { ! grep -q '\.WidgetFeedService' "$m
 fi
 if ! grep -q 'OpenNewsWidget' "$manifest"; then
   sed -i '/<\/application>/e cat native/android/widget-manifest.xml' "$manifest"
+fi
+if grep -q 'OpenNewsAutoMediaService' "$manifest" && ! grep -q 'AutoArtworkProvider' "$manifest"; then
+  sed -i '/<meta-data android:name="com.google.android.gms.car.application"/,/android:resource="@xml\/automotive_app_desc" \/>/d' "$manifest"
+  sed -i '/<meta-data android:name="androidx.car.app.TintableAttributionIcon"/,/android:resource="@drawable\/ic_stat_opennews" \/>/d' "$manifest"
+  sed -i '/<service android:name="\.OpenNewsAutoMediaService"/,/<\/service>/d' "$manifest"
 fi
 if ! grep -q 'OpenNewsAutoMediaService' "$manifest"; then
   sed -i '/<\/application>/e cat native/android/auto-manifest.xml' "$manifest"

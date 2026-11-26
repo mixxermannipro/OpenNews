@@ -143,6 +143,7 @@ export interface NotificationSettings {
   topics: string[];
   from?: string;
   until?: string;
+  intervalMinutes?: 15 | 30 | 60;
 }
 
 export type AppTab = 'home' | 'discover' | 'saved' | 'media' | 'settings' | 'profile';

@@ -101,16 +101,16 @@ function Features() {
         <p>Speichere interessante Meldungen für später. Die Artikelansicht zeigt nach Möglichkeit den Volltext und bietet einen direkten Link zur Originalquelle.</p>
       </article>
       <article>
-        <div className="feature-image"><AppImage file="medien" alt="Video- und Audioübersicht aus abonnierten Quellen" /></div>
-        <h3>Clips, Videos und Audio.</h3>
-        <p>Finde Kurzclips, Videos und Audiobeiträge aus deinen Quellen – mit durchlaufendem Mini-Audio-Player im Web und direktem Abruf beim Anbieter.</p>
+        <div className="feature-image"><AppImage file="medien" alt="Video-, Podcast- und Live-Radio-Übersicht aus abonnierten Quellen" /></div>
+        <h3>Clips, Videos, Podcasts &amp; Live-Radio.</h3>
+        <p>Finde Kurzclips, Videos, Podcasts und 50 Live-Radiosender für Nachrichten und Musik – inklusive Sleep-Timer, Mini-Audio-Player und Android Auto im Fahrzeug.</p>
       </article>
     </div>
     <p className="capture-note">App-Ansichten auf Android mit Beispielmeldungen</p>
     <div className="widget-feature">
       <AppImage file="widget" alt="Scrollbarer OpenNews-Feed mit Aufmacher und drei Reitern auf dem Android-Startbildschirm" widget />
-      <div><h3>Dein Überblick auf dem Startbildschirm.</h3>
-        <p>Scrolle durch deine Schlagzeilen direkt auf dem Android-Startbildschirm. Ziehe das Widget auf die passende Größe und wähle eigene Themen, Quellen und Ansichten.</p></div>
+      <div><h3>Startbildschirm-Widget, Android Auto &amp; Eilmeldungen.</h3>
+        <p>Scrolle durch Schlagzeilen mit Artikelbildern direkt auf dem Android-Startbildschirm, höre Nachrichten-Updates und Live-Radio in Android Auto und erhalte Eilmeldungen direkt vom Gerät aus – ganz ohne Konto.</p></div>
     </div>
   </section>;
 }

@@ -775,14 +775,59 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       onChange={topics => onUpdateNotifications({ ...notifications, topics })} />
                   </div>
                 )}
-                <fieldset className="flex flex-wrap gap-3">
+                <fieldset className="flex flex-wrap items-center gap-3">
                   <legend className="mb-2 text-sm font-semibold">Zeitfenster</legend>
                   <label className="flex items-center gap-2">Von <input type="time" className="preference-input"
                     value={notifications.from ?? '00:00'} onChange={event => onUpdateNotifications({ ...notifications, from: event.target.value || undefined })} /></label>
                   <label className="flex items-center gap-2">Bis <input type="time" className="preference-input"
                     value={notifications.until ?? '23:59'} onChange={event => onUpdateNotifications({ ...notifications, until: event.target.value || undefined })} /></label>
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => onUpdateNotifications({ ...notifications, from: '00:00', until: '23:59' })}
+                      className={`choice-pill text-xs ${(notifications.from ?? '00:00') === '00:00' && (notifications.until ?? '23:59') === '23:59' ? 'bg-[var(--accent)] text-[var(--accent-ink)] border-[var(--accent)]' : ''}`}
+                    >
+                      Rund um die Uhr
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onUpdateNotifications({ ...notifications, from: '07:00', until: '22:00' })}
+                      className={`choice-pill text-xs ${notifications.from === '07:00' && notifications.until === '22:00' ? 'bg-[var(--accent)] text-[var(--accent-ink)] border-[var(--accent)]' : ''}`}
+                    >
+                      Tagsüber (07–22)
+                    </button>
+                  </div>
                 </fieldset>
-                <button type="button" onClick={onSendTestNotification} className="choice-pill">Lokale Test-Meldung anzeigen</button>
+                {Capacitor.getPlatform() === 'android' && (
+                  <div className="space-y-2">
+                    <p className="text-sm font-semibold">Hintergrund-Prüfung (ohne Server)</p>
+                    <div className="flex flex-wrap gap-2" role="group" aria-label="Hintergrund-Prüfintervall">
+                      {([15, 30, 60] as const).map(mins => (
+                        <button
+                          key={mins}
+                          type="button"
+                          aria-pressed={(notifications.intervalMinutes ?? 30) === mins}
+                          onClick={() => onUpdateNotifications({ ...notifications, intervalMinutes: mins })}
+                          className={`choice-pill text-xs ${(notifications.intervalMinutes ?? 30) === mins ? 'bg-[var(--accent)] text-[var(--accent-ink)] border-[var(--accent)]' : ''}`}
+                        >
+                          Alle {mins} Min.
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" onClick={onSendTestNotification} className="choice-pill">Lokale Test-Meldung anzeigen</button>
+                  {Capacitor.getPlatform() === 'android' && (
+                    <button
+                      type="button"
+                      onClick={() => { void NewsPush.openSettings().catch(() => setAndroidSettingsUnavailable(true)); }}
+                      className="choice-pill"
+                    >
+                      Kanäle &amp; Töne anpassen
+                    </button>
+                  )}
+                </div>
               </div>
             )}
           </div>

@@ -50,6 +50,7 @@ public class OpenNewsAutoMediaService extends MediaLibraryService {
     private static final String ACTION_REPLAY_15 = "io.opennews.app.AUTO_REPLAY_15";
     private static final String ACTION_FORWARD_15 = "io.opennews.app.AUTO_FORWARD_15";
     private static final String EXTRA_IS_LIVE = "io.opennews.app.EXTRA_IS_LIVE";
+    static final String EXTRA_AUDIO_URL = "io.opennews.app.EXTRA_AUDIO_URL";
     private static final String KEY_CONTENT_STYLE_SUPPORTED = "android.media.browse.CONTENT_STYLE_SUPPORTED";
     private static final String KEY_CONTENT_STYLE_BROWSABLE = "android.media.browse.CONTENT_STYLE_BROWSABLE_HINT";
     private static final String KEY_CONTENT_STYLE_PLAYABLE = "android.media.browse.CONTENT_STYLE_PLAYABLE_HINT";
@@ -216,6 +217,18 @@ public class OpenNewsAutoMediaService extends MediaLibraryService {
         super.onDestroy();
     }
 
+    private static String canonicalAudioUrl(@Nullable MediaItem item) {
+        if (item == null) return "";
+        Bundle extras = item.mediaMetadata.extras;
+        if (extras != null) {
+            String remote = extras.getString(EXTRA_AUDIO_URL, "");
+            if (!remote.isEmpty()) return remote;
+        }
+        return item.localConfiguration != null && item.localConfiguration.uri != null
+            ? item.localConfiguration.uri.toString()
+            : "";
+    }
+
     private void updateActiveTrackSnapshot(@Nullable MediaItem item) {
         if (item == null) {
             activeAudioUrl = "";
@@ -224,9 +237,7 @@ public class OpenNewsAutoMediaService extends MediaLibraryService {
             return;
         }
         activeIsLive = isLiveMediaItem(item);
-        activeAudioUrl = item.localConfiguration != null && item.localConfiguration.uri != null
-            ? item.localConfiguration.uri.toString()
-            : "";
+        activeAudioUrl = canonicalAudioUrl(item);
         long dur = player != null ? player.getDuration() : C.TIME_UNSET;
         activeDurationMs = (dur != C.TIME_UNSET && dur > 0L) ? dur : 0L;
     }
@@ -236,9 +247,7 @@ public class OpenNewsAutoMediaService extends MediaLibraryService {
         MediaItem current = player.getCurrentMediaItem();
         if (current != null) {
             if (isLiveMediaItem(current)) return;
-            String url = current.localConfiguration != null && current.localConfiguration.uri != null
-                ? current.localConfiguration.uri.toString()
-                : "";
+            String url = canonicalAudioUrl(current);
             if (!url.isEmpty()) {
                 store.savePlaybackPosition(url, player.getCurrentPosition(), player.getDuration());
                 return;
@@ -295,6 +304,7 @@ public class OpenNewsAutoMediaService extends MediaLibraryService {
         String subtitle = AutoAudioCatalog.formatEpisodeSubtitle(lang, ep.feedName, ep.publishedMs, ep.durationSec);
         Bundle extras = new Bundle();
         extras.putBoolean(EXTRA_IS_LIVE, false);
+        extras.putString(EXTRA_AUDIO_URL, ep.audioUrl);
 
         MediaMetadata.Builder meta = new MediaMetadata.Builder()
             .setTitle(ep.title)
@@ -316,7 +326,8 @@ public class OpenNewsAutoMediaService extends MediaLibraryService {
             .setMediaId(ep.mediaId)
             .setMediaMetadata(meta.build());
         if (includeUri) {
-            builder.setUri(ep.audioUrl);
+            java.io.File cached = AutoAudioCache.getCachedFile(this, ep.audioUrl);
+            builder.setUri(cached != null ? Uri.fromFile(cached) : Uri.parse(ep.audioUrl));
         }
         return builder.build();
     }
@@ -325,12 +336,13 @@ public class OpenNewsAutoMediaService extends MediaLibraryService {
         String lang = store.getLanguage();
         Bundle extras = new Bundle();
         extras.putBoolean(EXTRA_IS_LIVE, true);
+        extras.putString(EXTRA_AUDIO_URL, spec.streamUrl);
 
         MediaMetadata metadata = new MediaMetadata.Builder()
             .setTitle(spec.name)
             .setArtist(AutoAudioCatalog.label(lang, "live") + " · " + spec.region)
             .setSubtitle(spec.subtitle)
-            .setArtworkUri(resUri(R.drawable.ic_auto_radio))
+            .setArtworkUri(AutoArtworkProvider.stationUri(getPackageName(), spec.id))
             .setIsBrowsable(false)
             .setIsPlayable(true)
             .setMediaType(MediaMetadata.MEDIA_TYPE_RADIO_STATION)
@@ -584,8 +596,44 @@ public class OpenNewsAutoMediaService extends MediaLibraryService {
             }
 
             if (TAB_RADIO.equals(parentId)) {
-                for (AutoAudioCatalog.RadioSpec spec : getOrderedRadioStations()) {
+                Set<String> favs = new HashSet<>(store.getRadioFavoriteIds());
+                List<AutoAudioCatalog.RadioSpec> ordered = getOrderedRadioStations();
+                for (AutoAudioCatalog.RadioSpec spec : ordered) {
+                    if (favs.contains(spec.id)) {
+                        children.add(buildRadioItem(spec, false));
+                    }
+                }
+                children.add(buildBrowsableTab(
+                    "radio_group:news",
+                    AutoAudioCatalog.label(lang, "radioNews"),
+                    R.drawable.ic_auto_radio,
+                    CONTENT_STYLE_LIST,
+                    CONTENT_STYLE_LIST
+                ));
+                children.add(buildBrowsableTab(
+                    "radio_group:music",
+                    AutoAudioCatalog.label(lang, "radioMusic"),
+                    R.drawable.ic_auto_radio,
+                    CONTENT_STYLE_LIST,
+                    CONTENT_STYLE_LIST
+                ));
+                int quickCount = 0;
+                for (AutoAudioCatalog.RadioSpec spec : ordered) {
+                    if (favs.contains(spec.id)) continue;
                     children.add(buildRadioItem(spec, false));
+                    quickCount++;
+                    if (quickCount >= 16) break;
+                }
+                return Futures.immediateFuture(LibraryResult.ofItemList(paginate(children, page, pageSize), params));
+            }
+
+            if (parentId.startsWith("radio_group:")) {
+                String group = parentId.substring("radio_group:".length());
+                boolean wantMusic = "music".equals(group);
+                for (AutoAudioCatalog.RadioSpec spec : getOrderedRadioStations()) {
+                    if (spec.musicCategory == wantMusic) {
+                        children.add(buildRadioItem(spec, false));
+                    }
                 }
                 return Futures.immediateFuture(LibraryResult.ofItemList(paginate(children, page, pageSize), params));
             }
@@ -654,8 +702,9 @@ public class OpenNewsAutoMediaService extends MediaLibraryService {
             int safeIndex = (startIndex >= 0 && startIndex < resolved.size()) ? startIndex : 0;
             MediaItem first = resolved.get(safeIndex);
             long resumePos = startPositionMs;
-            if (resumePos == C.TIME_UNSET && !isLiveMediaItem(first) && first.localConfiguration != null) {
-                resumePos = store.getPlaybackPositionMs(first.localConfiguration.uri.toString());
+            if (resumePos == C.TIME_UNSET && !isLiveMediaItem(first)) {
+                String audioUrl = canonicalAudioUrl(first);
+                if (!audioUrl.isEmpty()) resumePos = store.getPlaybackPositionMs(audioUrl);
             }
             updateCustomTransportLayout(first);
             return Futures.immediateFuture(
@@ -684,8 +733,9 @@ public class OpenNewsAutoMediaService extends MediaLibraryService {
                     new MediaSession.MediaItemsWithStartPosition(Collections.<MediaItem>emptyList(), 0, 0L)
                 );
             }
-            long pos = (!isLiveMediaItem(item) && item.localConfiguration != null)
-                ? store.getPlaybackPositionMs(item.localConfiguration.uri.toString())
+            String firstUrl = canonicalAudioUrl(item);
+            long pos = (!isLiveMediaItem(item) && !firstUrl.isEmpty())
+                ? store.getPlaybackPositionMs(firstUrl)
                 : 0L;
             updateCustomTransportLayout(item);
             return Futures.immediateFuture(

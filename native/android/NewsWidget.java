@@ -71,6 +71,8 @@ public class NewsWidget extends Plugin {
                 AppWidgetManager manager = AppWidgetManager.getInstance(context);
                 int[] ids = manager.getAppWidgetIds(new ComponentName(context, OpenNewsWidget.class));
                 new OpenNewsWidget().onUpdate(context, manager, ids);
+                WidgetImageCache.prefetchAsync(context, OpenNewsWidget.readSnapshot(context),
+                    () -> WidgetRefreshService.notifyWidgetsUpdated(context));
             } else {
                 WidgetRefreshService.sync(context);
             }
