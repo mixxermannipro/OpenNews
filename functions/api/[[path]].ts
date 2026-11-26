@@ -1,6 +1,7 @@
 import { cleanExtractedBlocks } from '../../src/lib/articleExtraction.ts';
 import { isTrackingPixelUrl } from '../../src/lib/articleMedia.ts';
 import { handlePagesApiRequest, type ExtractedArticlePayload, type PagesApiEnv } from '../../src/lib/pagesApi.ts';
+import { hasPaywallMarkup } from '../../src/lib/publisherPolicy.ts';
 
 interface PagesContext {
   request: Request;
@@ -34,6 +35,10 @@ async function extractArticleWithHtmlRewriter(
   let ignoreDepth = 0;
   let articleDepth = 0;
   let mainDepth = 0;
+  let robotsBlocked = false;
+  let paywallDetected = false;
+  let ldJsonBuffer = '';
+  let insideLdJson = false;
 
   const articleBlocks: Array<{ text: string; isHeading: boolean }> = [];
   const mainBlocks: Array<{ text: string; isHeading: boolean }> = [];
@@ -58,6 +63,53 @@ async function extractArticleWithHtmlRewriter(
   };
 
   const rewriter = new HTMLRewriter()
+    .on('meta[name], meta[property]', {
+      element(el) {
+        const name = (el.getAttribute('name') || el.getAttribute('property') || '').trim().toLowerCase();
+        const content = el.getAttribute('content') || '';
+        if (['robots', 'googlebot', 'bingbot', 'gptbot', 'ccbot', 'anthropic-ai'].includes(name)) {
+          if (/\b(?:noarchive|noai|noimageai)\b/i.test(content)) {
+            robotsBlocked = true;
+          }
+        }
+        if ((name === 'article:content_tier' || name === 'piano:tier')
+          && /^(?:locked|paid|subscriber|subscriber-only)$/i.test(content.trim())) {
+          paywallDetected = true;
+        }
+      },
+    })
+    .on('[itemprop="isAccessibleForFree"]', {
+      element(el) {
+        if ((el.getAttribute('content') || '').trim().toLowerCase() === 'false') {
+          paywallDetected = true;
+        }
+      },
+    })
+    .on('[data-paywall-state]', {
+      element(el) {
+        if (/^(?:locked|closed|active)$/i.test((el.getAttribute('data-paywall-state') || '').trim())) {
+          paywallDetected = true;
+        }
+      },
+    })
+    .on('script[type="application/ld+json"]', {
+      element(el) {
+        insideLdJson = true;
+        ldJsonBuffer = '';
+        el.onEndTag(() => {
+          insideLdJson = false;
+          if (hasPaywallMarkup(ldJsonBuffer)) {
+            paywallDetected = true;
+          }
+          ldJsonBuffer = '';
+        });
+      },
+      text(chunk) {
+        if (insideLdJson && ldJsonBuffer.length < 32_768) {
+          ldJsonBuffer += chunk.text;
+        }
+      },
+    })
     .on('meta[property="og:image"]', {
       element(el) {
         if (ogImage) return;
@@ -113,6 +165,13 @@ async function extractArticleWithHtmlRewriter(
     });
 
   await rewriter.transform(response).arrayBuffer();
+
+  if (robotsBlocked) {
+    return { paragraphs: [], headingIndexes: [], unavailable: true };
+  }
+  if (paywallDetected) {
+    return { paragraphs: [], headingIndexes: [], unavailable: true, blockedWall: true };
+  }
 
   const chosen =
     articleBlocks.length >= 2 ? articleBlocks : mainBlocks.length >= 2 ? mainBlocks : bodyBlocks;

@@ -1,9 +1,13 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { createSlidingWindowLimiter } from './apiCore.ts';
 import { handlePagesApiRequest } from './pagesApi.ts';
 
+const SAME_ORIGIN = { 'sec-fetch-site': 'same-origin' };
+const TEST_DEPS = { disableRateLimit: true } as const;
+
 describe('handlePagesApiRequest', () => {
-  it('returns health status', async () => {
+  it('returns health status without origin headers', async () => {
     const res = await handlePagesApiRequest(new Request('https://opennews-app.pages.dev/api/health'));
     assert.equal(res.status, 200);
     assert.deepEqual(await res.json(), {
@@ -13,16 +17,62 @@ describe('handlePagesApiRequest', () => {
     });
   });
 
+  it('rejects requests without Origin and Sec-Fetch-Site: same-origin (e.g. curl)', async () => {
+    const res = await handlePagesApiRequest(
+      new Request('https://opennews-app.pages.dev/api/article/extract?url=https%3A%2F%2Fexample.org%2Fa'),
+      {},
+      TEST_DEPS,
+    );
+    assert.equal(res.status, 403);
+  });
+
   it('rejects cross-origin requests when origin mismatches', async () => {
     const res = await handlePagesApiRequest(
       new Request('https://opennews-app.pages.dev/api/health', {
         headers: { origin: 'https://evil.example', 'sec-fetch-site': 'cross-site' },
       }),
+      {},
+      TEST_DEPS,
     );
     assert.equal(res.status, 403);
   });
 
-  it('fetches and parses RSS feeds', async () => {
+  it('enforces general, AI, and TTS rate limits with 429 responses', async () => {
+    const general = createSlidingWindowLimiter({ windowMs: 60_000, limit: 2 });
+    const ai = createSlidingWindowLimiter({ windowMs: 60_000, limit: 1 });
+    const tts = createSlidingWindowLimiter({ windowMs: 60_000, limit: 1 });
+    const limiters = { general, ai, tts };
+
+    const req1 = new Request('https://opennews-app.pages.dev/api/diagnostics', { headers: SAME_ORIGIN });
+    const req2 = new Request('https://opennews-app.pages.dev/api/diagnostics', { headers: SAME_ORIGIN });
+    const req3 = new Request('https://opennews-app.pages.dev/api/diagnostics', { headers: SAME_ORIGIN });
+
+    assert.equal((await handlePagesApiRequest(req1, {}, { rateLimiters: limiters })).status, 200);
+    assert.equal((await handlePagesApiRequest(req2, {}, { rateLimiters: limiters })).status, 200);
+    const limited = await handlePagesApiRequest(req3, {}, { rateLimiters: limiters });
+    assert.equal(limited.status, 429);
+    assert.ok(limited.headers.get('retry-after'));
+
+    const aiReq1 = new Request('https://opennews-app.pages.dev/api/ai/proxy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...SAME_ORIGIN },
+      body: JSON.stringify({ provider: 'google', model: 'gemini-flash-latest', prompt: '' }),
+    });
+    const aiReq2 = new Request('https://opennews-app.pages.dev/api/ai/proxy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...SAME_ORIGIN },
+      body: JSON.stringify({ provider: 'google', model: 'gemini-flash-latest', prompt: '' }),
+    });
+    const aiLimiters = {
+      general: createSlidingWindowLimiter({ windowMs: 60_000, limit: 65 }),
+      ai: createSlidingWindowLimiter({ windowMs: 60_000, limit: 1 }),
+      tts,
+    };
+    assert.equal((await handlePagesApiRequest(aiReq1, {}, { rateLimiters: aiLimiters })).status, 400);
+    assert.equal((await handlePagesApiRequest(aiReq2, {}, { rateLimiters: aiLimiters })).status, 429);
+  });
+
+  it('fetches, slims, and parses RSS feeds', async () => {
     const sampleRss = `<?xml version="1.0" encoding="UTF-8"?>
       <rss version="2.0"><channel><title>Test</title>
         <item>
@@ -36,13 +86,14 @@ describe('handlePagesApiRequest', () => {
     const res = await handlePagesApiRequest(
       new Request('https://opennews-app.pages.dev/api/feeds/fetch', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...SAME_ORIGIN },
         body: JSON.stringify({
           feeds: [{ id: 'test-src', name: 'Test', url: 'https://example.org/rss.xml', format: 'rss', category: 'Welt' }],
         }),
       }),
       {},
       {
+        ...TEST_DEPS,
         fetchImpl: async () =>
           new Response(sampleRss, {
             status: 200,
@@ -65,11 +116,13 @@ describe('handlePagesApiRequest', () => {
     const res = await handlePagesApiRequest(
       new Request('https://opennews-app.pages.dev/api/feeds/fetch', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...SAME_ORIGIN },
         body: JSON.stringify({
           feeds: [{ id: 'local', name: 'Local', url: 'http://127.0.0.1/feed.xml', format: 'rss', category: 'Welt' }],
         }),
       }),
+      {},
+      TEST_DEPS,
     );
     assert.equal(res.status, 200);
     const data = (await res.json()) as { feedStatuses: Array<{ ok: boolean }> };
@@ -79,9 +132,10 @@ describe('handlePagesApiRequest', () => {
   it('discovers alternate RSS links from HTML', async () => {
     const html = `<html><head><link rel="alternate" type="application/rss+xml" title="Mein Feed" href="/feed.xml"></head></html>`;
     const res = await handlePagesApiRequest(
-      new Request('https://opennews-app.pages.dev/api/feeds/discover?q=example.org'),
+      new Request('https://opennews-app.pages.dev/api/feeds/discover?q=example.org', { headers: SAME_ORIGIN }),
       {},
       {
+        ...TEST_DEPS,
         fetchImpl: async () =>
           new Response(html, { status: 200, headers: { 'Content-Type': 'text/html' } }),
       },
@@ -95,9 +149,12 @@ describe('handlePagesApiRequest', () => {
 
   it('returns extracted article payload via extractor', async () => {
     const res = await handlePagesApiRequest(
-      new Request('https://opennews-app.pages.dev/api/article/extract?url=https%3A%2F%2Fexample.org%2Fa'),
+      new Request('https://opennews-app.pages.dev/api/article/extract?url=https%3A%2F%2Fexample.org%2Fa', {
+        headers: SAME_ORIGIN,
+      }),
       {},
       {
+        ...TEST_DEPS,
         fetchImpl: async () => new Response('<html></html>', { status: 200 }),
         extractArticle: async () => ({
           paragraphs: ['Erster Absatz'],
@@ -118,9 +175,11 @@ describe('handlePagesApiRequest', () => {
     const res = await handlePagesApiRequest(
       new Request('https://opennews-app.pages.dev/api/ai/proxy', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...SAME_ORIGIN },
         body: JSON.stringify({ provider: 'google', model: 'gemini-2.5-flash', prompt: 'Hi' }),
       }),
+      {},
+      TEST_DEPS,
     );
     assert.equal(res.status, 400);
   });
@@ -129,7 +188,7 @@ describe('handlePagesApiRequest', () => {
     const longPromptRes = await handlePagesApiRequest(
       new Request('https://opennews-app.pages.dev/api/ai/proxy', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...SAME_ORIGIN },
         body: JSON.stringify({
           provider: 'google',
           model: 'gemini-2.5-flash',
@@ -137,13 +196,15 @@ describe('handlePagesApiRequest', () => {
           prompt: 'a'.repeat(60_001),
         }),
       }),
+      {},
+      TEST_DEPS,
     );
     assert.equal(longPromptRes.status, 400);
 
     const badModelRes = await handlePagesApiRequest(
       new Request('https://opennews-app.pages.dev/api/ai/proxy', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...SAME_ORIGIN },
         body: JSON.stringify({
           provider: 'google',
           model: '../bad model?',
@@ -151,6 +212,8 @@ describe('handlePagesApiRequest', () => {
           prompt: 'Hi',
         }),
       }),
+      {},
+      TEST_DEPS,
     );
     assert.equal(badModelRes.status, 400);
   });
@@ -159,7 +222,7 @@ describe('handlePagesApiRequest', () => {
     const res = await handlePagesApiRequest(
       new Request('https://opennews-app.pages.dev/api/ai/proxy', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...SAME_ORIGIN },
         body: JSON.stringify({
           provider: 'google',
           model: 'gemini-2.5-flash',
@@ -169,6 +232,7 @@ describe('handlePagesApiRequest', () => {
       }),
       {},
       {
+        ...TEST_DEPS,
         fetchImpl: async () =>
           new Response('<html><body>502 Bad Gateway</body></html>', {
             status: 502,
@@ -186,9 +250,10 @@ describe('handlePagesApiRequest', () => {
     const seenHeaders: Array<Record<string, string>> = [];
     let call = 0;
     await handlePagesApiRequest(
-      new Request('https://opennews-app.pages.dev/api/feeds/discover?q=example.org'),
+      new Request('https://opennews-app.pages.dev/api/feeds/discover?q=example.org', { headers: SAME_ORIGIN }),
       {},
       {
+        ...TEST_DEPS,
         fetchImpl: async (_url, init) => {
           const hdrs = new Headers(init?.headers);
           seenHeaders.push(Object.fromEntries(hdrs.entries()));
@@ -213,9 +278,11 @@ describe('handlePagesApiRequest', () => {
     const emptyRes = await handlePagesApiRequest(
       new Request('https://opennews-app.pages.dev/api/tts/proxy', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...SAME_ORIGIN },
         body: JSON.stringify({ provider: 'google', apiKey: 'secret', text: '   ' }),
       }),
+      {},
+      TEST_DEPS,
     );
     assert.equal(emptyRes.status, 400);
     assert.equal(emptyRes.headers.get('cache-control'), 'no-store');
@@ -223,9 +290,11 @@ describe('handlePagesApiRequest', () => {
     const badProviderRes = await handlePagesApiRequest(
       new Request('https://opennews-app.pages.dev/api/tts/proxy', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...SAME_ORIGIN },
         body: JSON.stringify({ provider: 'unknown', apiKey: 'secret', text: 'Hallo OpenNews' }),
       }),
+      {},
+      TEST_DEPS,
     );
     assert.equal(badProviderRes.status, 400);
   });
@@ -236,7 +305,7 @@ describe('handlePagesApiRequest', () => {
     const res = await handlePagesApiRequest(
       new Request('https://opennews-app.pages.dev/api/tts/proxy', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...SAME_ORIGIN },
         body: JSON.stringify({
           provider: 'google',
           apiKey: 'secret',
@@ -247,6 +316,7 @@ describe('handlePagesApiRequest', () => {
       }),
       {},
       {
+        ...TEST_DEPS,
         fetchImpl: async () =>
           new Response(
             JSON.stringify({
@@ -270,7 +340,7 @@ describe('handlePagesApiRequest', () => {
     const res = await handlePagesApiRequest(
       new Request('https://opennews-app.pages.dev/api/tts/proxy', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...SAME_ORIGIN },
         body: JSON.stringify({
           provider: 'openai',
           apiKey: 'sk-test',
@@ -281,6 +351,7 @@ describe('handlePagesApiRequest', () => {
       }),
       {},
       {
+        ...TEST_DEPS,
         fetchImpl: async () =>
           new Response(mp3Stub, {
             status: 200,
