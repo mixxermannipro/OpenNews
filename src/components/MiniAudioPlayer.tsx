@@ -70,6 +70,10 @@ export function MiniAudioPlayer({
   const playStartRef = useRef<number | null>(null);
   const onNextTrackRef = useRef(onNextTrack);
   onNextTrackRef.current = onNextTrack;
+  const onSavePositionRef = useRef(onSavePosition);
+  onSavePositionRef.current = onSavePosition;
+  const onEngagedRef = useRef(onEngaged);
+  onEngagedRef.current = onEngaged;
 
   const speed = isLive ? 1 : SPEEDS[speedIndex];
   const progress = !isLive && duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
@@ -136,12 +140,12 @@ export function MiniAudioPlayer({
         const secs = Math.round((Date.now() - playStartRef.current) / 1000);
         if (secs >= 5) {
           engagedRef.current = true;
-          onEngaged(track.article, secs);
+          onEngagedRef.current(track.article, secs);
         }
       }
       playStartRef.current = null;
       if (!isLive) {
-        onSavePosition(track.media.url, el.currentTime, el.duration || duration);
+        onSavePositionRef.current(track.media.url, el.currentTime, el.duration || duration);
       }
     };
     const handleTime = () => {
@@ -151,14 +155,14 @@ export function MiniAudioPlayer({
       const now = Date.now();
       if (now - lastSavedRef.current >= 3000) {
         lastSavedRef.current = now;
-        onSavePosition(track.media.url, el.currentTime, el.duration || 0);
+        onSavePositionRef.current(track.media.url, el.currentTime, el.duration || 0);
       }
     };
     const handleEnded = () => {
       setPlaying(false);
       setBuffering(false);
       if (!isLive) {
-        onSavePosition(track.media.url, el.duration || currentTime, el.duration || currentTime);
+        onSavePositionRef.current(track.media.url, el.duration || currentTime, el.duration || currentTime);
       }
       if (onNextTrackRef.current) {
         onNextTrackRef.current();
@@ -186,7 +190,7 @@ export function MiniAudioPlayer({
 
     return () => {
       if (!isLive) {
-        onSavePosition(track.media.url, el.currentTime, el.duration || 0);
+        onSavePositionRef.current(track.media.url, el.currentTime, el.duration || 0);
       }
       el.pause();
       if (isLive) {

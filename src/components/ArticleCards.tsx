@@ -234,13 +234,13 @@ export function SwipeableArticleCard({
   );
 }
 
-export const HeroArticleCard: React.FC<CardActionsProps & { badgeLabel?: string; className?: string }> = ({
+export const HeroArticleCard: React.FC<CardActionsProps & { badgeLabel?: string; className?: string }> = React.memo(function HeroArticleCard({
   article,
   badgeLabel,
   className = '',
   onOpen,
   ...actions
-}) => {
+}) {
   const { t, categoryLabel, formatRelative } = useI18n();
   const resolvedBadge = badgeLabel ?? t('topStory');
   const hasMedia = Boolean(article.videoUrl || article.youtubeId || article.audioUrl);
@@ -301,7 +301,7 @@ export const HeroArticleCard: React.FC<CardActionsProps & { badgeLabel?: string;
       <ArticleActions article={article} {...actions} layout="overlay" />
     </article>
   );
-};
+});
 
 export const HeadlineArticleCard: React.FC<CardActionsProps & { lead?: boolean }> = React.memo(function HeadlineArticleCard({ article, lead = false, isRead = false, readingProgress, onOpen, ...actions }) {
   const { t, categoryLabel, formatRelative } = useI18n();
@@ -506,13 +506,13 @@ export const CompactArticleCard: React.FC<CardActionsProps> = React.memo(({
   );
 });
 
-export const BentoArticleCard: React.FC<CardActionsProps & { tall?: boolean; className?: string }> = ({
+export const BentoArticleCard: React.FC<CardActionsProps & { tall?: boolean; className?: string }> = React.memo(function BentoArticleCard({
   article,
   tall = false,
   className = '',
   onOpen,
   ...actions
-}) => {
+}) {
   const { t, categoryLabel, formatRelative } = useI18n();
   return (
     <article
@@ -562,4 +562,4 @@ export const BentoArticleCard: React.FC<CardActionsProps & { tall?: boolean; cla
       <ArticleActions article={article} {...actions} layout="overlay" />
     </article>
   );
-};
+});

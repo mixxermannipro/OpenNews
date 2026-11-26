@@ -6,11 +6,12 @@ const reactionKeys = ['likedIds', 'dislikedIds', 'bookmarkedIds'] as const;
 type Reactions = Pick<PersonalizationProfile, (typeof reactionKeys)[number]>;
 
 export function createDeviceBackup(sources: NewsSource[], profile: PersonalizationProfile, saved: Record<string, NewsArticle>) {
+  const bookmarkedSet = new Set(profile.bookmarkedIds);
   return JSON.stringify({
     version: 1,
     sources: exportOpml(sources.filter(source => source.subscribed)),
     reactions: Object.fromEntries(reactionKeys.map(key => [key, profile[key]])),
-    bookmarks: Object.values(saved).filter(article => profile.bookmarkedIds.includes(article.id)).map(article => ({
+    bookmarks: Object.values(saved).filter(article => bookmarkedSet.has(article.id)).map(article => ({
       id: article.id, title: article.title, link: article.link, sourceName: article.sourceName, publishedAt: article.publishedAt,
     })),
   }, null, 2);

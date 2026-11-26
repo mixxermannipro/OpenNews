@@ -123,6 +123,12 @@ export function MediaView({
   const [videoLimit, setVideoLimit] = useState(12);
   const [audioLimit, setAudioLimit] = useState(12);
   const clipsButtonRef = useRef<HTMLButtonElement>(null);
+  const shareTimerRef = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(shareTimerRef.current), []);
+
+  const likedSet = useMemo(() => new Set(liked), [liked]);
+  const savedSet = useMemo(() => new Set(saved), [saved]);
+  const radioFavoritesSet = useMemo(() => new Set(radioFavorites), [radioFavorites]);
 
   useEffect(() => {
     if (initialClipUrl) {
@@ -250,13 +256,15 @@ export function MediaView({
       .then(copied => {
         if (copied) {
           setShareFeedback(t('linkCopied'));
-          window.setTimeout(() => setShareFeedback(''), 2400);
+          window.clearTimeout(shareTimerRef.current);
+          shareTimerRef.current = window.setTimeout(() => setShareFeedback(''), 2400);
         }
       })
       .catch(error => {
         if (!(error instanceof DOMException && error.name === 'AbortError')) {
           setShareFeedback(t('shareUnavailable'));
-          window.setTimeout(() => setShareFeedback(''), 2400);
+          window.clearTimeout(shareTimerRef.current);
+          shareTimerRef.current = window.setTimeout(() => setShareFeedback(''), 2400);
         }
       });
   };
@@ -289,8 +297,8 @@ export function MediaView({
 
   const renderVideoCard = ({ article, media }: MediaEntry, featured = false) => {
     const isPlaying = playingUrl === media.url;
-    const isLiked = liked.includes(article.id);
-    const isSaved = saved.includes(article.id);
+    const isLiked = likedSet.has(article.id);
+    const isSaved = savedSet.has(article.id);
     const artwork = article.imageUrl;
     const durationText = formatDurationLabel(media.durationSec ?? article.durationSec);
     const summaryText = featured ? cleanSummaryPreview(article) : '';
@@ -473,8 +481,8 @@ export function MediaView({
     const isPlayingPersistent = activeAudioUrl === media.url;
     const isPlayingInline = !onPlayAudio && playingUrl === media.url;
     const isPlaying = isPlayingPersistent || isPlayingInline;
-    const isLiked = liked.includes(article.id);
-    const isSaved = saved.includes(article.id);
+    const isLiked = likedSet.has(article.id);
+    const isSaved = savedSet.has(article.id);
     const artwork = article.imageUrl;
     const savedPos = audioPositions[media.url];
     const totalDuration = media.durationSec ?? article.durationSec ?? (savedPos?.duration || undefined);
@@ -995,7 +1003,7 @@ export function MediaView({
             <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {visibleRadioStations.map((station) => {
                 const isPlaying = activeAudioUrl === station.streamUrl;
-                const isFav = radioFavorites.includes(station.id);
+                const isFav = radioFavoritesSet.has(station.id);
                 return (
                   <li
                     key={station.id}
@@ -1056,15 +1064,17 @@ export function MediaView({
                         {isPlaying ? <Pause size={13} fill="currentColor" aria-hidden="true" /> : <Play size={13} fill="currentColor" aria-hidden="true" />}
                         <span>{isPlaying ? t('mediaNowPlaying') : copy.liveBadge}</span>
                       </button>
-                      <a
-                        href={station.homepageUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex min-h-9 items-center gap-1 rounded-lg px-2 text-xs font-medium text-[var(--muted)] hover:text-[var(--ink)]"
-                      >
-                        <span>{copy.openOriginal}</span>
-                        <ExternalLink size={12} aria-hidden="true" />
-                      </a>
+                      {safeHref(station.homepageUrl) && (
+                        <a
+                          href={safeHref(station.homepageUrl)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex min-h-9 items-center gap-1 rounded-lg px-2 text-xs font-medium text-[var(--muted)] hover:text-[var(--ink)]"
+                        >
+                          <span>{copy.openOriginal}</span>
+                          <ExternalLink size={12} aria-hidden="true" />
+                        </a>
+                      )}
                     </div>
                   </li>
                 );
