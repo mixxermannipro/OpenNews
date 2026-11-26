@@ -3,6 +3,7 @@ build/
 dist/
 dist-pages/
 coverage/
+coverage-summary.txt
 .DS_Store
 *.log
 .env*
