@@ -1,3 +1,4 @@
+import type { AndroidAutoSettings } from './lib/androidAuto';
 import type { WidgetLaunch } from './lib/newsWidget';
 import type { DailyBriefingSettings } from './lib/dailyBriefing';
 import { clusterStories } from './lib/storyClusters';
@@ -95,6 +96,13 @@ const INITIAL_TTS_CONFIG: TTSProviderConfig = {
     briefing: { model: 'system', voice: 'default', speed: 1.05 },
     focus: { model: 'system', voice: 'default', speed: 0.92 },
   },
+};
+
+const INITIAL_ANDROID_AUTO_SETTINGS: AndroidAutoSettings = {
+  mode: 'all_audio',
+  autoplayQueue: true,
+  showLiveRadio: true,
+  directFeedRefresh: true,
 };
 
 export default function App() {
@@ -263,6 +271,10 @@ export default function App() {
   const [readingProgress, setReadingProgress] = useLocalStorage<Record<string, ReadingProgressEntry>>('opennews_reading_progress', {});
   const [audioPositions, setAudioPositions] = useLocalStorage<Record<string, AudioPositionEntry>>('opennews_audio_positions', {});
   const [radioFavorites, setRadioFavorites] = useLocalStorage<string[]>('opennews_radio_favorites', []);
+  const [androidAutoSettings, setAndroidAutoSettings] = useLocalStorage<AndroidAutoSettings>(
+    'opennews_android_auto',
+    INITIAL_ANDROID_AUTO_SETTINGS,
+  );
   const [activeAudio, setActiveAudio] = useState<ActiveAudioTrack | null>(null);
   const [audioQueue, setAudioQueue] = useState<ActiveAudioTrack[]>([]);
   const [briefingActive, setBriefingActive] = useState(false);
@@ -772,6 +784,25 @@ export default function App() {
       ...(platform === 'android' && { language: activeLanguage, theme, feeds }),
     })).catch(() => {});
   }, [activeLanguage, activeSources, cachedStorageReady, homeSections, isLoadingFeeds, normalizedProfile.bookmarkedIds, theme]);
+
+  useEffect(() => {
+    if (Capacitor.getPlatform() !== 'android' || !cachedStorageReady) return;
+    const timer = window.setTimeout(() => {
+      void import('./lib/androidAuto').then(({ buildAndroidAutoPayload, syncAndroidAuto }) =>
+        syncAndroidAuto(
+          buildAndroidAutoPayload({
+            settings: androidAutoSettings,
+            language: activeLanguage,
+            sources,
+            articles: allArticles,
+            radioFavorites,
+            audioPositions,
+          }),
+        ),
+      ).catch(() => {});
+    }, 600);
+    return () => window.clearTimeout(timer);
+  }, [activeLanguage, allArticles, androidAutoSettings, audioPositions, cachedStorageReady, radioFavorites, sources]);
 
   const openSettings = (sec: SettingsSectionTab = 'overview') => {
     navigate({ tab: 'settings', settings: sec });
@@ -1404,6 +1435,22 @@ export default function App() {
           }
           autoTranslate={autoTranslate} onAutoTranslate={setAutoTranslate}
           backgroundPlayback={backgroundPlayback} onBackgroundPlayback={setBackgroundPlayback}
+          androidAutoSettings={androidAutoSettings}
+          onAndroidAutoSettings={setAndroidAutoSettings}
+          onRefreshAndroidAuto={async () => {
+            const { buildAndroidAutoPayload, refreshAndroidAutoNow, syncAndroidAuto } = await import('./lib/androidAuto');
+            await syncAndroidAuto(
+              buildAndroidAutoPayload({
+                settings: androidAutoSettings,
+                language: activeLanguage,
+                sources,
+                articles: allArticles,
+                radioFavorites,
+                audioPositions,
+              }),
+            );
+            return refreshAndroidAutoNow();
+          }}
           fontSize={fontSize} fontFamily={fontFamily} onFontSize={setFontSize} onFontFamily={setFontFamily}
           readerTheme={readerTheme} onReaderTheme={setReaderTheme}
           newspaperMode={newspaperMode} onNewspaperMode={setNewspaperMode} />}

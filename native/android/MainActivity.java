@@ -20,6 +20,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(NewsWidget.class);
         registerPlugin(BriefingSpeech.class);
         registerPlugin(DailyBriefing.class);
+        registerPlugin(AndroidAutoSync.class);
         super.onCreate(state);
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override

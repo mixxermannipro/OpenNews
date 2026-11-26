@@ -34,9 +34,96 @@ import {
 import { APP_LANGUAGES, useI18n, type LanguageSetting } from '../lib/i18n';
 import { STARTER_PACKS } from '../lib/catalog';
 import { getSettingsCopy } from '../lib/settingsCopy';
+import type { AndroidAutoMode, AndroidAutoSettings, AndroidAutoStatus } from '../lib/androidAuto';
 import type { ReaderSurfaceTheme } from '../lib/readerExtras';
 import { SourceIcon } from './SourceIcon';
-import type { NewsCategory, NewsSource, ReaderFontFamily, ReaderFontSize, ThemeMode } from '../types/news';
+import type { AppLanguage, NewsCategory, NewsSource, ReaderFontFamily, ReaderFontSize, ThemeMode } from '../types/news';
+
+const AUTO_COPY: Record<AppLanguage, {
+  heading: string;
+  modeLabel: string;
+  modeAll: string;
+  modeSubscribed: string;
+  autoplayLabel: string;
+  radioLabel: string;
+  refreshLabel: string;
+  syncNow: string;
+  syncDone: (episodes: number, stations: number) => string;
+  hint: string;
+}> = {
+  de: {
+    heading: 'Android Auto',
+    modeLabel: 'Audio-Quellen im Auto',
+    modeAll: 'Alle Audio-Quellen & Updates',
+    modeSubscribed: 'Nur abonnierte Podcasts',
+    autoplayLabel: 'Nächste Folge automatisch abspielen',
+    radioLabel: 'Live-Radio im Auto anzeigen',
+    refreshLabel: 'Podcasts im Auto direkt per HTTPS laden',
+    syncNow: 'Jetzt für Android Auto aktualisieren',
+    syncDone: (ep, st) => `${ep} Episoden & ${st} Radiosender bereit.`,
+    hint: 'Spielt im Auto Tagesschau 20 Uhr (auch vom Vortag), DLF, Podcasts und Live-Radio ab – direkt aus der Android-Auto-Oberfläche.',
+  },
+  en: {
+    heading: 'Android Auto',
+    modeLabel: 'Audio sources in car',
+    modeAll: 'All audio sources & updates',
+    modeSubscribed: 'Subscribed podcasts only',
+    autoplayLabel: 'Autoplay next episode in queue',
+    radioLabel: 'Show Live Radio in Android Auto',
+    refreshLabel: 'Fetch podcast feeds directly in car',
+    syncNow: 'Refresh Android Auto now',
+    syncDone: (ep, st) => `${ep} episodes & ${st} radio stations ready.`,
+    hint: 'Play Tagesschau, DLF, podcasts, and live news radio straight from your car display.',
+  },
+  fr: {
+    heading: 'Android Auto',
+    modeLabel: 'Sources audio en voiture',
+    modeAll: 'Toutes les sources audio',
+    modeSubscribed: 'Podcasts abonnés uniquement',
+    autoplayLabel: 'Lecture automatique de la suite',
+    radioLabel: 'Afficher la radio en direct',
+    refreshLabel: 'Actualiser les flux en direct',
+    syncNow: 'Actualiser pour Android Auto',
+    syncDone: (ep, st) => `${ep} épisodes & ${st} radios prêts.`,
+    hint: 'Écoutez flashs info, podcasts et radios d’information directement sur l’écran de la voiture.',
+  },
+  es: {
+    heading: 'Android Auto',
+    modeLabel: 'Fuentes de audio en el coche',
+    modeAll: 'Todas las fuentes de audio',
+    modeSubscribed: 'Solo podcasts suscritos',
+    autoplayLabel: 'Reproducir siguiente episodio',
+    radioLabel: 'Mostrar radio en directo',
+    refreshLabel: 'Actualizar feeds directamente en el coche',
+    syncNow: 'Actualizar para Android Auto',
+    syncDone: (ep, st) => `${ep} episodios y ${st} emisoras listos.`,
+    hint: 'Escucha boletines, podcasts y radios de noticias directamente desde la pantalla del coche.',
+  },
+  it: {
+    heading: 'Android Auto',
+    modeLabel: 'Fonti audio in auto',
+    modeAll: 'Tutte le fonti audio',
+    modeSubscribed: 'Solo podcast seguiti',
+    autoplayLabel: 'Riproduci episodio successivo',
+    radioLabel: 'Mostra radio in diretta',
+    refreshLabel: 'Aggiorna i feed direttamente in auto',
+    syncNow: 'Aggiorna per Android Auto',
+    syncDone: (ep, st) => `${ep} episodi e ${st} radio pronti.`,
+    hint: 'Ascolta notiziari, podcast e radio live direttamente dallo schermo dell’auto.',
+  },
+  pt: {
+    heading: 'Android Auto',
+    modeLabel: 'Fontes de áudio no carro',
+    modeAll: 'Todas as fontes de áudio',
+    modeSubscribed: 'Apenas podcasts subscritos',
+    autoplayLabel: 'Reproduzir episódio seguinte',
+    radioLabel: 'Mostrar rádio ao vivo',
+    refreshLabel: 'Atualizar feeds diretamente no carro',
+    syncNow: 'Atualizar para Android Auto',
+    syncDone: (ep, st) => `${ep} episódios e ${st} rádios prontos.`,
+    hint: 'Ouça boletins, podcasts e rádios de notícias diretamente no ecrã do carro.',
+  },
+};
 
 const SUPPORT_EMAIL = 'mixxermannipropvp@gmail.com';
 const PRIVACY_URL = 'https://opennews-app.pages.dev/datenschutz/';
@@ -168,7 +255,7 @@ export function Appearance({ theme, onTheme, preferences, onPreferences }: Appea
 
 export type ProfilePage = 'profile' | 'preferences' | 'appearance' | 'feed' | 'reader' | 'motion' | 'playback' | 'privacy' | 'topics' | 'language';
 
-export function ProfileView({ page, onPage, onBack, onSaved, onHistory, onSources, onAI, onNotifications, backupControls, autoTranslate, onAutoTranslate, backgroundPlayback, onBackgroundPlayback, fontSize, fontFamily, onFontSize, onFontFamily, readerTheme, onReaderTheme, newspaperMode, onNewspaperMode, stats, ...appearance }: AppearanceProps & {
+export function ProfileView({ page, onPage, onBack, onSaved, onHistory, onSources, onAI, onNotifications, backupControls, autoTranslate, onAutoTranslate, backgroundPlayback, onBackgroundPlayback, androidAutoSettings, onAndroidAutoSettings, onRefreshAndroidAuto, fontSize, fontFamily, onFontSize, onFontFamily, readerTheme, onReaderTheme, newspaperMode, onNewspaperMode, stats, ...appearance }: AppearanceProps & {
   page: ProfilePage;
   onPage: (page: ProfilePage) => void;
   onBack: () => void;
@@ -182,6 +269,9 @@ export function ProfileView({ page, onPage, onBack, onSaved, onHistory, onSource
   onAutoTranslate: (enabled: boolean) => void;
   backgroundPlayback: boolean;
   onBackgroundPlayback: (enabled: boolean) => void;
+  androidAutoSettings?: AndroidAutoSettings;
+  onAndroidAutoSettings?: (next: AndroidAutoSettings) => void;
+  onRefreshAndroidAuto?: () => Promise<AndroidAutoStatus | null>;
   fontSize: ReaderFontSize;
   fontFamily: ReaderFontFamily;
   onFontSize: (value: ReaderFontSize) => void;
@@ -194,9 +284,11 @@ export function ProfileView({ page, onPage, onBack, onSaved, onHistory, onSource
 }) {
   const { lang, t, homeTabLabel } = useI18n();
   const copy = getSettingsCopy(lang);
+  const autoCopy = AUTO_COPY[lang] ?? AUTO_COPY.de;
   const { preferences, onPreferences } = appearance;
   const activeLanguageLabel = APP_LANGUAGES.find(item => item.code === lang)?.label ?? 'Deutsch';
   const [recommendedStatus, setRecommendedStatus] = useState('');
+  const [autoSyncStatus, setAutoSyncStatus] = useState('');
   const labels: Record<ProfilePage, string> = {
     profile: t('profileTitle'),
     preferences: t('profileSettings'),
@@ -400,6 +492,75 @@ export function ProfileView({ page, onPage, onBack, onSaved, onHistory, onSource
             </label>
           </>}
         </div>
+        {androidAutoSettings && onAndroidAutoSettings && (
+          <div className="settings-group" aria-label={autoCopy.heading}>
+            <div className="px-4 pt-3 pb-1 text-xs font-bold uppercase tracking-wider text-[var(--muted)]">
+              {autoCopy.heading}
+            </div>
+            <PreferenceSelect
+              label={autoCopy.modeLabel}
+              value={androidAutoSettings.mode}
+              options={{
+                all_audio: autoCopy.modeAll,
+                subscribed_only: autoCopy.modeSubscribed,
+              } as Record<AndroidAutoMode, string>}
+              onChange={mode => onAndroidAutoSettings({ ...androidAutoSettings, mode })}
+            />
+            <label className="preference-row justify-between">
+              <span>{autoCopy.autoplayLabel}</span>
+              <input
+                type="checkbox"
+                role="switch"
+                checked={androidAutoSettings.autoplayQueue}
+                onChange={event => onAndroidAutoSettings({ ...androidAutoSettings, autoplayQueue: event.target.checked })}
+              />
+            </label>
+            <label className="preference-row justify-between">
+              <span>{autoCopy.radioLabel}</span>
+              <input
+                type="checkbox"
+                role="switch"
+                checked={androidAutoSettings.showLiveRadio}
+                onChange={event => onAndroidAutoSettings({ ...androidAutoSettings, showLiveRadio: event.target.checked })}
+              />
+            </label>
+            <label className="preference-row justify-between">
+              <span>{autoCopy.refreshLabel}</span>
+              <input
+                type="checkbox"
+                role="switch"
+                checked={androidAutoSettings.directFeedRefresh}
+                onChange={event => onAndroidAutoSettings({ ...androidAutoSettings, directFeedRefresh: event.target.checked })}
+              />
+            </label>
+            <p className="px-4 pb-3 text-xs leading-relaxed text-[var(--muted)]">
+              {autoCopy.hint}
+            </p>
+            {Capacitor.getPlatform() === 'android' && onRefreshAndroidAuto && (
+              <div className="px-4 pb-3 space-y-1.5">
+                <button
+                  type="button"
+                  className="choice-pill"
+                  onClick={() => {
+                    setAutoSyncStatus('');
+                    void onRefreshAndroidAuto().then(status => {
+                      if (status) {
+                        setAutoSyncStatus(autoCopy.syncDone(status.cachedEpisodes, status.radioStations));
+                      }
+                    });
+                  }}
+                >
+                  {autoCopy.syncNow}
+                </button>
+                {autoSyncStatus && (
+                  <p role="status" className="text-xs font-medium text-[var(--accent)]">
+                    {autoSyncStatus}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
         <div className="settings-group">
           {link(t('ttsTitle'), <Clapperboard aria-hidden="true" />, onAI)}
         </div>

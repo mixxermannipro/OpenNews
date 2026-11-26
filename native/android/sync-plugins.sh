@@ -16,6 +16,9 @@ fi
 if ! grep -q 'com.google.mlkit:genai-summarization' "$gradle"; then
   sed -i "/^dependencies {/a\    implementation 'com.google.mlkit:genai-summarization:1.0.0-beta1'" "$gradle"
 fi
+if ! grep -q 'androidx.media3:media3-session' "$gradle"; then
+  sed -i "/^dependencies {/a\    implementation 'androidx.media3:media3-session:1.5.1'\n    implementation 'androidx.media3:media3-exoplayer:1.5.1'\n    implementation 'androidx.media3:media3-common:1.5.1'\n    implementation 'androidx.media3:media3-datasource:1.5.1'\n    implementation 'com.google.guava:guava:33.3.1-android'" "$gradle"
+fi
 
 manifest=android/app/src/main/AndroidManifest.xml
 # Keep Android cloud backups from copying app data such as reading history.
@@ -29,6 +32,15 @@ fi
 if ! grep -q 'RECEIVE_BOOT_COMPLETED' "$manifest"; then
   sed -i '/<\/manifest>/i\    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />' "$manifest"
 fi
+if ! grep -q 'android.permission.FOREGROUND_SERVICE"' "$manifest"; then
+  sed -i '/<\/manifest>/i\    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />' "$manifest"
+fi
+if ! grep -q 'android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK' "$manifest"; then
+  sed -i '/<\/manifest>/i\    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />' "$manifest"
+fi
+if ! grep -q 'android.permission.WAKE_LOCK' "$manifest"; then
+  sed -i '/<\/manifest>/i\    <uses-permission android:name="android.permission.WAKE_LOCK" />' "$manifest"
+fi
 
 # The optional GenAI plugin checks API 26 before calling either library.
 if ! grep -q 'tools:overrideLibrary' "$manifest"; then
@@ -40,6 +52,7 @@ if ! grep -q 'NewsMessagingService' "$manifest"; then
 fi
 
 cp -r native/android/widget/. android/app/src/main/res/
+cp -r native/android/auto/. android/app/src/main/res/
 install -Dm644 native/android/notifications/ic_stat_opennews.xml android/app/src/main/res/drawable/ic_stat_opennews.xml
 if grep -q 'OpenNewsWidget' "$manifest" && { ! grep -q '\.WidgetFeedService' "$manifest" || ! grep -q '\.WidgetRefreshService' "$manifest"; }; then
   sed -i '/<activity android:name="\.WidgetSettingsActivity"/,/<\/activity>/d' "$manifest"
@@ -49,6 +62,9 @@ if grep -q 'OpenNewsWidget' "$manifest" && { ! grep -q '\.WidgetFeedService' "$m
 fi
 if ! grep -q 'OpenNewsWidget' "$manifest"; then
   sed -i '/<\/application>/e cat native/android/widget-manifest.xml' "$manifest"
+fi
+if ! grep -q 'OpenNewsAutoMediaService' "$manifest"; then
+  sed -i '/<\/application>/e cat native/android/auto-manifest.xml' "$manifest"
 fi
 
 if ! grep -q 'android.intent.action.TTS_SERVICE' "$manifest"; then
