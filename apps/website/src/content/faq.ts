@@ -21,7 +21,7 @@ export const faqItems = [
   },
   {
     question: 'Welche Plattformen und Sprachen werden unterstützt?',
-    answer: 'OpenNews läuft als Web-App direkt im Browser (auch als installierbare PWA) und als Android-App. Die Oberfläche unterstützt sechs Sprachen: Deutsch, Englisch, Französisch, Spanisch, Italienisch und Portugiesisch.',
+    answer: 'OpenNews läuft als Web-App direkt im Browser (auch als installierbare PWA), als Android-App mit Startbildschirm-Widget und Hintergrund-Benachrichtigungen sowie mit nativer Android-Auto-Integration und 50 Live-Radiosendern (Nachrichten & Musik). Die Oberfläche unterstützt sechs Sprachen: Deutsch, Englisch, Französisch, Spanisch, Italienisch und Portugiesisch.',
   },
   {
     question: 'Wie verarbeitet OpenNews Nutzerdaten?',

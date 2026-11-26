@@ -21,6 +21,8 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(BriefingSpeech.class);
         registerPlugin(DailyBriefing.class);
         registerPlugin(AndroidAutoSync.class);
+        registerPlugin(SecureSecrets.class);
+        registerPlugin(NativeAudioPlayer.class);
         super.onCreate(state);
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override

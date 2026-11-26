@@ -1,6 +1,7 @@
 import { isDiagnostic } from './diagnosticEvents.ts';
 import { isSafeHttpUrl } from './publicHttpUrl.ts';
 import { parseFeedPayload, repairTruncatedFeedXml } from './rssParser.ts';
+import { ensureWavBytes } from './ttsClient.ts';
 import type { NewsSource } from '../types/news.ts';
 
 export interface PagesApiEnv {
@@ -23,6 +24,42 @@ export interface PagesApiDeps {
 
 const MAX_RESPONSE_BYTES = 4 * 1024 * 1024;
 const MAX_TRANSCRIPT_BYTES = 512 * 1024;
+const MAX_TTS_BYTES = 10 * 1024 * 1024;
+
+async function readAudioBytesLimited(response: Response, maxBytes = MAX_TTS_BYTES): Promise<Uint8Array> {
+  const reader = response.body?.getReader();
+  if (!reader) return new Uint8Array(0);
+  const chunks: Uint8Array[] = [];
+  let bytes = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+      if (bytes + value.byteLength > maxBytes) {
+        throw new Error('Audio response exceeds size limit');
+      }
+      bytes += value.byteLength;
+      chunks.push(value);
+    }
+  } finally {
+    await reader.cancel().catch(() => {});
+  }
+  const combined = new Uint8Array(bytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    combined.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return combined;
+}
+
+function base64ToUint8Array(base64: string): Uint8Array {
+  const binary = atob(base64);
+  const out = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i);
+  return out;
+}
 
 function jsonResponse(data: unknown, status = 200, extraHeaders?: Record<string, string>): Response {
   return new Response(JSON.stringify(data), {
@@ -546,6 +583,190 @@ export async function handlePagesApiRequest(
       });
     } catch {
       return jsonResponse({ error: 'Verbindung zum KI-Anbieter fehlgeschlagen' }, 502, {
+        'Cache-Control': 'no-store',
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  if (path === '/api/tts/proxy' && method === 'POST') {
+    const body = await readJsonBody(request);
+    const provider = String(body?.provider || 'google');
+    const apiKey = String(body?.apiKey || '').trim();
+    const model = typeof body?.model === 'string' ? body.model.trim() : '';
+    const voice = typeof body?.voice === 'string' ? body.voice.trim() : '';
+    const stylePrompt = typeof body?.stylePrompt === 'string' ? body.stylePrompt.trim().slice(0, 300) : '';
+    const customEndpoint = String(body?.customEndpoint || '').trim();
+    const text = typeof body?.text === 'string' ? body.text.replace(/\s+/g, ' ').trim() : '';
+    const rawSpeed = Number(body?.speed);
+    const speed = Number.isFinite(rawSpeed) ? Math.max(0.75, Math.min(1.6, rawSpeed)) : 1;
+
+    if (!text || text.length > 3000) {
+      return jsonResponse({ error: 'Der Vorlesetext fehlt oder ist zu lang (max. 3.000 Zeichen).' }, 400, {
+        'Cache-Control': 'no-store',
+      });
+    }
+    if (!['google', 'openai', 'elevenlabs', 'custom'].includes(provider)) {
+      return jsonResponse({ error: 'Unbekannter Vorlese-Anbieter.' }, 400, {
+        'Cache-Control': 'no-store',
+      });
+    }
+    if (model && (model.length > 120 || !/^[A-Za-z0-9._:/-]+$/.test(model))) {
+      return jsonResponse({ error: 'Ungültiges TTS-Modell.' }, 400, {
+        'Cache-Control': 'no-store',
+      });
+    }
+    if (!apiKey && provider !== 'custom') {
+      return jsonResponse({ error: 'Bitte hinterlege einen API-Key für den gewählten Vorlese-Anbieter.' }, 400, {
+        'Cache-Control': 'no-store',
+      });
+    }
+    if (provider === 'custom' && (!isSafeHttpUrl(customEndpoint) || new URL(customEndpoint).protocol !== 'https:')) {
+      return jsonResponse({ error: 'Der eigene TTS-Endpunkt benötigt eine öffentliche HTTPS-Adresse.' }, 400, {
+        'Cache-Control': 'no-store',
+      });
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20_000);
+
+    try {
+      if (provider === 'google') {
+        const targetModel = (model || 'gemini-3.8-flash-lite-tts').replace(/^models\//, '');
+        const voiceName = /^[A-Za-z0-9_-]{2,40}$/.test(voice) ? voice : 'Kore';
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(targetModel)}:generateContent`;
+        const promptText = stylePrompt ? `${stylePrompt}\n\n${text}` : text;
+        const resp = await fetchPublic(
+          apiUrl,
+          {
+            method: 'POST',
+            signal: controller.signal,
+            headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+            body: JSON.stringify({
+              contents: [{ role: 'user', parts: [{ text: promptText }] }],
+              generationConfig: {
+                responseModalities: ['AUDIO'],
+                speechConfig: {
+                  voiceConfig: { prebuiltVoiceConfig: { voiceName } },
+                },
+              },
+            }),
+          },
+          fetchImpl,
+        );
+        if (!resp.ok) {
+          await resp.body?.cancel();
+          const msg =
+            resp.status === 401 || resp.status === 403
+              ? 'API-Key ungültig oder ohne Berechtigung.'
+              : resp.status === 429
+                ? 'Anbieter-Kontingent erreicht (429). Bitte später erneut versuchen.'
+                : `Google TTS Fehler (${resp.status})`;
+          return jsonResponse({ error: msg }, resp.status, { 'Cache-Control': 'no-store' });
+        }
+        const raw = await readPublicText(resp);
+        const parsed = JSON.parse(raw) as {
+          candidates?: Array<{ content?: { parts?: Array<{ inlineData?: { data?: string } }> } }>;
+        };
+        const base64Audio = parsed.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+        if (!base64Audio) {
+          return jsonResponse({ error: 'Google AI Studio hat keine Audiodaten zurückgegeben.' }, 502, {
+            'Cache-Control': 'no-store',
+          });
+        }
+        const wavBytes = ensureWavBytes(base64ToUint8Array(base64Audio), 24000);
+        return new Response(wavBytes.buffer as ArrayBuffer, {
+          status: 200,
+          headers: {
+            'Content-Type': 'audio/wav',
+            'Cache-Control': 'no-store',
+            'X-Content-Type-Options': 'nosniff',
+          },
+        });
+      }
+
+      if (provider === 'elevenlabs') {
+        const safeVoice = /^[A-Za-z0-9_-]{8,64}$/.test(voice) ? voice : '21m00Tcm4TlvDq8ikWAM';
+        const resp = await fetchPublic(
+          `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(safeVoice)}`,
+          {
+            method: 'POST',
+            signal: controller.signal,
+            headers: {
+              'Content-Type': 'application/json',
+              Accept: 'audio/mpeg',
+              'xi-api-key': apiKey,
+            },
+            body: JSON.stringify({
+              text,
+              model_id: model || 'eleven_flash_v2_5',
+            }),
+          },
+          fetchImpl,
+        );
+        if (!resp.ok) {
+          await resp.body?.cancel();
+          return jsonResponse({ error: `ElevenLabs Fehler (${resp.status})` }, resp.status, {
+            'Cache-Control': 'no-store',
+          });
+        }
+        const audio = await readAudioBytesLimited(resp);
+        return new Response(audio.buffer as ArrayBuffer, {
+          status: 200,
+          headers: {
+            'Content-Type': 'audio/mpeg',
+            'Cache-Control': 'no-store',
+            'X-Content-Type-Options': 'nosniff',
+          },
+        });
+      }
+
+      const endpoint =
+        provider === 'openai' ? 'https://api.openai.com/v1/audio/speech' : customEndpoint;
+      const targetModel = model || (provider === 'openai' ? 'gpt-4o-mini-tts' : 'tts-1');
+      const resp = await fetchPublic(
+        endpoint,
+        {
+          method: 'POST',
+          signal: controller.signal,
+          headers: {
+            'Content-Type': 'application/json',
+            ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
+          },
+          body: JSON.stringify({
+            model: targetModel,
+            input: text,
+            voice: voice || 'sage',
+            speed,
+            ...(stylePrompt && targetModel === 'gpt-4o-mini-tts' ? { instructions: stylePrompt } : {}),
+            response_format: 'mp3',
+          }),
+        },
+        fetchImpl,
+      );
+      if (!resp.ok) {
+        await resp.body?.cancel();
+        const msg =
+          resp.status === 401 || resp.status === 403
+            ? 'API-Key ungültig oder ohne Berechtigung.'
+            : resp.status === 429
+              ? 'Anbieter-Kontingent erreicht (429). Bitte später erneut versuchen.'
+              : `TTS-Anbieter Fehler (${resp.status})`;
+        return jsonResponse({ error: msg }, resp.status, { 'Cache-Control': 'no-store' });
+      }
+      const contentType = resp.headers.get('content-type') || 'audio/mpeg';
+      const audio = await readAudioBytesLimited(resp);
+      return new Response(audio.buffer as ArrayBuffer, {
+        status: 200,
+        headers: {
+          'Content-Type': /^audio\//i.test(contentType) ? contentType : 'audio/mpeg',
+          'Cache-Control': 'no-store',
+          'X-Content-Type-Options': 'nosniff',
+        },
+      });
+    } catch {
+      return jsonResponse({ error: 'Sprachausgabe beim Anbieter fehlgeschlagen.' }, 502, {
         'Cache-Control': 'no-store',
       });
     } finally {

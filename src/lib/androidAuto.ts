@@ -11,6 +11,7 @@ export interface AndroidAutoSettings {
   autoplayQueue: boolean;
   showLiveRadio: boolean;
   directFeedRefresh: boolean;
+  wifiPrebuffer: boolean;
 }
 
 export const DEFAULT_ANDROID_AUTO_SETTINGS: AndroidAutoSettings = {
@@ -18,6 +19,7 @@ export const DEFAULT_ANDROID_AUTO_SETTINGS: AndroidAutoSettings = {
   autoplayQueue: true,
   showLiveRadio: true,
   directFeedRefresh: true,
+  wifiPrebuffer: true,
 };
 
 export interface AndroidAutoFeedPayload {

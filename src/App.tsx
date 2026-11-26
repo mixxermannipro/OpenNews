@@ -104,6 +104,7 @@ const INITIAL_ANDROID_AUTO_SETTINGS: AndroidAutoSettings = {
   autoplayQueue: true,
   showLiveRadio: true,
   directFeedRefresh: true,
+  wifiPrebuffer: true,
 };
 
 export default function App() {
@@ -238,15 +239,109 @@ export default function App() {
     DEFAULT_AI_CONFIG
   );
   const [aiConfigMigrated, setAIConfigMigrated] = useLocalStorage('opennews_ai_aliases_migrated', false);
-  const aiConfig = useMemo(() => aiConfigMigrated ? storedAIConfig : migrateAIConfig(storedAIConfig), [storedAIConfig, aiConfigMigrated]);
-  const updateAIConfig = (next: AIProviderConfig) => {
-    setAiConfig(next);
-    setAIConfigMigrated(true);
-  };
-  const [ttsConfig, setTtsConfig] = useLocalStorage<TTSProviderConfig>(
+  const [androidAIKey, setAndroidAIKey] = useState<string>('');
+  const [androidTTSKey, setAndroidTTSKey] = useState<string>('');
+  const [storedTTSConfig, setStoredTTSConfig] = useLocalStorage<TTSProviderConfig>(
     'opennews_tts_config',
     INITIAL_TTS_CONFIG
   );
+  const isAndroidPlatform = Capacitor.getPlatform() === 'android';
+
+  useEffect(() => {
+    if (!isAndroidPlatform) return;
+    let active = true;
+    void import('./lib/secureSecrets').then(async ({ getSecureSecret, setSecureSecret }) => {
+      const legacyAI = storedAIConfig.apiKey?.trim() || '';
+      const legacyTTS = storedTTSConfig.apiKey?.trim() || '';
+      const storedAI = (await getSecureSecret('ai_api_key')) ?? '';
+      const storedTTS = (await getSecureSecret('tts_api_key')) ?? '';
+
+      let finalAI = storedAI;
+      if (!finalAI && legacyAI) {
+        if (await setSecureSecret('ai_api_key', legacyAI)) {
+          finalAI = legacyAI;
+          setAiConfig(prev => ({ ...prev, apiKey: '' }));
+        }
+      } else if (storedAI && legacyAI) {
+        setAiConfig(prev => ({ ...prev, apiKey: '' }));
+      }
+
+      let finalTTS = storedTTS;
+      if (!finalTTS && legacyTTS) {
+        if (await setSecureSecret('tts_api_key', legacyTTS)) {
+          finalTTS = legacyTTS;
+          setStoredTTSConfig(prev => ({ ...prev, apiKey: '' }));
+        }
+      } else if (storedTTS && legacyTTS) {
+        setStoredTTSConfig(prev => ({ ...prev, apiKey: '' }));
+      }
+
+      if (active) {
+        if (finalAI) setAndroidAIKey(finalAI);
+        if (finalTTS) setAndroidTTSKey(finalTTS);
+      }
+    }).catch(() => {});
+    return () => { active = false; };
+  // Intentionally runs on mount to hydrate/migrate Keystore secrets on Android
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const aiConfig = useMemo(() => {
+    const base = aiConfigMigrated ? storedAIConfig : migrateAIConfig(storedAIConfig);
+    if (isAndroidPlatform && androidAIKey && !base.apiKey) {
+      return { ...base, apiKey: androidAIKey };
+    }
+    return base;
+  }, [storedAIConfig, aiConfigMigrated, isAndroidPlatform, androidAIKey]);
+
+  const updateAIConfig = useCallback((next: AIProviderConfig) => {
+    const trimmedKey = next.apiKey.trim();
+    if (isAndroidPlatform) {
+      setAndroidAIKey(trimmedKey);
+      void import('./lib/secureSecrets').then(async ({ removeSecureSecret, setSecureSecret }) => {
+        if (trimmedKey) {
+          const ok = await setSecureSecret('ai_api_key', trimmedKey);
+          if (ok) {
+            setAiConfig({ ...next, apiKey: '' });
+            return;
+          }
+        } else {
+          await removeSecureSecret('ai_api_key');
+        }
+        setAiConfig({ ...next, apiKey: '' });
+      }).catch(() => setAiConfig(next));
+    } else {
+      setAiConfig(next);
+    }
+    setAIConfigMigrated(true);
+  }, [isAndroidPlatform, setAiConfig, setAIConfigMigrated]);
+
+  const ttsConfig = useMemo(() => {
+    if (isAndroidPlatform && androidTTSKey && !storedTTSConfig.apiKey) {
+      return { ...storedTTSConfig, apiKey: androidTTSKey };
+    }
+    return storedTTSConfig;
+  }, [storedTTSConfig, isAndroidPlatform, androidTTSKey]);
+
+  const updateTTSConfig = useCallback((next: TTSProviderConfig) => {
+    const trimmedKey = next.apiKey.trim();
+    if (isAndroidPlatform) {
+      setAndroidTTSKey(trimmedKey);
+      void import('./lib/secureSecrets').then(async ({ removeSecureSecret, setSecureSecret }) => {
+        if (trimmedKey) {
+          const ok = await setSecureSecret('tts_api_key', trimmedKey);
+          if (ok) {
+            setStoredTTSConfig({ ...next, apiKey: '' });
+            return;
+          }
+        } else {
+          await removeSecureSecret('tts_api_key');
+        }
+        setStoredTTSConfig({ ...next, apiKey: '' });
+      }).catch(() => setStoredTTSConfig(next));
+    } else {
+      setStoredTTSConfig(next);
+    }
+  }, [isAndroidPlatform, setStoredTTSConfig]);
 
   const [formatPrefs, setFormatPrefs] = useLocalStorage<FormatPreferences>('opennews_formats', {
     rssAtom: true,
@@ -386,6 +481,11 @@ export default function App() {
   const [pushStatus, setPushStatus] = useState('');
   const [pushPermissionDenied, setPushPermissionDenied] = useState(false);
   const [requestingPushPermission, setRequestingPushPermission] = useState(false);
+  const activeMutedRules = useMemo(
+    () => pruneExpiredMutes(mutedKeywords, feedClock),
+    [mutedKeywords, feedClock],
+  );
+
   const pushSourceIds = useMemo(() => activeSources
     .filter(source => pushSources.some(candidate => candidate.id === source.id && candidate.url === source.url))
     .map(source => source.id), [activeSources]);
@@ -395,17 +495,36 @@ export default function App() {
     const version = ++pushSyncVersion.current;
     try {
       const { NewsPush } = await import('./lib/newsPush');
-      const { status } = await NewsPush.configure({ ...settings, sources: pushSourceIds });
+      const feeds = activeSources
+        .filter(source => source.format !== 'podcast')
+        .slice(0, 25)
+        .map(source => ({
+          id: source.id,
+          name: source.name,
+          url: source.url,
+          category: source.category,
+          accentColor: source.accentColor,
+          shortCode: source.shortCode,
+        }));
+      const mutedKeywords = activeMutedRules.map(rule => rule.keyword);
+      const { status, mode } = await NewsPush.configure({
+        ...settings,
+        sources: pushSourceIds,
+        feeds,
+        mutedKeywords,
+      });
       if (!settings.enabled || version !== pushSyncVersion.current) return;
       setPushPermissionDenied(status === 'denied');
-      setPushStatus(status === 'unconfigured' ? 'Dieser Build hat noch keine Firebase-Verbindung.'
+      setPushStatus(status === 'unconfigured' ? 'Dieser Build hat noch keine Benachrichtigungs-Konfiguration.'
         : status === 'denied' ? 'Erlaube Benachrichtigungen in den Android-Einstellungen.'
-        : settings.enabled && !pushSourceIds.length ? 'Aktiviere mindestens eine unterstützte Nachrichtenquelle.'
-        : settings.enabled ? 'Android-Push ist für unterstützte Quellen angemeldet.' : '');
+        : settings.enabled && !feeds.length ? 'Aktiviere mindestens eine Nachrichtenquelle.'
+        : settings.enabled && mode === 'local'
+          ? `Hintergrund-Check auf dem Gerät aktiv (alle ${settings.intervalMinutes ?? 30} Min.).`
+        : settings.enabled ? 'Push & Hintergrund-Check für deine Quellen aktiv.' : '');
     } catch {
       if (settings.enabled && version === pushSyncVersion.current) setPushStatus('Push-Anmeldung gerade nicht möglich.');
     }
-  }, [pushSourceIds]);
+  }, [activeMutedRules, activeSources, pushSourceIds]);
 
   useEffect(() => {
     const sync = () => { if (!document.hidden) void configurePush(notifications); };
@@ -477,8 +596,29 @@ export default function App() {
         candidate = article;
       }
     }
-    if (!firstLoad && notifications.enabled && withinWindow && document.visibilityState === 'visible' && candidate) {
-      showAlert(candidate.title, candidate.sourceName);
+    if (!firstLoad && notifications.enabled && withinWindow && candidate) {
+      if (document.visibilityState === 'visible') {
+        showAlert(candidate.title, candidate.sourceName);
+      } else if (
+        Capacitor.getPlatform() === 'web'
+        && 'Notification' in window
+        && Notification.permission === 'granted'
+      ) {
+        const tag = articleIdentity(candidate);
+        void navigator.serviceWorker?.ready
+          ?.then(reg => reg.showNotification(candidate.title, {
+            body: candidate.sourceName,
+            icon: '/pwa-192x192.png',
+            tag,
+          }))
+          .catch(() => {
+            try {
+              new Notification(candidate.title, { body: candidate.sourceName, tag });
+            } catch {
+              // Ignore restricted notification contexts
+            }
+          });
+      }
     }
   }, [notifications, showAlert]);
 
@@ -624,11 +764,6 @@ export default function App() {
     refresh.current = null;
     setIsLoadingFeeds(false);
   }, []);
-
-  const activeMutedRules = useMemo(
-    () => pruneExpiredMutes(mutedKeywords, feedClock),
-    [mutedKeywords, feedClock],
-  );
 
   const activeArticles = useMemo(() => {
     const activeIds = new Set(activeSources.map(source => source.id));
@@ -879,6 +1014,83 @@ export default function App() {
     return () => { active = false; dispose?.(); };
   }, [onboarded]);
 
+  const handleNotificationLaunch = useRef<(event: {
+    article?: Partial<NewsArticle>;
+    pendingSaves?: Array<Partial<NewsArticle>>;
+  }) => void>(() => {});
+  useEffect(() => {
+    handleNotificationLaunch.current = ({ article, pendingSaves }) => {
+      if (pendingSaves?.length) {
+        for (const savedItem of pendingSaves) {
+          if (!savedItem.id || !savedItem.title || !savedItem.link) continue;
+          const fullArticle: NewsArticle = {
+            id: savedItem.id,
+            sourceId: savedItem.sourceId ?? 'push',
+            sourceName: savedItem.sourceName ?? 'OpenNews',
+            sourceShortCode: savedItem.sourceShortCode ?? 'ON',
+            sourceColor: savedItem.sourceColor ?? '#23262e',
+            title: savedItem.title,
+            summary: savedItem.summary ?? '',
+            paragraphs: savedItem.paragraphs ?? (savedItem.summary ? [savedItem.summary] : []),
+            link: savedItem.link,
+            imageUrl: savedItem.imageUrl,
+            category: savedItem.category ?? 'Politik',
+            publishedAt: savedItem.publishedAt ?? new Date().toISOString(),
+            readingTimeMin: savedItem.readingTimeMin ?? 2,
+            keywords: savedItem.keywords ?? [],
+          };
+          if (!normalizedProfile.bookmarkedIds.includes(fullArticle.id)) {
+            handleToggleBookmark(fullArticle);
+          }
+        }
+      }
+      if (article?.title && (article.link || article.id)) {
+        const matched = allArticles.find(a => a.id === article.id || (article.link && a.link === article.link));
+        if (matched) {
+          handleOpenArticle(matched);
+        } else if (article.id && article.link) {
+          handleOpenArticle({
+            id: article.id,
+            sourceId: article.sourceId ?? 'push',
+            sourceName: article.sourceName ?? 'OpenNews',
+            sourceShortCode: article.sourceShortCode ?? 'ON',
+            sourceColor: article.sourceColor ?? '#23262e',
+            title: article.title,
+            summary: article.summary ?? '',
+            paragraphs: article.summary ? [article.summary] : [],
+            link: article.link,
+            imageUrl: article.imageUrl,
+            category: article.category ?? 'Politik',
+            publishedAt: article.publishedAt ?? new Date().toISOString(),
+            readingTimeMin: 2,
+            keywords: [],
+            isBreaking: article.isBreaking,
+          });
+        }
+      }
+    };
+  });
+
+  useEffect(() => {
+    if (!onboarded || Capacitor.getPlatform() !== 'android') return;
+    let active = true;
+    let dispose: (() => void) | undefined;
+    void import('./lib/newsPush').then(async ({ NewsPush }) => {
+      if (!active) return;
+      const listener = await NewsPush.addListener('openNotification', (ev) => {
+        if (active) handleNotificationLaunch.current(ev);
+      });
+      if (!active) {
+        await listener.remove();
+        return;
+      }
+      dispose = () => { void listener.remove(); };
+      const initial = await NewsPush.getLaunchNotification();
+      if (active) handleNotificationLaunch.current(initial);
+    }).catch(() => {});
+    return () => { active = false; dispose?.(); };
+  }, [onboarded]);
+
   const handleToggleBookmark = useCallback((article: NewsArticle) => {
     setSavedArticles(previous => (previous[article.id] ? previous : { ...previous, [article.id]: article }));
     setProfile((prev) => toggleArticleBookmark(normalizeProfile(prev), article));
@@ -1107,6 +1319,26 @@ export default function App() {
       } finally {
         setRequestingPushPermission(false);
       }
+    } else if (
+      Capacitor.getPlatform() !== 'android'
+      && next.enabled
+      && !notifications.enabled
+      && 'Notification' in window
+      && Notification.permission === 'default'
+    ) {
+      setRequestingPushPermission(true);
+      try {
+        const perm = await Notification.requestPermission();
+        if (perm === 'denied') {
+          setPushStatus('Browser-Benachrichtigungen wurden blockiert — In-App-Hinweise bleiben aktiv.');
+        } else if (perm === 'granted') {
+          setPushStatus('Browser-Benachrichtigungen sind aktiviert.');
+        }
+      } catch {
+        // Ignore restricted Notification.requestPermission contexts
+      } finally {
+        setRequestingPushPermission(false);
+      }
     }
     if (!next.enabled) {
       pushSyncVersion.current++;
@@ -1123,6 +1355,13 @@ export default function App() {
         .catch(() => showAlert('Android hat Benachrichtigungen gesperrt.', 'OpenNews · Test'));
     } else {
       showAlert('Benachrichtigungen sind aktiv.', 'OpenNews · Test');
+      if ('Notification' in window && Notification.permission === 'granted') {
+        try {
+          new Notification('OpenNews · Test', { body: 'Browser-Benachrichtigungen sind aktiv.', tag: 'opennews-test' });
+        } catch {
+          // Ignore Notification constructor errors in headless environments
+        }
+      }
     }
   };
 
@@ -1475,7 +1714,7 @@ export default function App() {
             }
             onUpdateFormatPrefs={setFormatPrefs}
             onUpdateAIConfig={updateAIConfig}
-            onUpdateTTSConfig={setTtsConfig}
+            onUpdateTTSConfig={updateTTSConfig}
             pushStatus={pushStatus}
             pushPermissionDenied={pushPermissionDenied}
             requestingPushPermission={requestingPushPermission}

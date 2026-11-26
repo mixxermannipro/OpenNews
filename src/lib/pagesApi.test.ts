@@ -208,4 +208,89 @@ describe('handlePagesApiRequest', () => {
     );
     assert.equal(seenHeaders.length, 2);
   });
+
+  it('validates TTS proxy requests and rejects empty text or unknown providers', async () => {
+    const emptyRes = await handlePagesApiRequest(
+      new Request('https://opennews-app.pages.dev/api/tts/proxy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider: 'google', apiKey: 'secret', text: '   ' }),
+      }),
+    );
+    assert.equal(emptyRes.status, 400);
+    assert.equal(emptyRes.headers.get('cache-control'), 'no-store');
+
+    const badProviderRes = await handlePagesApiRequest(
+      new Request('https://opennews-app.pages.dev/api/tts/proxy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider: 'unknown', apiKey: 'secret', text: 'Hallo OpenNews' }),
+      }),
+    );
+    assert.equal(badProviderRes.status, 400);
+  });
+
+  it('converts Google Gemini TTS base64 PCM response into RIFF WAVE audio', async () => {
+    const pcm = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]);
+    const base64 = Buffer.from(pcm).toString('base64');
+    const res = await handlePagesApiRequest(
+      new Request('https://opennews-app.pages.dev/api/tts/proxy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          provider: 'google',
+          apiKey: 'secret',
+          model: 'gemini-3.8-flash-lite-tts',
+          voice: 'Kore',
+          text: 'Nachrichten im Überblick.',
+        }),
+      }),
+      {},
+      {
+        fetchImpl: async () =>
+          new Response(
+            JSON.stringify({
+              candidates: [{ content: { parts: [{ inlineData: { data: base64 } }] } }],
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          ),
+      },
+    );
+    assert.equal(res.status, 200);
+    assert.equal(res.headers.get('content-type'), 'audio/wav');
+    assert.equal(res.headers.get('cache-control'), 'no-store');
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    assert.equal(bytes.length, 44 + pcm.length);
+    assert.equal(String.fromCharCode(bytes[0], bytes[1], bytes[2], bytes[3]), 'RIFF');
+    assert.equal(String.fromCharCode(bytes[8], bytes[9], bytes[10], bytes[11]), 'WAVE');
+  });
+
+  it('proxies OpenAI TTS MP3 bytes with no-store headers', async () => {
+    const mp3Stub = new Uint8Array([0x49, 0x44, 0x33, 0x03, 0x00]);
+    const res = await handlePagesApiRequest(
+      new Request('https://opennews-app.pages.dev/api/tts/proxy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          provider: 'openai',
+          apiKey: 'sk-test',
+          model: 'gpt-4o-mini-tts',
+          voice: 'sage',
+          text: 'Kurzmeldung am Morgen.',
+        }),
+      }),
+      {},
+      {
+        fetchImpl: async () =>
+          new Response(mp3Stub, {
+            status: 200,
+            headers: { 'Content-Type': 'audio/mpeg' },
+          }),
+      },
+    );
+    assert.equal(res.status, 200);
+    assert.equal(res.headers.get('content-type'), 'audio/mpeg');
+    assert.equal(res.headers.get('cache-control'), 'no-store');
+    assert.deepEqual(new Uint8Array(await res.arrayBuffer()), mp3Stub);
+  });
 });

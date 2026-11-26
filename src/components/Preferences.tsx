@@ -47,6 +47,7 @@ const AUTO_COPY: Record<AppLanguage, {
   autoplayLabel: string;
   radioLabel: string;
   refreshLabel: string;
+  wifiPrebufferLabel: string;
   syncNow: string;
   syncDone: (episodes: number, stations: number) => string;
   hint: string;
@@ -59,6 +60,7 @@ const AUTO_COPY: Record<AppLanguage, {
     autoplayLabel: 'Nächste Folge automatisch abspielen',
     radioLabel: 'Live-Radio im Auto anzeigen',
     refreshLabel: 'Podcasts im Auto direkt per HTTPS laden',
+    wifiPrebufferLabel: 'Top-Updates im WLAN für Android Auto vorladen',
     syncNow: 'Jetzt für Android Auto aktualisieren',
     syncDone: (ep, st) => `${ep} Episoden & ${st} Radiosender bereit.`,
     hint: 'Spielt im Auto Tagesschau 20 Uhr (auch vom Vortag), DLF, Podcasts und Live-Radio ab – direkt aus der Android-Auto-Oberfläche.',
@@ -71,6 +73,7 @@ const AUTO_COPY: Record<AppLanguage, {
     autoplayLabel: 'Autoplay next episode in queue',
     radioLabel: 'Show Live Radio in Android Auto',
     refreshLabel: 'Fetch podcast feeds directly in car',
+    wifiPrebufferLabel: 'Preload top news updates over Wi-Fi',
     syncNow: 'Refresh Android Auto now',
     syncDone: (ep, st) => `${ep} episodes & ${st} radio stations ready.`,
     hint: 'Play Tagesschau, DLF, podcasts, and live news radio straight from your car display.',
@@ -83,6 +86,7 @@ const AUTO_COPY: Record<AppLanguage, {
     autoplayLabel: 'Lecture automatique de la suite',
     radioLabel: 'Afficher la radio en direct',
     refreshLabel: 'Actualiser les flux en direct',
+    wifiPrebufferLabel: 'Précharger les flashs en Wi-Fi',
     syncNow: 'Actualiser pour Android Auto',
     syncDone: (ep, st) => `${ep} épisodes & ${st} radios prêts.`,
     hint: 'Écoutez flashs info, podcasts et radios d’information directement sur l’écran de la voiture.',
@@ -95,6 +99,7 @@ const AUTO_COPY: Record<AppLanguage, {
     autoplayLabel: 'Reproducir siguiente episodio',
     radioLabel: 'Mostrar radio en directo',
     refreshLabel: 'Actualizar feeds directamente en el coche',
+    wifiPrebufferLabel: 'Precargar boletines por Wi-Fi',
     syncNow: 'Actualizar para Android Auto',
     syncDone: (ep, st) => `${ep} episodios y ${st} emisoras listos.`,
     hint: 'Escucha boletines, podcasts y radios de noticias directamente desde la pantalla del coche.',
@@ -107,6 +112,7 @@ const AUTO_COPY: Record<AppLanguage, {
     autoplayLabel: 'Riproduci episodio successivo',
     radioLabel: 'Mostra radio in diretta',
     refreshLabel: 'Aggiorna i feed direttamente in auto',
+    wifiPrebufferLabel: 'Precarica i notiziari in Wi-Fi',
     syncNow: 'Aggiorna per Android Auto',
     syncDone: (ep, st) => `${ep} episodi e ${st} radio pronti.`,
     hint: 'Ascolta notiziari, podcast e radio live direttamente dallo schermo dell’auto.',
@@ -119,6 +125,7 @@ const AUTO_COPY: Record<AppLanguage, {
     autoplayLabel: 'Reproduzir episódio seguinte',
     radioLabel: 'Mostrar rádio ao vivo',
     refreshLabel: 'Atualizar feeds diretamente no carro',
+    wifiPrebufferLabel: 'Pré-carregar boletins por Wi-Fi',
     syncNow: 'Atualizar para Android Auto',
     syncDone: (ep, st) => `${ep} episódios e ${st} rádios prontos.`,
     hint: 'Ouça boletins, podcasts e rádios de notícias diretamente no ecrã do carro.',
@@ -531,6 +538,15 @@ export function ProfileView({ page, onPage, onBack, onSaved, onHistory, onSource
                 role="switch"
                 checked={androidAutoSettings.directFeedRefresh}
                 onChange={event => onAndroidAutoSettings({ ...androidAutoSettings, directFeedRefresh: event.target.checked })}
+              />
+            </label>
+            <label className="preference-row justify-between">
+              <span>{autoCopy.wifiPrebufferLabel}</span>
+              <input
+                type="checkbox"
+                role="switch"
+                checked={androidAutoSettings.wifiPrebuffer ?? true}
+                onChange={event => onAndroidAutoSettings({ ...androidAutoSettings, wifiPrebuffer: event.target.checked })}
               />
             </label>
             <p className="px-4 pb-3 text-xs leading-relaxed text-[var(--muted)]">

@@ -8,13 +8,10 @@ import {
   Headphones,
   Heart,
   Layers,
-  Pause,
   Play,
   Plus,
-  Radio,
   Search,
   Share2,
-  Star,
   Video,
   X,
 } from 'lucide-react';
@@ -49,6 +46,7 @@ import { ArticleImage } from './ArticleImage';
 import { ClipsFeed } from './ClipsFeed';
 import { MediaPlayer } from './MediaPlayer';
 import { formatAudioClock, type ActiveAudioTrack } from './MiniAudioPlayer';
+import { RadioHub, RadioQuickStrip } from './RadioHub';
 import { SourceIcon } from './SourceIcon';
 import { TranscriptSummary } from './TranscriptSummary';
 import { ViewStatus } from './ViewStatus';
@@ -944,144 +942,19 @@ export function MediaView({
 
       {/* Full Live Radio Hub */}
       {showRadioHub && (
-        <section aria-labelledby="media-radio-heading" className="screen-entry space-y-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1 rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-extrabold tracking-wider text-white">
-                <Radio className="h-3 w-3" aria-hidden="true" />
-                {copy.liveBadge}
-              </span>
-              <h2 id="media-radio-heading" className="text-xl font-bold tracking-tight text-[var(--ink)]">
-                {copy.liveRadioHeading}
-              </h2>
-            </div>
-            <p className="text-sm text-[var(--muted)]">{copy.liveRadioSubtitle}</p>
-          </div>
-
-          <div className="flex flex-wrap gap-2" role="group" aria-label={copy.liveRadioHeading}>
-            {(
-              [
-                ['all', copy.radioAll],
-                ['dach', copy.radioDach],
-                ['international', copy.radioInternational],
-                ['favorites', copy.radioFavorites],
-              ] as const
-            ).map(([groupKey, label]) => (
-              <button
-                key={groupKey}
-                type="button"
-                aria-pressed={radioGroup === groupKey}
-                onClick={() => setRadioGroup(groupKey)}
-                className={`choice-pill ${
-                  radioGroup === groupKey ? 'bg-[var(--accent)] text-[var(--accent-ink)] border-[var(--accent)]' : ''
-                }`}
-              >
-                {label}
-                {groupKey === 'favorites' && radioFavorites.length > 0 && (
-                  <span className="ml-1 text-[11px] opacity-75 tabular-nums">{radioFavorites.length}</span>
-                )}
-              </button>
-            ))}
-          </div>
-
-          {visibleRadioStations.length === 0 ? (
-            <ViewStatus
-              title={radioGroup === 'favorites' && !hasSearchQuery ? copy.radioEmptyFavorites : copy.radioSearchEmpty}
-              action={
-                hasSearchQuery ? (
-                  <button type="button" className="choice-pill" onClick={() => setMediaQuery('')}>
-                    {copy.clearSearch}
-                  </button>
-                ) : radioGroup !== 'all' ? (
-                  <button type="button" className="choice-pill" onClick={() => setRadioGroup('all')}>
-                    {copy.radioAllStations}
-                  </button>
-                ) : undefined
-              }
-            />
-          ) : (
-            <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {visibleRadioStations.map((station) => {
-                const isPlaying = activeAudioUrl === station.streamUrl;
-                const isFav = radioFavoritesSet.has(station.id);
-                return (
-                  <li
-                    key={station.id}
-                    data-radio-id={station.id}
-                    className={`settings-group flex flex-col justify-between gap-3 p-3.5 transition-colors ${
-                      isPlaying ? 'ring-1 ring-[var(--accent)]/60' : ''
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <button
-                        type="button"
-                        onClick={() => triggerRadioStation(station)}
-                        aria-label={`${isPlaying ? t('mediaClipsPause') : t('mediaClipsPlay')}: ${station.name}`}
-                        className="relative grid h-12 w-12 shrink-0 place-items-center rounded-2xl text-xs font-extrabold tracking-tight text-white shadow-sm transition active:scale-95"
-                        style={{ backgroundColor: station.accentColor }}
-                      >
-                        <span>{station.shortCode}</span>
-                      </button>
-                      <div className="min-w-0 flex-1 space-y-0.5">
-                        <div className="flex items-center gap-1.5">
-                          <span className="rounded bg-[var(--control)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--muted)]">
-                            {station.region}
-                          </span>
-                          {isPlaying && (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-red-600 px-1.5 py-0.5 text-[9.5px] font-extrabold text-white">
-                              {copy.liveBadge}
-                            </span>
-                          )}
-                        </div>
-                        <h3 className="truncate text-[15px] font-bold text-[var(--ink)]">{station.name}</h3>
-                        <p className="line-clamp-2 text-xs leading-relaxed text-[var(--muted)]">{station.subtitle}</p>
-                      </div>
-                      {onToggleRadioFavorite && (
-                        <button
-                          type="button"
-                          onClick={() => onToggleRadioFavorite(station.id)}
-                          aria-label={isFav ? copy.radioFavoriteRemove : copy.radioFavoriteAdd}
-                          aria-pressed={isFav}
-                          className={`grid h-9 w-9 shrink-0 place-items-center rounded-full transition hover:bg-[var(--control)] ${
-                            isFav ? 'text-amber-500' : 'text-[var(--muted)] hover:text-[var(--ink)]'
-                          }`}
-                        >
-                          <Star size={16} fill={isFav ? 'currentColor' : 'none'} aria-hidden="true" />
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="flex items-center justify-between gap-2 border-t border-[var(--line)]/70 pt-2">
-                      <button
-                        type="button"
-                        onClick={() => triggerRadioStation(station)}
-                        className={`inline-flex min-h-9 items-center gap-1.5 rounded-full px-3 text-xs font-bold transition ${
-                          isPlaying
-                            ? 'bg-[var(--accent)] text-[var(--accent-ink)]'
-                            : 'bg-[var(--control)] text-[var(--ink)] hover:bg-[var(--accent)] hover:text-[var(--accent-ink)]'
-                        }`}
-                      >
-                        {isPlaying ? <Pause size={13} fill="currentColor" aria-hidden="true" /> : <Play size={13} fill="currentColor" aria-hidden="true" />}
-                        <span>{isPlaying ? t('mediaNowPlaying') : copy.liveBadge}</span>
-                      </button>
-                      {safeHref(station.homepageUrl) && (
-                        <a
-                          href={safeHref(station.homepageUrl)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex min-h-9 items-center gap-1 rounded-lg px-2 text-xs font-medium text-[var(--muted)] hover:text-[var(--ink)]"
-                        >
-                          <span>{copy.openOriginal}</span>
-                          <ExternalLink size={12} aria-hidden="true" />
-                        </a>
-                      )}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </section>
+        <RadioHub
+          copy={copy}
+          radioGroup={radioGroup}
+          onSelectGroup={setRadioGroup}
+          visibleStations={visibleRadioStations}
+          radioFavorites={radioFavorites}
+          radioFavoritesSet={radioFavoritesSet}
+          hasSearchQuery={hasSearchQuery}
+          activeAudioUrl={activeAudioUrl}
+          onClearSearch={() => setMediaQuery('')}
+          onTriggerStation={triggerRadioStation}
+          onToggleFavorite={onToggleRadioFavorite}
+        />
       )}
 
       {/* Search returned 0 matches */}
@@ -1350,64 +1223,16 @@ export function MediaView({
 
       {/* Quick Live Radio Strip in All & Audio Tabs */}
       {showRadioQuickStrip && (
-        <section aria-labelledby="media-radio-quick-heading" className="screen-entry space-y-3">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1 rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-extrabold tracking-wider text-white">
-                {copy.liveBadge}
-              </span>
-              <h2 id="media-radio-quick-heading" className="text-xl font-bold tracking-tight text-[var(--ink)]">
-                {copy.liveRadioHeading}
-              </h2>
-            </div>
-            <button
-              type="button"
-              className="choice-pill inline-flex items-center gap-1"
-              onClick={() => {
-                setFilter('radio');
-                setPlayingUrl(undefined);
-              }}
-            >
-              {copy.radioAllStations}
-              <ChevronRight size={16} aria-hidden="true" />
-            </button>
-          </div>
-
-          <ul className="media-shorts-shelf -mx-4 flex gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
-            {quickRadioStations.map((station) => {
-              const isPlaying = activeAudioUrl === station.streamUrl;
-              return (
-                <li key={station.id} className="w-[15rem] shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => triggerRadioStation(station)}
-                    className={`settings-group article-card-interactive flex w-full items-center gap-3 p-3 text-left ${
-                      isPlaying ? 'ring-1 ring-[var(--accent)]/60' : ''
-                    }`}
-                  >
-                    <span
-                      className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-[11px] font-extrabold text-white shadow-sm"
-                      style={{ backgroundColor: station.accentColor }}
-                    >
-                      {station.shortCode}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-bold text-[var(--ink)]">{station.name}</p>
-                      <p className="truncate text-[11px] text-[var(--muted)]">
-                        {isPlaying ? copy.radioPlaying : `${station.region} · ${copy.liveBadge}`}
-                      </p>
-                    </div>
-                    <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full ${
-                      isPlaying ? 'bg-[var(--accent)] text-[var(--accent-ink)]' : 'bg-[var(--control)] text-[var(--ink)]'
-                    }`}>
-                      {isPlaying ? <Pause size={13} fill="currentColor" aria-hidden="true" /> : <Play size={13} fill="currentColor" aria-hidden="true" />}
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
+        <RadioQuickStrip
+          copy={copy}
+          stations={quickRadioStations}
+          activeAudioUrl={activeAudioUrl}
+          onTriggerStation={triggerRadioStation}
+          onShowAll={() => {
+            setFilter('radio');
+            setPlayingUrl(undefined);
+          }}
+        />
       )}
 
       {/* Persistent Media Channel & Pack Discovery Shelf (zero dead-ends!) */}
