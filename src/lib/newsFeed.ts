@@ -5,7 +5,7 @@ import { clusterStories } from './storyClusters';
 import type { HomeTab, Retention } from './preferences';
 
 export const DAY_MS = 24 * 60 * 60 * 1000;
-const CACHE_LIMIT = 600;
+const CACHE_LIMIT = 420;
 const PUBLIC_NEWS = new Set<NewsArticle['category']>(['Politik', 'Europa', 'Wirtschaft', 'Wissenschaft']);
 const TEASER = /^(?:das (?:glaubst|glauben) (?:du|sie) nie|(?:du wirst|sie werden) nicht glauben|was dann geschah|unglaublich(?:er|e|es)?|schock(?:-|\s)|you won['’]?t believe|what happened next|shocking:|vous n['’]allez pas croire|ce qui s['’]est passé ensuite|no vas a creer|lo que pasó después|non crederai|você não vai acreditar)\b/iu;
 const ADVERTORIAL = /^(?:anzeige|werbung|sponsored|promotion|partnerbeitrag|advertorial)\s*[:|\-–—]/iu;

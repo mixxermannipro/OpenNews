@@ -49,8 +49,26 @@ export default defineConfig(() => {
           ],
         },
         workbox: {
-          globPatterns: ['**/*.{js,css,html,ico,png,svg,jpg,webp,woff,woff2}'],
+          globPatterns: ['index.html', 'assets/*.{js,css}', 'icon.svg', 'pwa-192x192.png', 'theme-init.js'],
           navigateFallbackDenylist: [/^\/api\//],
+          runtimeCaching: [
+            {
+              urlPattern: /\/assets\/.*\.(?:js|css)$/i,
+              handler: 'StaleWhileRevalidate',
+              options: {
+                cacheName: 'opennews-chunks-v1',
+                expiration: { maxEntries: 40, maxAgeSeconds: 30 * 24 * 60 * 60 },
+              },
+            },
+            {
+              urlPattern: /\/(?:source-icons|assets)\/.*\.(?:png|webp|jpg|svg)$/i,
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'opennews-media-v1',
+                expiration: { maxEntries: 60, maxAgeSeconds: 30 * 24 * 60 * 60 },
+              },
+            },
+          ],
         },
         devOptions: {
           enabled: true,

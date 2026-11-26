@@ -9,12 +9,16 @@ import http from 'node:http';
 import { isIP } from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { gzipSync } from 'node:zlib';
+import { promisify } from 'node:util';
+import { gzip } from 'node:zlib';
 import { createServer as createViteServer } from 'vite';
+import { slimFeedArticle } from './src/lib/feedRefresh.ts';
 import { parseFeedPayload, repairTruncatedFeedXml } from './src/lib/rssParser.ts';
 import { GoogleGenAI } from '@google/genai';
 import { ensureWavBytes } from './src/lib/ttsClient.ts';
 import type { NewsSource } from './src/types/news.ts';
+
+const gzipAsync = promisify(gzip);
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 3000);
@@ -83,13 +87,13 @@ app.use((err: unknown, _req: express.Request, res: express.Response, next: expre
   next(err);
 });
 
-function sendJson(req: express.Request, res: express.Response, payload: unknown, cacheControl?: string) {
+async function sendJson(req: express.Request, res: express.Response, payload: unknown, cacheControl?: string) {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   if (cacheControl) res.setHeader('Cache-Control', cacheControl);
   const body = JSON.stringify(payload);
   const acceptEncoding = req.get('accept-encoding') || '';
   if (body.length >= 1024 && /\bgzip\b/i.test(acceptEncoding)) {
-    const compressed = gzipSync(Buffer.from(body, 'utf8'), { level: 6 });
+    const compressed = await gzipAsync(Buffer.from(body, 'utf8'), { level: 5 });
     res
       .setHeader('Content-Type', 'application/json; charset=utf-8')
       .setHeader('Content-Encoding', 'gzip')
@@ -213,7 +217,7 @@ app.post('/api/feeds/fetch', async (req, res) => {
           const rawText = repairTruncatedFeedXml(
             await readPublicText(response, 1_800_000, { truncateOnLimit: true }),
           );
-          const articles = parseFeedPayload(rawText, source);
+          const articles = parseFeedPayload(rawText, source).map(slimFeedArticle);
           touchFeedCache(cacheKey, {
             articles,
             fetchedAt: Date.now(),
@@ -239,7 +243,7 @@ app.post('/api/feeds/fetch', async (req, res) => {
 
   const allArticles = results.flatMap((r) => r.articles);
   const feedStatuses = results.map(({ sourceId, ok, count }) => ({ sourceId, ok, count }));
-  sendJson(req, res, { articles: allArticles, feedStatuses }, 'no-store');
+  await sendJson(req, res, { articles: allArticles, feedStatuses }, 'no-store');
 });
 
 app.get('/api/feeds/discover', async (req, res) => {
@@ -381,7 +385,7 @@ app.get('/api/article/extract', async (req, res) => {
 
   const cached = articleCache.get(cacheKey);
   if (cached && Date.now() - cached.fetchedAt < cached.ttlMs) {
-    sendJson(req, res, cached.data, 'no-store');
+    await sendJson(req, res, cached.data, 'no-store');
     return;
   }
 
@@ -438,7 +442,7 @@ app.get('/api/article/extract', async (req, res) => {
   }
 
   const extracted = await task;
-  sendJson(req, res, extracted, 'no-store');
+  await sendJson(req, res, extracted, 'no-store');
 });
 
 const MAX_AI_PROMPT_CHARS = 60_000;

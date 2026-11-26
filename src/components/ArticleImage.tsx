@@ -61,6 +61,16 @@ export const ArticleImage: React.FC<ArticleImageProps> = ({
     }
   };
 
+  const isUnusableImage = (img: HTMLImageElement) => {
+    const { naturalWidth: w, naturalHeight: h } = img;
+    if (w <= 24 || h <= 24) return true;
+    // Reject tiny horizontal publisher masthead logos (e.g. 150x40 NYT RSS channel banner)
+    if (h < 90 && w / h >= 2.6) return true;
+    // Never stretch postage-stamp thumbnails across priority hero cards
+    if (priority && (w < 260 || h < 140)) return true;
+    return false;
+  };
+
   // Immediately reveal browser-cached images on mount/src change without shimmer flash
   useLayoutEffect(() => {
     const img = imgRef.current;
@@ -68,12 +78,12 @@ export const ArticleImage: React.FC<ArticleImageProps> = ({
     const isYtMissingPlaceholder = Boolean(fallback && !usingFallback && img.naturalWidth === 120 && img.naturalHeight === 90);
     if (isYtMissingPlaceholder) {
       if (primary) setFallbackForSrc(primary);
-    } else if (img.naturalWidth > 24 && img.naturalHeight > 24) {
-      setLoadedSrc(activeSrc);
-    } else if (img.naturalWidth === 0 || img.naturalWidth <= 24 || img.naturalHeight <= 24) {
+    } else if (img.naturalWidth === 0 || isUnusableImage(img)) {
       handleImageIssue();
+    } else {
+      setLoadedSrc(activeSrc);
     }
-  }, [activeSrc, fallback, usingFallback, primary]);
+  }, [activeSrc, fallback, usingFallback, primary, priority]);
 
   const positionClass = /\b(?:absolute|fixed)\b/.test(className) ? '' : 'relative';
 
@@ -115,7 +125,7 @@ export const ArticleImage: React.FC<ArticleImageProps> = ({
         onLoad={(e) => {
           const img = e.currentTarget;
           const isYtMissingPlaceholder = Boolean(fallback && !usingFallback && img.naturalWidth === 120 && img.naturalHeight === 90);
-          if (isYtMissingPlaceholder || img.naturalWidth <= 24 || img.naturalHeight <= 24) {
+          if (isYtMissingPlaceholder || isUnusableImage(img)) {
             handleImageIssue();
           } else {
             setLoadedSrc(activeSrc);

@@ -79,3 +79,73 @@ test('clusters cross-category German stories with compound nouns and thousand-do
     ],
   );
 });
+
+test('clusters German compound-word business headlines covering the same tariff agreement', () => {
+  const reports = [
+    {
+      id: 'dlf-metall',
+      title: 'Tarifabschluss - IG Metall und Arbeitgeber erzielen Einigung: 4,3 Prozent mehr Geld',
+      category: 'Wirtschaft',
+      sourceId: 'deutschlandfunk',
+      publishedAt: '2026-11-26T16:40:00Z',
+    },
+    {
+      id: 'hb-metall',
+      title: 'Tarifkonflikt beigelegt: Neuer Metalltarif lässt Ausnahmen von 35-Stunden-Woche zu',
+      category: 'Wirtschaft',
+      sourceId: 'handelsblatt',
+      publishedAt: '2026-11-26T16:50:00Z',
+    },
+    {
+      id: 'ezb-other',
+      title: 'Spanier Hernandez de Cos soll Lagarde bei der EZB nachfolgen',
+      category: 'Wirtschaft',
+      sourceId: 'zeit',
+      publishedAt: '2026-11-26T16:55:00Z',
+    },
+  ] as NewsArticle[];
+
+  const groups = clusterStories(reports);
+  assert.deepEqual(
+    groups.map(group => group.reports.map(r => r.id)),
+    [
+      ['dlf-metall', 'hb-metall'],
+      ['ezb-other'],
+    ],
+  );
+});
+
+test('clusters cross-category German compound-noun reports on the same event within 12 hours', () => {
+  const reports = [
+    {
+      id: 'zeit-metall',
+      title: 'Metall- und Elektroindustrie: Gewerkschaft und Arbeitgeber erzielen Einigung in Metall-Tarifrunde',
+      category: 'Wirtschaft',
+      sourceId: 'zeit',
+      publishedAt: '2026-11-26T16:45:00Z',
+    },
+    {
+      id: 'dlf-metall-pol',
+      title: 'Tarifverhandlungen - Neuer Metalltarif lässt Ausnahmen von 35-Stunden-Woche zu - Steigerungen von insgesamt 4,3 Prozent',
+      category: 'Politik',
+      sourceId: 'deutschlandfunk',
+      publishedAt: '2026-11-26T17:10:00Z',
+    },
+    {
+      id: 'pol-other',
+      title: 'Verfassungsschutz beobachtet weitere Landesverbände nach Gerichtsbeschluss',
+      category: 'Politik',
+      sourceId: 'tagesschau',
+      publishedAt: '2026-11-26T17:15:00Z',
+    },
+  ] as NewsArticle[];
+
+  const groups = clusterStories(reports);
+  assert.deepEqual(
+    groups.map(group => group.reports.map(r => r.id)),
+    [
+      ['zeit-metall', 'dlf-metall-pol'],
+      ['pol-other'],
+    ],
+  );
+});

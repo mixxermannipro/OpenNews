@@ -71,7 +71,7 @@ OpenNews bündelt Nachrichten aus frei zugänglichen Feeds in einer ruhigen Ober
 | **Android Auto** | Vollständige Media3-/ExoPlayer-Integration (`OpenNewsAutoMediaService`) mit 4 Fahrzeug-Tabs (**Nachrichten-Updates** inkl. „Alle aktuellen Updates abspielen“ und Tagesschau 20 Uhr auch vom Vortag, **Podcasts**, **Live-Radio** mit 50 Sendern für Nachrichten & Musik inkl. gebrandeter Sender-Kacheln über `AutoArtworkProvider`, **Warteschlange**), optionalem 50-MB-WLAN-Vorab-Cache (`AutoAudioCache`), eigenständigem HTTPS-Feed-Abruf im Auto, ±15-Sekunden-Sprüngen, Lenkrad- & Sprachsuche, Playback Resumption und App-Sync/Einstellungen unter **Profil → Lesen** |
 | **Benachrichtigungen** | Autonomer Hintergrund-Dienst auf Android (`NewsPushMonitorService`, JobScheduler alle 15/30/60 Min.) auch ohne Firebase, getrennte Kanäle für Eilmeldungen & neue Meldungen, Rich-Benachrichtigungen mit Vorschaubild sowie **Merken**- & **Teilen**-Aktionen und Deep-Link in den Reader; optional zusätzlich Firebase Cloud Messaging sowie Browser-Benachrichtigungs-API im Web |
 
-**Aufbewahrung:** 2, 4, 7, 14, 30 oder 90 Tage (Standard **4**), maximal **600** Beiträge im Speicher. Beim Aktualisieren werden neue Artikel zusammengeführt; Abos, Lesezeichen, Likes und Verlauf bleiben erhalten.
+**Aufbewahrung:** 2, 4, 7, 14, 30 oder 90 Tage (Standard **4**), maximal **420** Beiträge im Speicher. Beim Aktualisieren werden neue Artikel zusammengeführt; Abos, Lesezeichen, Likes und Verlauf bleiben erhalten.
 
 **Einstellungen & Hinweise:** Die Android-Benachrichtigungsfreigabe erscheint beim Einschalten von Eilmeldungen oder der täglichen Erinnerung. Automatische Übersetzung steht unter **Lesen**, das Zurücksetzen der Empfehlungen unter **KI & Personalisierung**, Sicherung und Diagnose unter **Datenschutz**, und reduzierte Bewegung unter **Profil → Einstellungen → Darstellung**.
 
@@ -134,7 +134,7 @@ flowchart LR
 | PWA | installierte Web-App | wie Produktion; Assets im Service-Worker-Cache |
 | Android | Google Play Store / APK | WebView → `CapacitorHttp` → Feeds/Websites/KI (kein Node-Server) |
 
-**Datenfluss:** Feed-URL → HTTP-Abruf → `parseFeedPayload()` → Normalisierung (Titel, Datum, Kategorie, Schlagwörter, Medien, Lesezeit) → `mergeFeedArticles()` (Merge, Aufbewahrung, 600er-Limit) → `buildHomeSections()` → React-Oberfläche.
+**Datenfluss:** Feed-URL → HTTP-Abruf → `parseFeedPayload()` → Normalisierung (Titel, Datum, Kategorie, Schlagwörter, Medien, Lesezeit) → `mergeFeedArticles()` (Merge, Aufbewahrung, 420er-Limit) → `buildHomeSections()` → React-Oberfläche.
 
 ## Technologie-Stack
 
@@ -250,6 +250,7 @@ OpenNews/
 │   │   ├── AudioBriefing.tsx           # Tagesüberblick und Vorlesen
 │   │   ├── ClipsFeed.tsx               # Vollbild-Clips-Feed (Vertikal-Snap, Aktionsleiste, Doppeltipp)
 │   │   ├── DiagnosticsSettings.tsx     # Freiwillige Diagnose
+│   │   ├── DiscoverCards.tsx           # Hero- und Bento-Karten für Entdecken (lazy)
 │   │   ├── DiscoverSearch.tsx          # Suche, Vorschläge, letzte Suchen
 │   │   ├── DiscoverView.tsx            # Themen- und Quellenübersicht
 │   │   ├── ErrorBoundary.tsx           # 6-sprachige Fehler-Grenze mit Wiederherstellung
@@ -286,7 +287,7 @@ OpenNews/
 │   │   ├── discoverCopy.ts             # Lokalisierte Entdecken-Texte (6 Sprachen, lazy)
 │   │   ├── discoverEngine.ts           # Quellen-diversifiziertes Entdecken, Umlaut-Suche & Live-Vorschläge
 │   │   ├── feedRefresh.ts              # Priorisierte Feed-Batches & Parallelität
-│   │   ├── i18n.tsx                    # 6-Sprachen-Engine (DE/EN inline, FR/ES/IT/PT lazy in locales/)
+│   │   ├── i18n.tsx                    # 6-Sprachen-Engine (DE inline, EN/FR/ES/IT/PT lazy in locales/)
 │   │   ├── keywordFilter.ts            # Stummschalt-Filter (mit Ablaufzeit) & Stichwort-Radar
 │   │   ├── localEditorialAI.ts         # Artikeltyp-Erkennung, Clickbait-Entschärfer & Story-Radar
 │   │   ├── localTranslation.ts         # Android-Übersetzung
@@ -414,7 +415,7 @@ NODE_ENV=production npm start
 | `npm start` | `tsx server.ts` | Express starten; mit `NODE_ENV=production` aus `dist/` |
 | `npm run preview` | `vite preview` | Statischen Build ansehen (ohne API) |
 | `npm run lint` | `tsc --noEmit` | TypeScript-Typprüfung |
-| `npm test` | `node --import tsx --test src/lib/*.test.ts` | 160 Unit-Tests |
+| `npm test` | `node --import tsx --test src/lib/*.test.ts` | 164 Unit-Tests |
 | `npm run test:e2e` | `playwright test` | 16 Browsertests |
 | `npm run push:worker` | `tsx scripts/push-news.ts` | Android-Push aus den Standardquellen senden |
 | `node scripts/check-web-budget.mjs` | Node | Prüft das Start-JavaScript gegen 170 KiB gzip |
@@ -454,7 +455,7 @@ OpenNews nutzt ausschließlich `localStorage` (JSON). Die wichtigsten Schlüssel
 | `opennews_ai_config` | BYOK-Anbieter, Schlüssel, Modell, Endpunkt |
 | `opennews_tts_config` | Vorlese-Anbieter, API-Schlüssel & Stimmen/Modelle je Szenario (`article`, `briefing`, `focus`) |
 | IndexedDB `opennews-ai` | Lokale KI-Ergebnisse, befristet wie der Feed (standardmäßig vier Tage) |
-| `opennews_cached_articles` | Zuletzt geladene Beiträge (max. 600) |
+| `opennews_cached_articles` | Zuletzt geladene Beiträge (max. 420) |
 | `opennews_saved_articles` | Offline-Kopien von Lesezeichen und Likes |
 | `opennews_read_articles` | Leseverlauf (max. 60) |
 | `opennews_notifications` | Benachrichtigungsregeln und Zeitfenster |
@@ -513,7 +514,7 @@ Die App ist eine Capacitor-WebView mit `CapacitorHttp` (Feed- und KI-Aufrufe dir
 
 **CI:** Die App-Prüfungen laufen bei Pull Requests gegen `main`.
 
-- **Web CI** (`web-ci.yml`): Typprüfung, 160 Unit-Tests, Build, JavaScript-Budget und 16 Browsertests mit Playwright.
+- **Web CI** (`web-ci.yml`): Typprüfung, 164 Unit-Tests, Build, JavaScript-Budget und 16 Browsertests mit Playwright.
 - **OpenNews Android Test APK** (`android-test-apk.yml`): bei Änderungen an `src/**`, `scripts/**`, `native/android/**`, `public/**` und Build-Dateien sowie manuell über **Actions → Run workflow**. Richtet Node 22 und JDK 21 ein, prüft Typen, führt Unit-Tests und Build aus, erzeugt das Android-Projekt, führt **12 native Android-JUnit-Tests** (`./gradlew testDebugUnitTest`) aus, baut `assembleDebug`, prüft, dass die APK vorhanden ist, lädt sie bei verfügbarem GitHub-Speicher als Artefakt (7 Tage) hoch, prüft bei Pull Requests den AAB-Bau mit einem Einmalschlüssel und veröffentlicht bei manuellem Lauf ein öffentliches Pre-Release `v0.1.0-alpha.<Run-Nummer>`.
 
 **Lokal:**
@@ -555,7 +556,7 @@ Android zeigt für OpenNews-Benachrichtigungen ein eigenes monochromes Symbol in
 
 ## Tests und Qualität
 
-`npm test` führt **160 Unit-Tests** aus 30 Dateien aus: `rssParser.test.ts`, `personalization.test.ts`, `newsFeed.test.ts`, `opml.test.ts`, `nativeFeed.test.ts`, `aiClient.test.ts`, `aiCache.test.ts`, `transcript.test.ts`, `articleMedia.test.ts`, `articleExtraction.test.ts`, `publicHttp.test.ts`, `storyClusters.test.ts`, `scrollNavigation.test.ts`, `pullPhysics.test.ts`, `feedRefresh.test.ts`, `i18n.test.ts`, `sourceSearch.test.ts`, `clipsEngine.test.ts`, `discoverEngine.test.ts`, `localEditorialAI.test.ts`, `dailyBriefingSynth.test.ts`, `keywordFilter.test.ts`, `relatedMedia.test.ts`, `readerExtras.test.ts`, `swipePhysics.test.ts`, `ttsClient.test.ts`, `textSearch.test.ts`, `radioCatalog.test.ts`, `androidAuto.test.ts` und `pagesApi.test.ts`. Abgedeckt sind Parsing und Medien (inkl. großer Podcast-Feeds, Cover-Vererbung und Episodenlaufzeiten), 50 Live-Radiosender (Nachrichten & Musik), Android-Auto-Payloads, Cloudflare Pages API-Parität (inkl. `/api/tts/proxy`), Suchtext-Faltung, Aufbewahrung, Ranking und Vielfalt, OPML, native URL-Sicherheit, KI-Antwortparsing, Multi-Anbieter-TTS-Konfiguration und WAV-Verpackung, Wischgesten-Physik, Volltext, SSRF-Schutz, Themencluster, Scroll-Navigation, Pull-Physik, priorisiertes Feed-Batching, Mehrsprachigkeit, Quellensuche, Clips- & Medien-Engine, Entdecken-Kuratierung & Umlaut-Suche, lokale Redaktions-KI, Tagesüberblick-Synthese, Stichwort-/Stummschalt-Filter, Themen-Verlinkungen sowie Reader-Fortschritt, Vor/Zurück-Navigation, Paywall-Alternativen & Offline-Logik.
+`npm test` führt **164 Unit-Tests** aus 30 Dateien aus: `rssParser.test.ts`, `personalization.test.ts`, `newsFeed.test.ts`, `opml.test.ts`, `nativeFeed.test.ts`, `aiClient.test.ts`, `aiCache.test.ts`, `transcript.test.ts`, `articleMedia.test.ts`, `articleExtraction.test.ts`, `publicHttp.test.ts`, `storyClusters.test.ts`, `scrollNavigation.test.ts`, `pullPhysics.test.ts`, `feedRefresh.test.ts`, `i18n.test.ts`, `sourceSearch.test.ts`, `clipsEngine.test.ts`, `discoverEngine.test.ts`, `localEditorialAI.test.ts`, `dailyBriefingSynth.test.ts`, `keywordFilter.test.ts`, `relatedMedia.test.ts`, `readerExtras.test.ts`, `swipePhysics.test.ts`, `ttsClient.test.ts`, `textSearch.test.ts`, `radioCatalog.test.ts`, `androidAuto.test.ts` und `pagesApi.test.ts`. Abgedeckt sind Parsing und Medien (inkl. großer Podcast-Feeds, Cover-Vererbung und Episodenlaufzeiten), 50 Live-Radiosender (Nachrichten & Musik), Android-Auto-Payloads, Cloudflare Pages API-Parität (inkl. `/api/tts/proxy`), Suchtext-Faltung, Aufbewahrung, Ranking und Vielfalt, OPML, native URL-Sicherheit, KI-Antwortparsing, Multi-Anbieter-TTS-Konfiguration und WAV-Verpackung, Wischgesten-Physik, Volltext, SSRF-Schutz, Themencluster, Scroll-Navigation, Pull-Physik, priorisiertes Feed-Batching, Mehrsprachigkeit, Quellensuche, Clips- & Medien-Engine, Entdecken-Kuratierung & Umlaut-Suche, lokale Redaktions-KI, Tagesüberblick-Synthese, Stichwort-/Stummschalt-Filter, Themen-Verlinkungen sowie Reader-Fortschritt, Vor/Zurück-Navigation, Paywall-Alternativen & Offline-Logik.
 
 Zusätzlich prüft `./gradlew testDebugUnitTest` im Ordner `android/` (nach `npm run android:sync`) **12 native JUnit-4-Tests** (`OpenNewsAndroidUnitTests.java`) für den Android-Auto-Katalog (50 Sender & Umlaut-Suche), URL-/SSRF-Sicherheit, Widget-Feed-Parsing inkl. Thumbnail-Extraktion & Merkstatus-Erhalt sowie Eilmeldungs-, Zeitfenster- und Intervall-Regeln.
 
@@ -644,7 +645,7 @@ OpenNews ist source-available (siehe [LICENSE](LICENSE) und [CONTRIBUTING.md](CO
 | BYOK-KI | Beta, abhängig von Anbieter und Schlüssel |
 | Tagesüberblick | Lokal synthetisiertes Themen-Briefing mit Vorlesen 2.0, optional mit Anbieter-KI |
 | Diagnose | lokal verfügbar, Senden optional |
-| Tests | 160 Web-Unit-Tests, 12 Android-JUnit-Tests und 16 Playwright-Browsertests |
+| Tests | 164 Web-Unit-Tests, 12 Android-JUnit-Tests und 16 Playwright-Browsertests |
 | Eigener Quellcode | Source-Available ([LICENSE](LICENSE)) |
 
 ## Lizenz
