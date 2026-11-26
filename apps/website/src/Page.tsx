@@ -158,7 +158,7 @@ function Home() {
     <section className="download" id="download">
       <div className="wrap"><img src="/icon-192.png" width="76" height="76" alt="" loading="lazy" />
         <h2>OpenNews für Web &amp; Android.</h2>
-        <p>{site.playStoreUrl ? 'OpenNews ist als Web-App im Browser und über Google Play erhältlich.' : 'Die Web-App läuft direkt im Browser. Die Android-App befindet sich aktuell im geschlossenen Test bei Google Play.'}</p>
+        <p>{site.playStoreUrl ? 'OpenNews ist als Web-App im Browser und über Google Play erhältlich. Eine iOS-App wird derzeit nicht angeboten.' : 'Die Web-App läuft direkt im Browser. Die Android-App befindet sich aktuell im geschlossenen Test bei Google Play. Eine iOS-Version steht derzeit nicht zur Verfügung.'}</p>
         <div className="actions">
           {site.webAppUrl && <a className="button primary" href={site.webAppUrl}>Web-App im Browser öffnen <Arrow /></a>}
           {site.playStoreUrl && <a className={site.webAppUrl ? 'text-link' : 'button primary'} href={site.playStoreUrl}>Bei Google Play öffnen <Arrow /></a>}

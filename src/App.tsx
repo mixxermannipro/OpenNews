@@ -6,22 +6,12 @@ import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRe
 import { Capacitor, SystemBars, SystemBarsStyle } from '@capacitor/core';
 import { Bell, Compass, Home, Clapperboard, User } from 'lucide-react';
 import type {
-  AIProviderConfig,
   AppTab,
-  FormatPreferences,
-  FeedHealth,
   FeedResult,
   NewsArticle,
   NewsSource,
-  NotificationSettings,
   PersonalizationProfile,
-  ReaderFontFamily,
-  ReaderFontSize,
-  ThemeMode,
-  TTSProviderConfig,
 } from './types/news';
-import { DEFAULT_AI_CONFIG, migrateAIConfig } from './lib/aiConfig';
-import { clipSourceIds, DEFAULT_SOURCES, legacyCatalogUrls, pushSources } from './lib/catalog';
 import {
   createDefaultProfile,
   decayProfileWeights,
@@ -40,33 +30,27 @@ import { planFeedBatches, runWithConcurrency } from './lib/feedRefresh';
 import { trackNavigationScroll } from './lib/scrollNavigation';
 import { useArticleStorage } from './hooks/useArticleStorage';
 import { useLocalStorage } from './hooks/useLocalStorage';
+import { usePreferences } from './hooks/usePreferences';
+import { useSources } from './hooks/useSources';
+import { useAIConfig } from './hooks/useAIConfig';
+import { useReaderSettings } from './hooks/useReaderSettings';
+import { useNotifications } from './hooks/useNotifications';
+import type { ArticleHighlight } from './lib/readerExtras';
 import { ViewStatus } from './components/ViewStatus';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { HomeView } from './components/HomeView';
 import { recordDiagnostic } from './lib/diagnostics';
-import {
-  isWebKeyPersistenceEnabled,
-  readWebSecret,
-  setWebKeyPersistence,
-  writeWebSecret,
-} from './lib/webSecretStorage';
+import { STORAGE_QUOTA_EVENT } from './lib/storage';
+import { runStorageMigrations } from './lib/storageMigrations';
 import type { SettingsSectionTab } from './components/SettingsView';
 
 import { OfflineIndicator } from './components/PWAInstallButton';
 
-import { DEFAULT_PREFERENCES, applyEditionSources, resolveHomeTab, resolveRetention, type AppPreferences, type HomeTab } from './lib/preferences';
-import { I18nProvider, resolveLanguage, translate } from './lib/i18n';
+import { resolveHomeTab, type AppPreferences, type HomeTab } from './lib/preferences';
+import { I18nProvider, translate } from './lib/i18n';
 import type { ProfilePage } from './components/Preferences';
 import { createMuteRule, filterMutedArticles, pruneExpiredMutes, type MuteDuration, type MutedKeywordRule } from './lib/keywordFilter';
-import {
-  resolveNeighborArticles,
-  upsertAudioPosition,
-  upsertReadingProgress,
-  type ArticleHighlight,
-  type AudioPositionEntry,
-  type ReaderSurfaceTheme,
-  type ReadingProgressEntry,
-} from './lib/readerExtras';
+import { resolveNeighborArticles } from './lib/readerExtras';
 import type { ActiveAudioTrack } from './components/MiniAudioPlayer';
 import type { PlayableMedia } from './lib/articleMedia';
 
@@ -91,20 +75,6 @@ type AppLocation = {
 };
 const HOME_LOCATION: AppLocation = { tab: 'home', profile: 'profile', settings: 'overview', saved: 'bookmarks', article: null };
 
-// Lightweight inline default so ttsClient.ts stays strictly inside lazy chunks (<= 170 KiB gzip initial JS)
-const INITIAL_TTS_CONFIG: TTSProviderConfig = {
-  provider: 'system',
-  apiKey: '',
-  model: 'system',
-  voice: 'default',
-  customEndpoint: '',
-  scenarios: {
-    article: { model: 'system', voice: 'default', speed: 1 },
-    briefing: { model: 'system', voice: 'default', speed: 1.05 },
-    focus: { model: 'system', voice: 'default', speed: 0.92 },
-  },
-};
-
 const INITIAL_ANDROID_AUTO_SETTINGS: AndroidAutoSettings = {
   mode: 'all_audio',
   autoplayQueue: true,
@@ -114,6 +84,7 @@ const INITIAL_ANDROID_AUTO_SETTINGS: AndroidAutoSettings = {
 };
 
 export default function App() {
+  useState(() => runStorageMigrations(undefined, undefined, { isNative: Capacitor.isNativePlatform() }));
   const [location, setLocation] = useState<AppLocation>(HOME_LOCATION);
   const { tab: activeTab, settings: settingsSection, profile: profilePage, saved: savedPage, article: activeArticle } = location;
   const navigate = (next: Partial<AppLocation>) => {
@@ -146,24 +117,34 @@ export default function App() {
     window.addEventListener('popstate', restore);
     return () => window.removeEventListener('popstate', restore);
   }, []);
-  const [storedPreferences, setPreferences] = useLocalStorage<AppPreferences>('opennews_preferences', DEFAULT_PREFERENCES);
-  const preferences = useMemo<AppPreferences>(() => ({
-    ...DEFAULT_PREFERENCES,
-    ...(storedPreferences && typeof storedPreferences === 'object' ? storedPreferences : {}),
-    topics: Array.isArray(storedPreferences?.topics) ? storedPreferences.topics : DEFAULT_PREFERENCES.topics,
-  }), [storedPreferences]);
-  const activeLanguage = useMemo(() => resolveLanguage(preferences.language), [preferences.language]);
+
+  const {
+    preferences,
+    setPreferences,
+    activeLanguage,
+    homeCategory,
+    setHomeCategory,
+    retention,
+    onboarded,
+    setOnboarded,
+    autoTranslate,
+    setAutoTranslate,
+    backgroundPlayback,
+    setBackgroundPlayback,
+    theme,
+    setTheme,
+    briefingSettings,
+    setBriefingSettings,
+    featureFlags,
+    setFeatureFlags,
+    enableFullTextSource,
+    disableFullTextSource,
+  } = usePreferences();
+
   const t = useCallback(
     (key: Parameters<typeof translate>[1], params?: Record<string, string | number>) => translate(activeLanguage, key, params),
     [activeLanguage],
   );
-  useLayoutEffect(() => {
-    document.documentElement.dataset.motion = preferences.motion;
-    document.documentElement.lang = activeLanguage;
-  }, [preferences.motion, activeLanguage]);
-  const [briefingSettings, setBriefingSettings] = useLocalStorage<DailyBriefingSettings>('opennews_daily_briefing', { enabled: false, time: '07:30' });
-  const [homeCategory, setHomeCategory] = useState<HomeTab>(() => resolveHomeTab(preferences.home));
-  const retention = resolveRetention(preferences.retention);
   useEffect(() => {
     const prune = () => void import('./lib/aiCache').then(({ pruneAIResults }) => pruneAIResults(retention)).catch(() => {});
     prune();
@@ -172,10 +153,6 @@ export default function App() {
   }, [retention]);
   const latestRetention = useRef(retention);
   useLayoutEffect(() => { latestRetention.current = retention; }, [retention]);
-  const [onboarded, setOnboarded] = useLocalStorage('opennews_onboarded', false);
-  const [autoTranslate, setAutoTranslate] = useLocalStorage('opennews_auto_translate', false);
-  const [backgroundPlayback, setBackgroundPlayback] = useLocalStorage('opennews_background_playback', false);
-  const [theme, setTheme] = useLocalStorage<ThemeMode>('opennews_theme', 'system');
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
@@ -200,29 +177,19 @@ export default function App() {
     return () => window.removeEventListener('scroll', onScroll);
   }, [location, activeArticle, onboarded, homeCategory]);
 
-  const [storedSources, setSources] = useLocalStorage<NewsSource[]>('opennews_sources', DEFAULT_SOURCES);
-  const sources = useMemo(() => {
-    const saved = new Map(storedSources.map(source => [source.id, source]));
-    return [
-      ...storedSources.filter(source => source.isCustom),
-      ...DEFAULT_SOURCES.map(source => {
-        const previous = saved.get(source.id);
-        if (!previous) return source;
-        const url = previous.url === legacyCatalogUrls[source.id] ? source.url : previous.url;
-        return {
-          ...source,
-          ...previous,
-          region: previous.region ?? source.region,
-          tags: previous.tags ?? source.tags,
-          url,
-          format: url === source.url && source.id === 'hackernews' ? source.format : previous.format,
-        };
-      }),
-    ];
-  }, [storedSources]);
-  const applySourcePreset = (edition: AppPreferences['edition']) => {
-    setSources(applyEditionSources(sources, edition));
-  };
+  const {
+    sources,
+    setSources,
+    activeSources,
+    formatPrefs,
+    setFormatPrefs,
+    feedHealth,
+    setFeedHealth,
+    applySourcePreset,
+    updateSource,
+    toggleSubscribe,
+    setSourceSubscriptions,
+  } = useSources();
 
   const updatePreferences = (next: AppPreferences) => {
     if (next.home !== preferences.home) setHomeCategory(resolveHomeTab(next.home));
@@ -235,163 +202,38 @@ export default function App() {
       applySourcePreset(preferences.edition);
       setPreferences({ ...preferences, sourcePresetApplied: true });
     }
-  }, [preferences, sources]);
-  const [profile, setProfile] = useLocalStorage<PersonalizationProfile>(
-    'opennews_profile',
-    createDefaultProfile()
-  );
-  const [storedAIConfig, setAiConfig] = useLocalStorage<AIProviderConfig>(
-    'opennews_ai_config',
-    DEFAULT_AI_CONFIG
-  );
-  const [aiConfigMigrated, setAIConfigMigrated] = useLocalStorage('opennews_ai_aliases_migrated', false);
-  const [androidAIKey, setAndroidAIKey] = useState<string>('');
-  const [androidTTSKey, setAndroidTTSKey] = useState<string>('');
-  const [storedTTSConfig, setStoredTTSConfig] = useLocalStorage<TTSProviderConfig>(
-    'opennews_tts_config',
-    INITIAL_TTS_CONFIG
-  );
-  const isAndroidPlatform = Capacitor.getPlatform() === 'android';
-  const [persistWebKeys, setPersistWebKeys] = useState<boolean>(() => isWebKeyPersistenceEnabled());
-  const [webAIKey, setWebAIKey] = useState<string>(() => (isAndroidPlatform ? '' : readWebSecret('ai_api_key')));
-  const [webTTSKey, setWebTTSKey] = useState<string>(() => (isAndroidPlatform ? '' : readWebSecret('tts_api_key')));
+  }, [preferences, applySourcePreset, setPreferences]);
 
-  useEffect(() => {
-    if (!isAndroidPlatform) return;
-    let active = true;
-    void import('./lib/secureSecrets').then(async ({ getSecureSecret, setSecureSecret }) => {
-      const legacyAI = storedAIConfig.apiKey?.trim() || '';
-      const legacyTTS = storedTTSConfig.apiKey?.trim() || '';
-      const storedAI = (await getSecureSecret('ai_api_key')) ?? '';
-      const storedTTS = (await getSecureSecret('tts_api_key')) ?? '';
+  const [profile, setProfile] = useLocalStorage<PersonalizationProfile>('opennews_profile', createDefaultProfile());
+  const {
+    aiConfig,
+    ttsConfig,
+    persistWebKeys,
+    updateAIConfig,
+    updateTTSConfig,
+    togglePersistWebKeys,
+  } = useAIConfig();
+  const {
+    fontSize,
+    setFontSize,
+    fontFamily,
+    setFontFamily,
+    readerTheme,
+    setReaderTheme,
+    newspaperMode,
+    setNewspaperMode,
+    highlights,
+    setHighlights,
+    readingQueueIds,
+    setReadingQueueIds,
+    readingProgress,
+    audioPositions,
+    saveReadingProgress,
+    saveAudioPosition,
+  } = useReaderSettings();
 
-      let finalAI = storedAI;
-      if (!finalAI && legacyAI) {
-        if (await setSecureSecret('ai_api_key', legacyAI)) {
-          finalAI = legacyAI;
-          setAiConfig(prev => ({ ...prev, apiKey: '' }));
-        }
-      } else if (storedAI && legacyAI) {
-        setAiConfig(prev => ({ ...prev, apiKey: '' }));
-      }
-
-      let finalTTS = storedTTS;
-      if (!finalTTS && legacyTTS) {
-        if (await setSecureSecret('tts_api_key', legacyTTS)) {
-          finalTTS = legacyTTS;
-          setStoredTTSConfig(prev => ({ ...prev, apiKey: '' }));
-        }
-      } else if (storedTTS && legacyTTS) {
-        setStoredTTSConfig(prev => ({ ...prev, apiKey: '' }));
-      }
-
-      if (active) {
-        if (finalAI) setAndroidAIKey(finalAI);
-        if (finalTTS) setAndroidTTSKey(finalTTS);
-      }
-    }).catch(() => {});
-    return () => { active = false; };
-  // Intentionally runs on mount to hydrate/migrate Keystore secrets on Android
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const aiConfig = useMemo(() => {
-    const base = aiConfigMigrated ? storedAIConfig : migrateAIConfig(storedAIConfig);
-    if (isAndroidPlatform && androidAIKey && !base.apiKey) {
-      return { ...base, apiKey: androidAIKey };
-    }
-    if (!isAndroidPlatform && webAIKey && !base.apiKey) {
-      return { ...base, apiKey: webAIKey };
-    }
-    return base;
-  }, [storedAIConfig, aiConfigMigrated, isAndroidPlatform, androidAIKey, webAIKey]);
-
-  const updateAIConfig = useCallback((next: AIProviderConfig) => {
-    const trimmedKey = next.apiKey.trim();
-    if (isAndroidPlatform) {
-      setAndroidAIKey(trimmedKey);
-      void import('./lib/secureSecrets').then(async ({ removeSecureSecret, setSecureSecret }) => {
-        if (trimmedKey) {
-          const ok = await setSecureSecret('ai_api_key', trimmedKey);
-          if (ok) {
-            setAiConfig({ ...next, apiKey: '' });
-            return;
-          }
-        } else {
-          await removeSecureSecret('ai_api_key');
-        }
-        setAiConfig({ ...next, apiKey: '' });
-      }).catch(() => setAiConfig(next));
-    } else {
-      setWebAIKey(trimmedKey);
-      writeWebSecret('ai_api_key', trimmedKey, persistWebKeys);
-      setAiConfig(persistWebKeys ? { ...next, apiKey: trimmedKey } : { ...next, apiKey: '' });
-    }
-    setAIConfigMigrated(true);
-  }, [isAndroidPlatform, persistWebKeys, setAiConfig, setAIConfigMigrated]);
-
-  const ttsConfig = useMemo(() => {
-    if (isAndroidPlatform && androidTTSKey && !storedTTSConfig.apiKey) {
-      return { ...storedTTSConfig, apiKey: androidTTSKey };
-    }
-    if (!isAndroidPlatform && webTTSKey && !storedTTSConfig.apiKey) {
-      return { ...storedTTSConfig, apiKey: webTTSKey };
-    }
-    return storedTTSConfig;
-  }, [storedTTSConfig, isAndroidPlatform, androidTTSKey, webTTSKey]);
-
-  const updateTTSConfig = useCallback((next: TTSProviderConfig) => {
-    const trimmedKey = next.apiKey.trim();
-    if (isAndroidPlatform) {
-      setAndroidTTSKey(trimmedKey);
-      void import('./lib/secureSecrets').then(async ({ removeSecureSecret, setSecureSecret }) => {
-        if (trimmedKey) {
-          const ok = await setSecureSecret('tts_api_key', trimmedKey);
-          if (ok) {
-            setStoredTTSConfig({ ...next, apiKey: '' });
-            return;
-          }
-        } else {
-          await removeSecureSecret('tts_api_key');
-        }
-        setStoredTTSConfig({ ...next, apiKey: '' });
-      }).catch(() => setStoredTTSConfig(next));
-    } else {
-      setWebTTSKey(trimmedKey);
-      writeWebSecret('tts_api_key', trimmedKey, persistWebKeys);
-      setStoredTTSConfig(persistWebKeys ? { ...next, apiKey: trimmedKey } : { ...next, apiKey: '' });
-    }
-  }, [isAndroidPlatform, persistWebKeys, setStoredTTSConfig]);
-
-  const handleTogglePersistWebKeys = useCallback((persist: boolean) => {
-    setPersistWebKeys(persist);
-    setWebKeyPersistence(persist, { aiKey: webAIKey, ttsKey: webTTSKey });
-    setAiConfig(prev => ({ ...prev, apiKey: persist ? webAIKey : '' }));
-    setStoredTTSConfig(prev => ({ ...prev, apiKey: persist ? webTTSKey : '' }));
-  }, [webAIKey, webTTSKey, setAiConfig, setStoredTTSConfig]);
-
-  const [formatPrefs, setFormatPrefs] = useLocalStorage<FormatPreferences>('opennews_formats', {
-    rssAtom: true,
-    jsonFeed: true,
-    openData: true,
-    podcasts: false,
-  });
-  const [notifications, setNotifications] = useLocalStorage<NotificationSettings>(
-    'opennews_notifications',
-    { enabled: false, breakingOnly: false, topics: [] }
-  );
-  const [fontSize, setFontSize] = useLocalStorage<ReaderFontSize>('opennews_font_size', 'normal');
-  const [fontFamily, setFontFamily] = useLocalStorage<ReaderFontFamily>(
-    'opennews_font_family',
-    'sans'
-  );
-  const [readerTheme, setReaderTheme] = useLocalStorage<ReaderSurfaceTheme>('opennews_reader_theme', 'paper');
-  const [newspaperMode, setNewspaperMode] = useLocalStorage<boolean>('opennews_newspaper_mode', false);
   const [mutedKeywords, setMutedKeywords] = useLocalStorage<MutedKeywordRule[]>('opennews_muted_keywords', []);
   const [trackedKeywords, setTrackedKeywords] = useLocalStorage<string[]>('opennews_tracked_keywords', []);
-  const [highlights, setHighlights] = useLocalStorage<ArticleHighlight[]>('opennews_highlights', []);
-  const [readingQueueIds, setReadingQueueIds] = useLocalStorage<string[]>('opennews_reading_queue', []);
-  const [readingProgress, setReadingProgress] = useLocalStorage<Record<string, ReadingProgressEntry>>('opennews_reading_progress', {});
-  const [audioPositions, setAudioPositions] = useLocalStorage<Record<string, AudioPositionEntry>>('opennews_audio_positions', {});
   const [radioFavorites, setRadioFavorites] = useLocalStorage<string[]>('opennews_radio_favorites', []);
   const [androidAutoSettings, setAndroidAutoSettings] = useLocalStorage<AndroidAutoSettings>(
     'opennews_android_auto',
@@ -433,12 +275,27 @@ export default function App() {
   const refresh = useRef<AbortController | null>(null);
   const [isLoadingFeeds, setIsLoadingFeeds] = useState(false);
   const [readArticles, setReadArticles, historyStorageFailed] = useArticleStorage<NewsArticle[]>('opennews_read_articles', []);
+  const [alertBanner, setAlertBanner] = useState<{ title: string; source: string } | null>(null);
+  const alertTimer = useRef<number | undefined>(undefined);
+  const showAlert = useCallback((title: string, source: string) => {
+    window.clearTimeout(alertTimer.current);
+    setAlertBanner({ title, source });
+    alertTimer.current = window.setTimeout(() => setAlertBanner(null), 5000);
+  }, []);
+  useEffect(() => () => window.clearTimeout(alertTimer.current), []);
+
   useEffect(() => {
     if (cachedStorageFailed || savedStorageFailed || historyStorageFailed) {
       recordDiagnostic('storage-failed');
     }
   }, [cachedStorageFailed, savedStorageFailed, historyStorageFailed]);
-  const [alertBanner, setAlertBanner] = useState<{ title: string; source: string } | null>(null);
+
+  useEffect(() => {
+    const onQuota = () => showAlert('Speicherplatz voll — ältere Cache-Einträge wurden automatisch bereinigt.', 'OpenNews · Speicher');
+    window.addEventListener(STORAGE_QUOTA_EVENT, onQuota);
+    return () => window.removeEventListener(STORAGE_QUOTA_EVENT, onQuota);
+  }, [showAlert]);
+
   const [osReducedMotion, setOsReducedMotion] = useState(() =>
     typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
   );
@@ -489,81 +346,31 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, [activeArticle, goBack, location.summary]);
 
-  const enabledFormats = useMemo(() => {
-    return new Set<string>([
-      ...(formatPrefs.rssAtom ? ['rss', 'atom'] : []),
-      ...(formatPrefs.jsonFeed ? ['json'] : []),
-      ...(formatPrefs.openData ? ['opendata'] : []),
-      ...(formatPrefs.podcasts ? ['podcast'] : []),
-    ]);
-  }, [formatPrefs]);
-
-  const [feedHealth, setFeedHealth] = useLocalStorage<Record<string, FeedHealth>>('opennews_feed_health', {});
-
-  const activeSources = useMemo(
-    () => sources.filter((s) => s.subscribed && (enabledFormats.has(s.format) || s.isCustom || clipSourceIds.has(s.id))),
-    [sources, enabledFormats]
-  );
-
-  const pushSyncVersion = useRef(0);
-  const [pushStatus, setPushStatus] = useState('');
-  const [pushPermissionDenied, setPushPermissionDenied] = useState(false);
-  const [requestingPushPermission, setRequestingPushPermission] = useState(false);
   const activeMutedRules = useMemo(
     () => pruneExpiredMutes(mutedKeywords, feedClock),
     [mutedKeywords, feedClock],
   );
-
-  const pushSourceIds = useMemo(() => activeSources
-    .filter(source => pushSources.some(candidate => candidate.id === source.id && candidate.url === source.url))
-    .map(source => source.id), [activeSources]);
-
-  const configurePush = useCallback(async (settings: NotificationSettings) => {
-    if (Capacitor.getPlatform() !== 'android') return;
-    const version = ++pushSyncVersion.current;
-    try {
-      const { NewsPush } = await import('./lib/newsPush');
-      const feeds = activeSources
-        .filter(source => source.format !== 'podcast')
-        .slice(0, 25)
-        .map(source => ({
-          id: source.id,
-          name: source.name,
-          url: source.url,
-          category: source.category,
-          accentColor: source.accentColor,
-          shortCode: source.shortCode,
-        }));
-      const mutedKeywords = activeMutedRules.map(rule => rule.keyword);
-      const { status, mode } = await NewsPush.configure({
-        ...settings,
-        sources: pushSourceIds,
-        feeds,
-        mutedKeywords,
-      });
-      if (!settings.enabled || version !== pushSyncVersion.current) return;
-      setPushPermissionDenied(status === 'denied');
-      setPushStatus(status === 'unconfigured' ? 'Dieser Build hat noch keine Benachrichtigungs-Konfiguration.'
-        : status === 'denied' ? 'Erlaube Benachrichtigungen in den Android-Einstellungen.'
-        : settings.enabled && !feeds.length ? 'Aktiviere mindestens eine Nachrichtenquelle.'
-        : settings.enabled && mode === 'local'
-          ? `Hintergrund-Check auf dem Gerät aktiv (alle ${settings.intervalMinutes ?? 30} Min.).`
-        : settings.enabled ? 'Push & Hintergrund-Check für deine Quellen aktiv.' : '');
-    } catch {
-      if (settings.enabled && version === pushSyncVersion.current) setPushStatus('Push-Anmeldung gerade nicht möglich.');
-    }
-  }, [activeMutedRules, activeSources, pushSourceIds]);
-
+  const feedHasLoaded = useRef(false);
   useEffect(() => {
-    const sync = () => { if (!document.hidden) void configurePush(notifications); };
-    sync();
-    document.addEventListener('visibilitychange', sync);
-    window.addEventListener('online', sync);
-    return () => {
-      document.removeEventListener('visibilitychange', sync);
-      window.removeEventListener('online', sync);
-    };
-  }, [configurePush, notifications]);
+    if (cachedStorageReady && cachedLiveArticles.length) feedHasLoaded.current = true;
+  }, [cachedStorageReady, cachedLiveArticles.length]);
+  const initialArticleIds = useRef(new Set(cachedLiveArticles.map(articleIdentity)));
+
+  const {
+    notifications,
+    pushStatus,
+    pushPermissionDenied,
+    requestingPushPermission,
+    checkForAlert,
+    handleNotificationSettings,
+    handleSendTestNotification,
+  } = useNotifications({
+    activeSources,
+    activeMutedRules,
+    feedHasLoaded,
+    initialArticleIds,
+    showAlert,
+  });
 
   useEffect(() => {
     if (profile.weightsUpdatedAt === undefined) setProfile(previous => decayProfileWeights(normalizeProfile(previous)));
@@ -574,7 +381,7 @@ export default function App() {
   // Keep a copy of saved and queued articles even when they leave the feed or it is paused.
   const savedIds = useMemo(
     () => new Set([...normalizedProfile.bookmarkedIds, ...normalizedProfile.likedIds, ...readingQueueIds]),
-    [normalizedProfile, readingQueueIds]
+    [normalizedProfile, readingQueueIds],
   );
   useEffect(() => {
     setSavedArticles(previous => {
@@ -591,70 +398,6 @@ export default function App() {
   useEffect(() => {
     setCachedLiveArticles(previous => pruneFeedArticles(previous, retention, Date.now()));
   }, [feedClock, retention, setCachedLiveArticles]);
-
-  const announcedArticles = useRef(new Set<string>());
-  const feedHasLoaded = useRef(false);
-  useEffect(() => {
-    if (cachedStorageReady && cachedLiveArticles.length) feedHasLoaded.current = true;
-  }, [cachedStorageReady, cachedLiveArticles.length]);
-  const alertTimer = useRef<number | undefined>(undefined);
-  const showAlert = useCallback((title: string, source: string) => {
-    window.clearTimeout(alertTimer.current);
-    setAlertBanner({ title, source });
-    alertTimer.current = window.setTimeout(() => setAlertBanner(null), 5000);
-  }, []);
-  useEffect(() => () => window.clearTimeout(alertTimer.current), []);
-  const initialArticleIds = useRef(new Set(cachedLiveArticles.map(articleIdentity)));
-
-  const checkForAlert = useCallback((articles: NewsArticle[]) => {
-    const firstLoad = !feedHasLoaded.current;
-    const now = new Date();
-    const time = now.toTimeString().slice(0, 5);
-    const from = notifications.from ?? '00:00';
-    const until = notifications.until ?? '23:59';
-    const withinWindow = from <= until ? time >= from && time <= until : time >= from || time <= until;
-    let candidate: NewsArticle | undefined;
-    for (const article of articles) {
-      const identity = articleIdentity(article);
-      if (announcedArticles.current.has(identity) || initialArticleIds.current.has(identity)) continue;
-      announcedArticles.current.add(identity);
-      const age = now.getTime() - Date.parse(article.publishedAt);
-      if (!candidate && age >= 0 && age <= 2 * 60 * 60_000
-        && (notifications.breakingOnly ? article.isBreaking : !notifications.topics.length || notifications.topics.includes(article.category))) {
-        candidate = article;
-      }
-    }
-    if (!firstLoad && notifications.enabled && withinWindow && candidate) {
-      if (document.visibilityState === 'visible') {
-        showAlert(candidate.title, candidate.sourceName);
-      } else if (
-        Capacitor.getPlatform() === 'web'
-        && 'Notification' in window
-        && Notification.permission === 'granted'
-      ) {
-        const tag = articleIdentity(candidate);
-        void navigator.serviceWorker?.ready
-          ?.then(reg => reg.showNotification(candidate.title, {
-            body: candidate.sourceName,
-            icon: '/pwa-192x192.png',
-            tag,
-          }))
-          .catch(() => {
-            try {
-              new Notification(candidate.title, { body: candidate.sourceName, tag });
-            } catch {
-              // Ignore restricted notification contexts
-            }
-          });
-      }
-    }
-  }, [notifications, showAlert]);
-
-  useEffect(() => {
-    if (!sources.some(source => source.subscribed && feedHealth[source.id]?.url === source.url && feedHealth[source.id].consecutiveFailures >= 5)) return;
-    setSources(previous => previous.map(source => source.subscribed && feedHealth[source.id]?.url === source.url
-      && feedHealth[source.id].consecutiveFailures >= 5 ? { ...source, subscribed: false } : source));
-  }, [sources, feedHealth, setSources]);
 
   const latestHomeStories = useRef<ReturnType<typeof buildHomeSections>[HomeTab]>([]);
 
@@ -1021,10 +764,6 @@ export default function App() {
     setProfile((prev) => recordArticleRead(normalizeProfile(prev), article));
   };
 
-  const handleSaveReadingProgress = useCallback((articleId: string, ratio: number) => {
-    setReadingProgress(prev => upsertReadingProgress(prev, articleId, ratio));
-  }, [setReadingProgress]);
-
   const handleWidgetLaunch = useRef<(event: WidgetLaunch) => void>(() => {});
   useLayoutEffect(() => {
     handleWidgetLaunch.current = ({ article, refresh, discover, save, section }) => {
@@ -1274,10 +1013,6 @@ export default function App() {
     });
   }, []);
 
-  const handleSaveAudioPosition = useCallback((url: string, seconds: number, duration: number) => {
-    setAudioPositions(prev => upsertAudioPosition(prev, url, seconds, duration));
-  }, [setAudioPositions]);
-
   const queueArticles = useMemo(() => {
     const byId = new Map<string, NewsArticle>();
     for (const a of allArticles) byId.set(a.id, a);
@@ -1303,116 +1038,6 @@ export default function App() {
     },
     [setProfile]
   );
-
-  const handleUpdateSource = (sourceId: string, updates: Partial<NewsSource>) => {
-    setSources(() => sources.map((s) => (s.id === sourceId ? { ...s, ...updates } : s)));
-  };
-
-  const handleToggleSubscribe = (sourceId: string) => {
-    const source = sources.find(item => item.id === sourceId);
-    if (source?.format === 'podcast' && !source.subscribed) {
-      setFormatPrefs(previous => previous.podcasts ? previous : { ...previous, podcasts: true });
-    }
-    setSources(() =>
-      sources.map((s) => (s.id === sourceId ? { ...s, subscribed: !s.subscribed } : s))
-    );
-    if (source && !source.subscribed) {
-      setFeedHealth(previous => {
-        if (!previous[sourceId]) return previous;
-        const next = { ...previous };
-        delete next[sourceId];
-        return next;
-      });
-    }
-  };
-
-  const handleSetSourceSubscriptions = (ids: readonly string[], subscribed: boolean) => {
-    const targetIds = new Set(ids);
-    if (!targetIds.size) return;
-    if (subscribed && sources.some(item => targetIds.has(item.id) && item.format === 'podcast')) {
-      setFormatPrefs(previous => previous.podcasts ? previous : { ...previous, podcasts: true });
-    }
-    setSources(() =>
-      sources.map(item => targetIds.has(item.id) ? { ...item, subscribed } : item)
-    );
-    if (subscribed) {
-      setFeedHealth(previous => {
-        let changed = false;
-        const next = { ...previous };
-        for (const id of targetIds) {
-          if (next[id]) {
-            delete next[id];
-            changed = true;
-          }
-        }
-        return changed ? next : previous;
-      });
-    }
-  };
-
-  const handleNotificationSettings = async (next: NotificationSettings) => {
-    if (Capacitor.getPlatform() === 'android' && next.enabled && !notifications.enabled) {
-      setRequestingPushPermission(true);
-      setPushStatus('');
-      try {
-        const { NewsPush } = await import('./lib/newsPush');
-        const { allowed } = await NewsPush.requestAccess();
-        setPushPermissionDenied(!allowed);
-        if (!allowed) {
-          setPushStatus('Erlaube Benachrichtigungen in den Android-Einstellungen.');
-          return;
-        }
-      } catch {
-        setPushStatus('Die Android-Freigabe konnte nicht abgefragt werden.');
-        return;
-      } finally {
-        setRequestingPushPermission(false);
-      }
-    } else if (
-      Capacitor.getPlatform() !== 'android'
-      && next.enabled
-      && !notifications.enabled
-      && 'Notification' in window
-      && Notification.permission === 'default'
-    ) {
-      setRequestingPushPermission(true);
-      try {
-        const perm = await Notification.requestPermission();
-        if (perm === 'denied') {
-          setPushStatus('Browser-Benachrichtigungen wurden blockiert — In-App-Hinweise bleiben aktiv.');
-        } else if (perm === 'granted') {
-          setPushStatus('Browser-Benachrichtigungen sind aktiviert.');
-        }
-      } catch {
-        // Ignore restricted Notification.requestPermission contexts
-      } finally {
-        setRequestingPushPermission(false);
-      }
-    }
-    if (!next.enabled) {
-      pushSyncVersion.current++;
-      setPushPermissionDenied(false);
-      setPushStatus('');
-    }
-    setNotifications(next);
-  };
-
-  const handleSendTestNotification = () => {
-    if (Capacitor.getPlatform() === 'android') {
-      void import('./lib/newsPush')
-        .then(({ NewsPush }) => NewsPush.test())
-        .catch(() => showAlert('Android hat Benachrichtigungen gesperrt.', 'OpenNews · Test'));
-    } else {
-      showAlert('Benachrichtigungen sind aktiv.', 'OpenNews · Test');
-      if ('Notification' in window && Notification.permission === 'granted') {
-        try {
-          new Notification('OpenNews · Test', { body: 'Browser-Benachrichtigungen sind aktiv.', tag: 'opennews-test' });
-        } catch {
-          // Ignore Notification constructor errors in headless environments
-        }
-      }
-    }
-  };
 
   const [backupStatus, setBackupStatus] = useState('');
   const exportBackup = async () => {
@@ -1510,8 +1135,8 @@ export default function App() {
       {!onboarded ? <Suspense fallback={<ViewStatus title={t('loadingView')} />}><Onboarding
         {...appearance}
         sources={sources}
-        onToggleSource={handleToggleSubscribe}
-        onSetSourceSubscriptions={handleSetSourceSubscriptions}
+        onToggleSource={toggleSubscribe}
+        onSetSourceSubscriptions={setSourceSubscriptions}
         onFinish={() => setOnboarded(true)}
         onConfigure={() => {
           setOnboarded(true);
@@ -1580,7 +1205,7 @@ export default function App() {
           <HomeView
             stories={readerFeedSnapshot ?? homeSections[homeCategory]}
             hasActiveSources={activeSources.length > 0}
-            onOpenBriefing={() => navigate({ briefing: true })}
+            onOpenBriefing={featureFlags.dailyBriefing ? () => navigate({ briefing: true }) : undefined}
             briefingPlaying={briefingActive}
             showHero={preferences.hero}
             selectedCategory={homeCategory}
@@ -1595,7 +1220,7 @@ export default function App() {
             onRefresh={fetchLiveFeeds}
             onOpenSources={() => openSettings('feeds')}
             onOpenDiscover={() => navigate({ tab: 'discover' })}
-            onApplyStarterPack={sourceIds => handleSetSourceSubscriptions(sourceIds, true)}
+            onApplyStarterPack={sourceIds => setSourceSubscriptions(sourceIds, true)}
             onOpenArticle={handleOpenArticle}
             onToggleBookmark={handleToggleBookmark}
             onToggleLike={handleToggleLike}
@@ -1619,8 +1244,8 @@ export default function App() {
             onRemoveMuteKeyword={handleRemoveMuteKeyword}
             onAddTrackedKeyword={handleAddTrackedKeyword}
             onRemoveTrackedKeyword={handleRemoveTrackedKeyword}
-            onToggleSubscribe={handleToggleSubscribe}
-            onApplyStarterPack={ids => handleSetSourceSubscriptions(ids, true)}
+            onToggleSubscribe={toggleSubscribe}
+            onApplyStarterPack={ids => setSourceSubscriptions(ids, true)}
             onOpenArticle={handleOpenArticle}
             onToggleBookmark={handleToggleBookmark}
             onToggleLike={handleToggleLike}
@@ -1678,8 +1303,8 @@ export default function App() {
             saved={normalizedProfile.bookmarkedIds}
             onLike={handleToggleLike}
             onSave={handleToggleBookmark}
-            onToggleSubscribe={handleToggleSubscribe}
-            onApplyStarterPack={ids => handleSetSourceSubscriptions(ids, true)}
+            onToggleSubscribe={toggleSubscribe}
+            onApplyStarterPack={ids => setSourceSubscriptions(ids, true)}
             onEngaged={(article, seconds) => setProfile(previous => {
               const profile = normalizeProfile(previous);
               return profile.readIds.includes(article.id) ? profile
@@ -1754,10 +1379,10 @@ export default function App() {
               });
               setSources([...merged, ...incoming.values()]);
             }}
-            onToggleSource={handleToggleSubscribe}
-            onSetSourceSubscriptions={handleSetSourceSubscriptions}
+            onToggleSource={toggleSubscribe}
+            onSetSourceSubscriptions={setSourceSubscriptions}
             onAddCustomSource={(src) => setSources((prev) => prev.some(source => source.url === src.url) ? prev : [src, ...prev])}
-            onUpdateSource={handleUpdateSource}
+            onUpdateSource={updateSource}
             onRemoveCustomSource={(id) =>
               setSources((prev) => prev.filter((s) => s.id !== id))
             }
@@ -1765,7 +1390,9 @@ export default function App() {
             onUpdateAIConfig={updateAIConfig}
             onUpdateTTSConfig={updateTTSConfig}
             persistWebKeys={persistWebKeys}
-            onTogglePersistWebKeys={handleTogglePersistWebKeys}
+            onTogglePersistWebKeys={togglePersistWebKeys}
+            featureFlags={featureFlags}
+            onUpdateFeatureFlags={setFeatureFlags}
             pushStatus={pushStatus}
             pushPermissionDenied={pushPermissionDenied}
             requestingPushPermission={requestingPushPermission}
@@ -1826,7 +1453,7 @@ export default function App() {
             background={backgroundPlayback}
             nextTrack={audioQueue[0]}
             onNextTrack={audioQueue.length > 0 ? handleNextAudioTrack : undefined}
-            onSavePosition={handleSaveAudioPosition}
+            onSavePosition={saveAudioPosition}
             onEngaged={handleRecordReadingDuration}
             onOpenArticle={handleOpenArticle}
             onClose={() => {
@@ -1923,24 +1550,14 @@ export default function App() {
             onOpenSummary={() => navigate({ article: activeArticle, summary: true })}
             onClose={goBack}
             initialReadingRatio={readingProgress[activeArticle.id]?.ratio}
-            onSaveReadingProgress={handleSaveReadingProgress}
+            onSaveReadingProgress={saveReadingProgress}
             previousArticle={readerNeighbors.previous}
             nextArticle={readerNeighbors.next}
             articlePosition={readerNeighbors.index >= 0 ? { current: readerNeighbors.index + 1, total: readerNeighbors.total } : undefined}
             onSearchTopic={() => navigate({ tab: 'discover' })}
             allowFullText={Boolean(activeArticle.sourceId && (preferences.fullTextSourceIds ?? []).includes(activeArticle.sourceId))}
-            onEnableFullText={sourceId => {
-              setPreferences(prev => {
-                const current = prev.fullTextSourceIds ?? [];
-                return current.includes(sourceId) ? prev : { ...prev, fullTextSourceIds: [...current, sourceId] };
-              });
-            }}
-            onDisableFullText={sourceId => {
-              setPreferences(prev => ({
-                ...prev,
-                fullTextSourceIds: (prev.fullTextSourceIds ?? []).filter(id => id !== sourceId),
-              }));
-            }}
+            onEnableFullText={enableFullTextSource}
+            onDisableFullText={disableFullTextSource}
           />
       </Suspense>
       </ErrorBoundary>

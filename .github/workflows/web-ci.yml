@@ -21,7 +21,17 @@ jobs:
       - run: npm audit --omit=dev --audit-level=moderate
       - run: npm run lint
       - run: npm test
+      - run: npm run test:coverage | tee coverage-summary.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        continue-on-error: true
+        with:
+          name: web-test-coverage
+          path: coverage-summary.txt
+          if-no-files-found: warn
+          retention-days: 7
       - run: npm run build
       - run: node scripts/check-web-budget.mjs
+      - run: node scripts/check-docs-metrics.mjs
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e

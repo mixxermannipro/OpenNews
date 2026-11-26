@@ -34,9 +34,7 @@ public class NewsPushMonitorService extends JobService {
     private volatile ExecutorService runner;
 
     static int clampIntervalMinutes(int minutes) {
-        if (minutes <= 15) return 15;
-        if (minutes >= 60) return 60;
-        return 30;
+        return minutes >= 45 ? 60 : 30;
     }
 
     static void sync(Context context) {
@@ -67,32 +65,40 @@ public class NewsPushMonitorService extends JobService {
 
     @Override
     public boolean onStartJob(JobParameters params) {
-        SharedPreferences prefs = NewsMessagingService.preferences(this);
-        if (!prefs.getBoolean("enabled", false)) {
-            jobFinished(params, false);
-            return false;
-        }
-        String nowHHmm = new SimpleDateFormat("HH:mm", Locale.ROOT).format(new Date());
-        String from = prefs.getString("from", "00:00");
-        String until = prefs.getString("until", "23:59");
-        if (!NewsMessagingService.isWithinActiveWindow(from, until, nowHHmm)) {
-            jobFinished(params, false);
-            return false;
-        }
-
-        cancelled.set(false);
-        ExecutorService executor = Executors.newSingleThreadExecutor();
-        runner = executor;
         final Context appContext = getApplicationContext();
-        executor.execute(() -> {
-            try {
-                runCheck(appContext, cancelled);
-            } finally {
+        try {
+            SharedPreferences prefs = NewsMessagingService.preferences(this);
+            if (!prefs.getBoolean("enabled", false)) {
                 jobFinished(params, false);
-                executor.shutdown();
+                return false;
             }
-        });
-        return true;
+            String nowHHmm = new SimpleDateFormat("HH:mm", Locale.ROOT).format(new Date());
+            String from = prefs.getString("from", "00:00");
+            String until = prefs.getString("until", "23:59");
+            if (!NewsMessagingService.isWithinActiveWindow(from, until, nowHHmm)) {
+                jobFinished(params, false);
+                return false;
+            }
+
+            cancelled.set(false);
+            ExecutorService executor = Executors.newSingleThreadExecutor();
+            runner = executor;
+            executor.execute(() -> {
+                try {
+                    runCheck(appContext, cancelled);
+                } catch (Throwable error) {
+                    NativeDiagnostics.record(appContext, "push_monitor", error);
+                } finally {
+                    jobFinished(params, false);
+                    executor.shutdown();
+                }
+            });
+            return true;
+        } catch (Throwable error) {
+            NativeDiagnostics.record(appContext, "push_monitor_start", error);
+            jobFinished(params, false);
+            return false;
+        }
     }
 
     @Override

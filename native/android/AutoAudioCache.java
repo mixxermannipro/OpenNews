@@ -134,16 +134,20 @@ final class AutoAudioCache {
         }
     }
 
-    private static void evictIfNeeded(File dir) {
+    static void evictIfNeeded(File dir) {
+        evictIfNeeded(dir, MAX_CACHE_BYTES);
+    }
+
+    static void evictIfNeeded(File dir, long maxBytes) {
         File[] files = dir.listFiles((d, name) -> name.endsWith(".audio"));
         if (files == null || files.length == 0) return;
         long total = 0L;
         for (File f : files) total += f.length();
-        if (total <= MAX_CACHE_BYTES) return;
+        if (total <= maxBytes) return;
 
         Arrays.sort(files, Comparator.comparingLong(File::lastModified));
         for (File f : files) {
-            if (total <= MAX_CACHE_BYTES) break;
+            if (total <= maxBytes) break;
             long len = f.length();
             if (f.delete()) {
                 total -= len;
@@ -151,7 +155,7 @@ final class AutoAudioCache {
         }
     }
 
-    private static String hashUrl(String url) {
+    static String hashUrl(String url) {
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-256");
             byte[] digest = md.digest(url.getBytes(StandardCharsets.UTF_8));

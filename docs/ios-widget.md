@@ -1,5 +1,7 @@
 # OpenNews-Widget auf iOS
 
+> **Plattform-Status (v0.2):** Eine iOS-App inklusive WidgetKit-Erweiterung ist derzeit **weder gebaut noch auf iOS-Geräten getestet und steht aktuell nicht zum Download zur Verfügung**. OpenNews unterstützt produktiv ausschließlich **Web/PWA** und **Android**. Die Dateien unter `native/ios/` und diese Anleitung dienen ausschließlich als vorbereitende Referenz für eine spätere Xcode-Portierung unter macOS.
+
 Das Widget „OpenNews Top-Themen“ gibt es in drei Größen. Klein zeigt es eine Schlagzeile und öffnet deren Reader beim Tippen. Mittel bietet die Reiter „Heute“, „Für dich“ und „Neueste“. Groß zeigt Datum, Bildaufmacher, bis zu zwei kompakte Meldungen und „Weitere Themen entdecken“. Das Lesezeichen speichert den Artikel in OpenNews und öffnet den Reader. Der Aktualisieren-Knopf öffnet den gewählten Reiter und startet den Feed-Abruf der App.
 
 Die Themenbilder liegen lokal in der Widget-Erweiterung. Die App teilt bis zu drei gekürzte Artikel je Reiter über die gemeinsame App Group. Die Widget-Erweiterung ruft keine Feeds selbst ab. iOS entscheidet, wann es die Darstellung im Hintergrund neu aufbaut. Die Reiterwahl gilt für Widgets dieser App auf demselben Gerät.

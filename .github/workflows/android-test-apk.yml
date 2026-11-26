@@ -106,7 +106,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="v0.1.0-alpha.${GITHUB_RUN_NUMBER}"
+          pkg_version=$(node -p "JSON.parse(require('fs').readFileSync('package.json','utf8')).version")
+          tag="v${pkg_version}-build.${GITHUB_RUN_NUMBER}"
           gh release create "$tag" android/app/build/outputs/apk/debug/app-debug.apk#OpenNews-debug.apk \
             --target "$GITHUB_SHA" \
             --title "OpenNews $tag – Android Debug Test" \
