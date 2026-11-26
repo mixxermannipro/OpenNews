@@ -41,10 +41,12 @@ test('buildSpeechBlocks maps title, lead, and body paragraphs accurately for syn
   assert.deepEqual(blocks[3], { id: 'body-2', kind: 'body', bodyIndex: 2, text: 'Absatz zwei.' });
 });
 
-test('selectArticlesToPreload prioritizes saved items and skips cached or feed-only entries', () => {
+test('selectArticlesToPreload prioritizes saved items and skips cached, feed-only, or media-only entries', () => {
   const saved = [makeArticle('s1', 'https://a.de/saved-1')];
   const today = [
     makeArticle('t1', 'https://a.de/cached'),
+    { ...makeArticle('t-vid', 'https://a.de/video-1'), videoUrl: 'https://a.de/video.mp4' },
+    { ...makeArticle('t-pod', 'https://a.de/podcast-1'), audioUrl: 'https://a.de/audio.mp3' },
     makeArticle('t2', 'https://a.de/today-1'),
     { ...makeArticle('t3', 'https://a.de/feed-only'), linkIsFeed: true },
   ];

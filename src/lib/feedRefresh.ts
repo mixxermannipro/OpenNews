@@ -1,12 +1,18 @@
-import type { NewsSource } from '../types/news';
+import type { AppLanguage, NewsArticle, NewsSource } from '../types/news';
+import type { StarterPack } from './catalog';
 
-export const FIRST_BATCH_SIZE = 6;
+export const FIRST_BATCH_SIZE = 4;
 export const FOLLOWUP_BATCH_SIZE = 8;
+
+const MAX_WIRE_PARAGRAPHS = 6;
+const MAX_WIRE_PARAGRAPH_CHARS = 500;
+const MAX_WIRE_SUMMARY_CHARS = 520;
+const MEDIA_ONLY_PACK_PREFIXES = ['clips-', 'podcasts-', 'video-'];
 
 /**
  * Splits active sources into prioritized batches:
- * - Batch 0 is small (up to 6) and prioritizes recommended/custom news sources so the
- *   above-the-fold feed renders as fast as possible.
+ * - Batch 0 is compact (up to 4) and prioritizes recommended/custom news sources so the
+ *   above-the-fold feed renders as fast as possible without waiting on slower feeds.
  * - Remaining sources are grouped into larger batches (up to 8) for concurrent fetching.
  */
 export function planFeedBatches(
@@ -33,6 +39,53 @@ export function planFeedBatches(
     batches.push(prioritized.slice(i, i + step));
   }
   return batches;
+}
+
+/**
+ * Trims oversized RSS paragraph payloads before wire transfer or caching so feed
+ * responses stay fast, data-efficient, and low-memory while preserving preview text.
+ */
+export function slimFeedArticle(article: NewsArticle): NewsArticle {
+  const summary = article.summary.length > MAX_WIRE_SUMMARY_CHARS
+    ? article.summary.slice(0, MAX_WIRE_SUMMARY_CHARS)
+    : article.summary;
+  const paragraphs = article.paragraphs
+    .filter(Boolean)
+    .slice(0, MAX_WIRE_PARAGRAPHS)
+    .map(p => (p.length > MAX_WIRE_PARAGRAPH_CHARS ? p.slice(0, MAX_WIRE_PARAGRAPH_CHARS) : p));
+
+  // Avoid duplicating a single paragraph identical to the summary over the wire
+  const dedupedParagraphs =
+    paragraphs.length === 1 && paragraphs[0].trim() === summary.trim() ? [] : paragraphs;
+
+  return {
+    ...article,
+    summary,
+    paragraphs: dedupedParagraphs,
+  };
+}
+
+/**
+ * Selects quick-start packs for the Home empty state, always placing written news packs
+ * ahead of podcast/video-only packs so users immediately see articles on "Heute".
+ */
+export function selectHomeStarterPacks(
+  packs: readonly StarterPack[],
+  lang: AppLanguage,
+  limit = 4,
+): StarterPack[] {
+  const isMediaOnly = (pack: StarterPack) =>
+    MEDIA_ONLY_PACK_PREFIXES.some(prefix => pack.id.startsWith(prefix));
+
+  const score = (pack: StarterPack) => {
+    const newsBonus = isMediaOnly(pack) ? 0 : 10;
+    const langBonus = pack.language === lang ? 4 : pack.language === 'all' ? 2 : pack.language === 'en' ? 1 : 0;
+    return newsBonus + langBonus;
+  };
+
+  return [...packs]
+    .sort((a, b) => score(b) - score(a))
+    .slice(0, limit);
 }
 
 /**

@@ -4,10 +4,12 @@ import { readOfflineArticle, storeOfflineArticle } from './offlineArticle';
 import { selectArticlesToPreload, shouldPreloadOffline, type ConnectionLike } from './readerExtras';
 
 const preloadedSessionLinks = new Set<string>();
+const SESSION_PRELOAD_BUDGET = 3;
+let sessionPreloadAttempts = 0;
 
 /**
- * Gently preloads top Today & saved articles into CacheStorage in the background
- * when online and not on Save-Data / slow cellular connections.
+ * Gently preloads a small budget of saved/queued or top Today text articles into CacheStorage
+ * in the background when online and not on Save-Data / slow cellular connections.
  */
 export async function runIntelligentOfflinePreload(
   todayArticles: NewsArticle[],
@@ -16,20 +18,25 @@ export async function runIntelligentOfflinePreload(
 ): Promise<number> {
   if (Capacitor.isNativePlatform() || typeof window === 'undefined' || !('caches' in window)) return 0;
 
+  const remainingBudget = Math.max(0, SESSION_PRELOAD_BUDGET - sessionPreloadAttempts);
+  if (remainingBudget === 0) return 0;
+
   const nav = navigator as Navigator & { connection?: ConnectionLike };
   if (!shouldPreloadOffline(navigator.onLine, nav.connection)) return 0;
 
+  const limit = Math.min(options.maxCount ?? remainingBudget, remainingBudget);
   const candidates = selectArticlesToPreload(
     todayArticles,
     savedArticles,
     preloadedSessionLinks,
-    options.maxCount ?? 8,
+    limit,
   );
   if (!candidates.length) return 0;
 
   let storedCount = 0;
   for (const article of candidates) {
     if (options.signal?.aborted) break;
+    if (sessionPreloadAttempts >= SESSION_PRELOAD_BUDGET) break;
     if (!shouldPreloadOffline(navigator.onLine, nav.connection)) break;
 
     preloadedSessionLinks.add(article.link);
@@ -37,6 +44,7 @@ export async function runIntelligentOfflinePreload(
       const existing = await readOfflineArticle(article.link).catch(() => undefined);
       if (existing) continue;
 
+      sessionPreloadAttempts++;
       const response = await fetch(`/api/article/extract?url=${encodeURIComponent(article.link)}&preload=1`, {
         signal: options.signal,
       });

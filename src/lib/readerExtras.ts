@@ -75,7 +75,7 @@ export function selectArticlesToPreload(
   todayArticles: NewsArticle[],
   savedArticles: NewsArticle[],
   alreadyCachedLinks: Set<string>,
-  maxCount = 10,
+  maxCount = 3,
 ): NewsArticle[] {
   const selected: NewsArticle[] = [];
   const seen = new Set<string>(alreadyCachedLinks);
@@ -84,6 +84,7 @@ export function selectArticlesToPreload(
     for (const article of list) {
       if (selected.length >= maxCount) break;
       if (!article.link || article.linkIsFeed || seen.has(article.link)) continue;
+      if (article.youtubeId || article.videoUrl || article.audioUrl) continue;
       if (!/^https?:\/\//i.test(article.link)) continue;
       seen.add(article.link);
       selected.push(article);

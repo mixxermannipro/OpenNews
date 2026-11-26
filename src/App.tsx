@@ -389,9 +389,11 @@ export default function App() {
   const [feedClock, setFeedClock] = useState(Date.now);
   useEffect(() => {
     const updateClock = () => {
-      if (!document.hidden) setFeedClock(Date.now());
+      if (!document.hidden) {
+        setFeedClock(prev => (Date.now() - prev >= 180_000 ? Date.now() : prev));
+      }
     };
-    const timer = window.setInterval(updateClock, 60_000);
+    const timer = window.setInterval(updateClock, 300_000);
     document.addEventListener('visibilitychange', updateClock);
     return () => {
       window.clearInterval(timer);
@@ -794,14 +796,6 @@ export default function App() {
 
   const allArticles = useMemo(() => distinctArticles(activeArticles), [activeArticles]);
 
-  const perspectiveArticles = useMemo(() => {
-    if (!activeArticle) return [];
-    const cluster = clusterStories(activeArticles)
-      .find(story => story.reports.some(report => report.id === activeArticle.id));
-    if (!cluster) return [];
-    return [...new Map(cluster.reports.map(report => [report.sourceId, report])).values()].slice(0, 6);
-  }, [activeArticle, activeArticles]);
-
   const homeSections = useMemo(
     () => {
       const topicWeights = { ...normalizedProfile.topicWeights };
@@ -810,6 +804,21 @@ export default function App() {
     },
     [activeArticles, normalizedProfile, sources, preferences.topics, feedClock]
   );
+
+  const perspectiveArticles = useMemo(() => {
+    if (!activeArticle) return [];
+    const pools = [homeSections.Heute, homeSections.Neueste, homeSections['Für dich']];
+    for (const pool of pools) {
+      const existing = pool.find(story => story.reports.some(report => report.id === activeArticle.id));
+      if (existing) {
+        return [...new Map(existing.reports.map(report => [report.sourceId, report])).values()].slice(0, 6);
+      }
+    }
+    const cluster = clusterStories(activeArticles)
+      .find(story => story.reports.some(report => report.id === activeArticle.id));
+    if (!cluster) return [];
+    return [...new Map(cluster.reports.map(report => [report.sourceId, report])).values()].slice(0, 6);
+  }, [activeArticle, activeArticles, homeSections]);
   const todayLeadArticles = useMemo(
     () => homeSections.Heute.slice(0, 14).flatMap(story => story.reports),
     [homeSections.Heute]
@@ -870,27 +879,38 @@ export default function App() {
     return () => window.clearTimeout(timer);
   }, [onboarded]);
 
-  // Intelligent background offline preloading for saved/queued + top Today articles
+  // Gentle, data-saving background offline preloading (strict session budget of 3 text articles)
   useEffect(() => {
     if (!onboarded || !cachedStorageReady || isLoadingFeeds || !homeSections.Heute.length) return;
     const controller = new AbortController();
-    const timer = window.setTimeout(() => {
-      const todayLeads = homeSections.Heute.map(story => story.lead);
+    let idleId: number | undefined;
+    const startPreload = () => {
+      const todayLeads = homeSections.Heute.slice(0, 4).map(story => story.lead);
       const prioritySaved = distinctArticles([
         ...readingQueueIds.map(id => savedArticles[id]).filter((a): a is NewsArticle => Boolean(a)),
-        ...Object.values(savedArticles),
+        ...Object.values(savedArticles).slice(0, 3),
       ]);
       void import('./lib/offlinePreload')
         .then(({ runIntelligentOfflinePreload }) =>
           runIntelligentOfflinePreload(todayLeads, prioritySaved, {
-            maxCount: 8,
+            maxCount: 3,
             signal: controller.signal,
           }),
         )
         .catch(() => {});
-    }, 1800);
+    };
+    const timer = window.setTimeout(() => {
+      const ric = (window as Window & { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number }).requestIdleCallback;
+      if (typeof ric === 'function') {
+        idleId = ric(startPreload, { timeout: 3000 });
+      } else {
+        startPreload();
+      }
+    }, 4200);
     return () => {
       window.clearTimeout(timer);
+      const cic = (window as Window & { cancelIdleCallback?: (id: number) => void }).cancelIdleCallback;
+      if (idleId !== undefined && typeof cic === 'function') cic(idleId);
       controller.abort();
     };
   }, [onboarded, cachedStorageReady, isLoadingFeeds, homeSections.Heute, readingQueueIds, savedArticles]);

@@ -66,14 +66,16 @@ function extractTokens(title: string): { headline: string; words: string[]; word
 
 function isCompoundMatch(a: string, b: string): boolean {
   if (a.length < 5 || b.length < 5 || /\d/.test(a) || /\d/.test(b)) return false;
+  if (a.slice(0, 5) === b.slice(0, 5) && Math.min(a.length, b.length) >= 8) return true;
   if (a.slice(0, 6) === b.slice(0, 6) && Math.min(a.length, b.length) >= 7) return true;
   const [shorter, longer] = a.length <= b.length ? [a, b] : [b, a];
   return longer.length >= 9 && shorter.length >= 5 && longer.includes(shorter);
 }
 
-function measureOverlap(aWords: string[], bWords: string[], bSet: Set<string>): { overlap: number; distinctive: number } {
+function measureOverlap(aWords: string[], bWords: string[], bSet: Set<string>): { overlap: number; distinctive: number; compoundHits: number } {
   let overlap = 0;
   let distinctive = 0;
+  let compoundHits = 0;
   const usedB = new Set<string>();
   for (const a of aWords) {
     if (bSet.has(a) && !usedB.has(a)) {
@@ -89,19 +91,24 @@ function measureOverlap(aWords: string[], bWords: string[], bSet: Set<string>): 
         usedB.add(b);
         overlap++;
         distinctive++;
+        compoundHits++;
         break;
       }
     }
   }
-  return { overlap, distinctive };
+  return { overlap, distinctive, compoundHits };
 }
 
 function indexKeysFor(words: string[]): string[] {
   const keys: string[] = [];
   for (const word of words) {
     keys.push(word);
-    if (word.length >= 9 && !/^\d+$/.test(word)) {
-      keys.push(`p:${word.slice(0, 6)}`);
+    if (word.length >= 8 && !/^\d+$/.test(word)) {
+      keys.push(`p5:${word.slice(0, 5)}`);
+      if (word.length >= 9) {
+        keys.push(`p:${word.slice(0, 6)}`);
+        keys.push(`s5:${word.slice(-5)}`);
+      }
     }
   }
   return keys;
@@ -147,16 +154,18 @@ export function clusterStories(articles: NewsArticle[]) {
         const sameCategory = cluster.lead.category === article.category;
         if (!Number.isFinite(delta) || delta > (sameCategory ? SAME_CAT_WINDOW : CROSS_CAT_WINDOW)) continue;
 
-        const { overlap, distinctive } = measureOverlap(words, cluster.words, cluster.wordSet);
-        if (overlap < 3) continue;
+        const { overlap, distinctive, compoundHits } = measureOverlap(words, cluster.words, cluster.wordSet);
+        if (overlap < 2) continue;
         const minSize = Math.min(words.length, cluster.words.length);
         const maxSize = Math.max(words.length, cluster.words.length);
 
         const matched = sameCategory
           ? (overlap >= 4 && (overlap / maxSize >= 0.5 || (distinctive >= 2 && overlap / minSize >= 0.55)))
             || (overlap >= 3 && distinctive >= 1 && overlap / minSize >= 0.6 && overlap / maxSize >= 0.35)
+            || (overlap === 2 && compoundHits >= 2 && delta <= 12 * 3_600_000)
           : (overlap >= 4 && distinctive >= 2 && overlap / minSize >= 0.55)
-            || (overlap >= 3 && distinctive >= 2 && overlap / minSize >= 0.65 && overlap / maxSize >= 0.4);
+            || (overlap >= 3 && distinctive >= 2 && overlap / minSize >= 0.65 && overlap / maxSize >= 0.4)
+            || (overlap >= 2 && compoundHits >= 2 && delta <= 12 * 3_600_000);
 
         if (matched) {
           matchIndex = idx;

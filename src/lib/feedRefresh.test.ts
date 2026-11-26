@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import type { NewsSource } from '../types/news';
-import { planFeedBatches, runWithConcurrency } from './feedRefresh';
+import type { NewsArticle, NewsSource } from '../types/news';
+import { STARTER_PACKS } from './catalog';
+import { planFeedBatches, runWithConcurrency, selectHomeStarterPacks, slimFeedArticle } from './feedRefresh';
 
 function makeSource(id: string, overrides: Partial<NewsSource> = {}): NewsSource {
   return {
@@ -59,4 +60,43 @@ test('runWithConcurrency bounds in-flight workers and honors early stop', async 
   assert.ok(maxActive <= 2);
   assert.ok(visited.includes(1) && visited.includes(2));
   assert.ok(visited.length < 5);
+});
+
+test('slimFeedArticle caps oversized paragraphs and deduplicates identical single-paragraph summary', () => {
+  const longText = 'A'.repeat(900);
+  const bloated: NewsArticle = {
+    id: '1',
+    sourceId: 's',
+    sourceName: 'Source',
+    sourceShortCode: 'SR',
+    sourceColor: '#111',
+    title: 'Headline',
+    summary: longText,
+    paragraphs: Array.from({ length: 12 }, () => longText),
+    link: 'https://example.org/1',
+    category: 'Politik',
+    publishedAt: '2026-11-26T10:00:00Z',
+    readingTimeMin: 3,
+    keywords: [],
+  };
+  const slim = slimFeedArticle(bloated);
+  assert.equal(slim.summary.length, 520);
+  assert.equal(slim.paragraphs.length, 6);
+  assert.equal(slim.paragraphs[0].length, 500);
+
+  const dupSummary = slimFeedArticle({
+    ...bloated,
+    summary: 'Kurzer Anreißer.',
+    paragraphs: ['Kurzer Anreißer.'],
+  });
+  assert.deepEqual(dupSummary.paragraphs, []);
+});
+
+test('selectHomeStarterPacks always places written news packs ahead of podcast or video packs', () => {
+  const dePacks = selectHomeStarterPacks(STARTER_PACKS, 'de', 4);
+  assert.equal(dePacks[0].id, 'dach-core');
+  assert.equal(dePacks.some(pack => pack.id.startsWith('podcasts-') || pack.id.startsWith('clips-')), false);
+
+  const enPacks = selectHomeStarterPacks(STARTER_PACKS, 'en', 4);
+  assert.equal(enPacks[0].id, 'en-global');
 });

@@ -15,7 +15,7 @@ const TYPE_LABEL_KEY: Partial<Record<EditorialArticleType, TranslationKey>> = {
   factcheck: 'typeFactcheck',
 };
 
-interface CardActionsProps {
+export interface CardActionsProps {
   article: NewsArticle;
   isBookmarked: boolean;
   isLiked: boolean;
@@ -40,17 +40,18 @@ export const CATEGORY_TEXT_STYLES: Record<string, string> = {
   Sport: 'text-orange-700 dark:text-orange-400',
 };
 
-function ArticleActions({ article, isBookmarked, isLiked, inQueue = false, onToggleBookmark, onToggleLike, onToggleQueue, onDismissLessLikeThis, layout = 'row' }:
+export function ArticleActions({ article, isBookmarked, isLiked, inQueue = false, onToggleBookmark, onToggleLike, onToggleQueue, onDismissLessLikeThis, layout = 'row' }:
   Omit<CardActionsProps, 'onOpen' | 'isRead' | 'readingProgress'> & { layout?: 'column' | 'row' | 'overlay' }) {
   const { t } = useI18n();
   const overlay = layout === 'overlay';
   const style = overlay
     ? 'bg-black/48 text-white ring-1 ring-white/22 backdrop-blur-md hover:bg-black/68'
     : 'text-[var(--muted)] hover:bg-[var(--control)] hover:text-[var(--ink)]';
-  const position = { column: 'flex flex-col', row: 'flex items-center gap-0.5', overlay: 'absolute bottom-3 right-3 z-20 flex gap-1.5' };
-  const buttonStyle = `reaction-btn flex h-11 w-11 items-center justify-center rounded-full ${style}`;
+  const position = { column: 'flex flex-col', row: 'flex items-center gap-0', overlay: 'absolute bottom-3 right-3 z-20 flex gap-1.5' };
+  const sizeClass = overlay ? 'h-10 w-10' : 'h-9 w-9 sm:h-10 sm:w-10';
+  const buttonStyle = `reaction-btn flex ${sizeClass} items-center justify-center rounded-full ${style}`;
   return (
-    <div className={`${position[layout]} shrink-0 items-center`}>
+    <div className={`${position[layout]} -mr-1.5 shrink-0 items-center`}>
       {onDismissLessLikeThis && !overlay && (
         <button
           type="button"
@@ -59,7 +60,7 @@ function ArticleActions({ article, isBookmarked, isLiked, inQueue = false, onTog
           aria-label={`${t('swipeLessLikeThis')}: ${article.title}`}
           title={t('swipeLessLikeThis')}
         >
-          <ThumbsDown size={15} aria-hidden="true" />
+          <ThumbsDown size={14} aria-hidden="true" />
         </button>
       )}
       {onToggleQueue && !overlay && (
@@ -73,9 +74,9 @@ function ArticleActions({ article, isBookmarked, isLiked, inQueue = false, onTog
           title={inQueue ? t('readerQueueAdded') : t('readerQueueAdd')}
         >
           {inQueue ? (
-            <Check size={16} className="text-[var(--accent)]" strokeWidth={2.5} aria-hidden="true" />
+            <Check size={15} className="text-[var(--accent)]" strokeWidth={2.5} aria-hidden="true" />
           ) : (
-            <ListPlus size={16} aria-hidden="true" />
+            <ListPlus size={15} aria-hidden="true" />
           )}
         </button>
       )}
@@ -88,7 +89,7 @@ function ArticleActions({ article, isBookmarked, isLiked, inQueue = false, onTog
         aria-label={isLiked ? `${t('unlike')}: ${article.title}` : `${t('like')}: ${article.title}`}
       >
         <Heart
-          size={17}
+          size={16}
           className={isLiked ? 'fill-current text-rose-500 dark:text-rose-400' : undefined}
           aria-hidden="true"
         />
@@ -102,7 +103,7 @@ function ArticleActions({ article, isBookmarked, isLiked, inQueue = false, onTog
         aria-label={isBookmarked ? `${t('unbookmark')}: ${article.title}` : `${t('bookmark')}: ${article.title}`}
       >
         <Bookmark
-          size={17}
+          size={16}
           className={isBookmarked ? 'fill-current text-[var(--accent)]' : undefined}
           aria-hidden="true"
         />
@@ -111,6 +112,10 @@ function ArticleActions({ article, isBookmarked, isLiked, inQueue = false, onTog
   );
 }
 
+/**
+ * Zero-rerender horizontal swipe-to-dismiss wrapper: drives GPU transform and backdrop cues
+ * directly through DOM refs during touchmove for butter-smooth 60/120fps drag physics.
+ */
 export function SwipeableArticleCard({
   article,
   enabled,
@@ -124,11 +129,14 @@ export function SwipeableArticleCard({
 }) {
   const { t } = useI18n();
   const shellRef = useRef<HTMLDivElement>(null);
+  const surfaceRef = useRef<HTMLDivElement>(null);
+  const backdropRef = useRef<HTMLDivElement>(null);
+  const leftLabelRef = useRef<HTMLSpanElement>(null);
+  const rightLabelRef = useRef<HTMLSpanElement>(null);
   const dismissTimerRef = useRef<number | undefined>(undefined);
+  const offsetRef = useRef(0);
   const touchRef = useRef<{ x: number; y: number; dx: number; time: number; axis: SwipeAxis; buzzed: boolean } | null>(null);
-  const [offsetX, setOffsetX] = useState(0);
-  const [dragging, setDragging] = useState(false);
-  const [ready, setReady] = useState(false);
+  const [backdropVisible, setBackdropVisible] = useState(false);
   const [dismissingDir, setDismissingDir] = useState<-1 | 0 | 1>(0);
 
   React.useEffect(() => () => window.clearTimeout(dismissTimerRef.current), []);
@@ -137,11 +145,30 @@ export function SwipeableArticleCard({
     return <>{children}</>;
   }
 
+  const applyTransform = (x: number, draggingNow: boolean, readyNow: boolean) => {
+    offsetRef.current = x;
+    const surface = surfaceRef.current;
+    if (surface) {
+      if (draggingNow) surface.dataset.dragging = 'true';
+      else delete surface.dataset.dragging;
+      surface.style.transform = x !== 0 ? `translate3d(${x}px, 0, 0)` : '';
+    }
+    const backdrop = backdropRef.current;
+    if (backdrop) {
+      backdrop.dataset.ready = readyNow ? 'true' : 'false';
+    }
+    if (leftLabelRef.current) {
+      leftLabelRef.current.style.opacity = x > 12 ? '1' : '0';
+    }
+    if (rightLabelRef.current) {
+      rightLabelRef.current.style.opacity = x < -12 ? '1' : '0';
+    }
+  };
+
   const reset = () => {
     touchRef.current = null;
-    setDragging(false);
-    setOffsetX(0);
-    setReady(false);
+    applyTransform(0, false, false);
+    setBackdropVisible(false);
   };
 
   return (
@@ -165,13 +192,12 @@ export function SwipeableArticleCard({
         state.dx = dx;
 
         if (move.axis === 'vertical') {
-          if (dragging) reset();
+          if (offsetRef.current !== 0) reset();
           return;
         }
         if (move.axis === 'horizontal') {
-          if (!dragging) setDragging(true);
-          setOffsetX(move.offsetX);
-          setReady(move.pastThreshold);
+          if (!backdropVisible) setBackdropVisible(true);
+          applyTransform(move.offsetX, true, move.pastThreshold);
           if (move.pastThreshold && !state.buzzed) {
             state.buzzed = true;
             navigator.vibrate?.(12);
@@ -183,7 +209,8 @@ export function SwipeableArticleCard({
       onTouchEnd={() => {
         const state = touchRef.current;
         if (!state || state.axis !== 'horizontal') {
-          reset();
+          if (offsetRef.current !== 0 || backdropVisible) reset();
+          else touchRef.current = null;
           return;
         }
         const width = shellRef.current?.clientWidth || 360;
@@ -191,9 +218,8 @@ export function SwipeableArticleCard({
         if (shouldCommitSwipe(state.dx, elapsed, width)) {
           const dir = state.dx < 0 ? -1 : 1;
           touchRef.current = null;
-          setDragging(false);
           setDismissingDir(dir);
-          setOffsetX(dir * (width + 40));
+          applyTransform(dir * (width + 40), false, true);
           window.clearTimeout(dismissTimerRef.current);
           dismissTimerRef.current = window.setTimeout(() => {
             onDismiss(article);
@@ -204,25 +230,24 @@ export function SwipeableArticleCard({
       }}
       onTouchCancel={reset}
     >
-      {(dragging || dismissingDir !== 0) && (
-        <div className="swipe-card-backdrop" data-ready={ready || dismissingDir !== 0} aria-hidden="true">
-          <span className={`inline-flex items-center gap-2 text-xs font-bold transition-opacity ${offsetX > 12 ? 'opacity-100' : 'opacity-0'}`}>
+      {(backdropVisible || dismissingDir !== 0) && (
+        <div ref={backdropRef} className="swipe-card-backdrop" data-ready={dismissingDir !== 0 ? 'true' : 'false'} aria-hidden="true">
+          <span ref={leftLabelRef} className="inline-flex items-center gap-2 text-xs font-bold transition-opacity duration-150" style={{ opacity: 0 }}>
             <ThumbsDown size={15} />
             {t('swipeLessLikeThis')}
           </span>
-          <span className={`inline-flex items-center gap-2 text-xs font-bold transition-opacity ${offsetX < -12 ? 'opacity-100' : 'opacity-0'}`}>
+          <span ref={rightLabelRef} className="inline-flex items-center gap-2 text-xs font-bold transition-opacity duration-150" style={{ opacity: 0 }}>
             {t('swipeLessLikeThis')}
             <ThumbsDown size={15} />
           </span>
         </div>
       )}
       <div
+        ref={surfaceRef}
         className="swipe-card-surface"
-        data-dragging={dragging || undefined}
         data-dismissing={dismissingDir !== 0 || undefined}
-        style={offsetX !== 0 ? { transform: `translate3d(${offsetX}px, 0, 0)` } : undefined}
         onClickCapture={event => {
-          if (Math.abs(offsetX) > 10 || dismissingDir !== 0) {
+          if (Math.abs(offsetRef.current) > 10 || dismissingDir !== 0) {
             event.preventDefault();
             event.stopPropagation();
           }
@@ -233,75 +258,6 @@ export function SwipeableArticleCard({
     </div>
   );
 }
-
-export const HeroArticleCard: React.FC<CardActionsProps & { badgeLabel?: string; className?: string }> = React.memo(function HeroArticleCard({
-  article,
-  badgeLabel,
-  className = '',
-  onOpen,
-  ...actions
-}) {
-  const { t, categoryLabel, formatRelative } = useI18n();
-  const resolvedBadge = badgeLabel ?? t('topStory');
-  const hasMedia = Boolean(article.videoUrl || article.youtubeId || article.audioUrl);
-
-  return (
-    <article
-      className={`article-card article-card-interactive group relative overflow-hidden bg-slate-900 shadow-lg ring-1 ring-black/10 dark:ring-white/10 ${className}`}
-    >
-      <button
-        type="button"
-        onClick={() => onOpen(article)}
-        className="relative flex min-h-[296px] sm:min-h-[348px] h-full w-full flex-col justify-between gap-8 p-5 sm:p-6 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
-        aria-label={`${t('openArticle')}: ${article.title}`}
-      >
-        <div className="article-thumbnail pointer-events-none absolute inset-0 overflow-hidden">
-          <ArticleImage
-            src={article.imageUrl}
-            alt={article.title}
-            sourceShortCode={article.sourceShortCode}
-            sourceColor={article.sourceColor}
-            priority
-            className="h-full w-full transition-transform duration-500 ease-out group-hover:scale-[1.025]"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/92 via-black/48 to-black/15" />
-        </div>
-
-        <div className="relative z-10 flex items-center justify-between gap-2">
-          <span className="text-[11px] font-bold uppercase tracking-[0.11em] text-white/92 drop-shadow-sm">
-            {resolvedBadge}
-          </span>
-          {hasMedia && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-black/55 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-md ring-1 ring-white/20">
-              <Play className="h-3 w-3 fill-current" aria-hidden="true" />
-              {t('mediaLabel')}
-            </span>
-          )}
-        </div>
-
-        <div className="relative z-10 pb-12">
-          <h2 className="line-clamp-3 text-[1.45rem] sm:text-3xl font-bold leading-[1.15] tracking-tight text-white [text-wrap:balance]">
-            {article.title}
-          </h2>
-          {article.summary && (
-            <p className="mt-2 line-clamp-2 text-[13.5px] sm:text-sm leading-relaxed text-white/85">
-              {article.summary}
-            </p>
-          )}
-          <div className="mt-3 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-white/80 tabular-nums">
-            <span className="font-semibold text-white">{article.sourceName}</span>
-            <span aria-hidden="true">·</span>
-            <span>{categoryLabel(article.category)}</span>
-            <span aria-hidden="true">·</span>
-            <span>{formatRelative(article.publishedAt)}</span>
-          </div>
-        </div>
-      </button>
-
-      <ArticleActions article={article} {...actions} layout="overlay" />
-    </article>
-  );
-});
 
 export const HeadlineArticleCard: React.FC<CardActionsProps & { lead?: boolean }> = React.memo(function HeadlineArticleCard({ article, lead = false, isRead = false, readingProgress, onOpen, ...actions }) {
   const { t, categoryLabel, formatRelative } = useI18n();
@@ -327,7 +283,7 @@ export const HeadlineArticleCard: React.FC<CardActionsProps & { lead?: boolean }
         className="group block w-full text-left focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--accent)]"
       >
         {article.imageUrl && (
-          <div className={`article-thumbnail relative w-full overflow-hidden bg-[var(--control)] ${lead ? 'aspect-[16/10] lg:aspect-[16/9] max-h-[20.5rem]' : 'aspect-[16/9] sm:aspect-[2.15] max-h-[20rem]'}`}>
+          <div className={`article-thumbnail relative w-full overflow-hidden bg-[var(--control)] ${lead ? 'aspect-[16/9] max-h-[21.5rem]' : 'aspect-[16/9] sm:aspect-[2.15] max-h-[19rem]'}`}>
             <ArticleImage
               key={article.imageUrl}
               src={article.imageUrl}
@@ -345,61 +301,59 @@ export const HeadlineArticleCard: React.FC<CardActionsProps & { lead?: boolean }
             )}
           </div>
         )}
-        <div className={`${lead ? 'px-4 pt-4 sm:px-6 sm:pt-5' : 'px-4 pt-3.5 sm:px-5 sm:pt-4'}`}>
-          <p className={`text-xs font-bold tracking-wide ${categoryColor}`}>
+        <div className={`${lead ? 'px-4 pt-3.5 sm:px-6 sm:pt-5' : 'px-4 pt-3.5 sm:px-5 sm:pt-4'}`}>
+          <p className={`text-[11.5px] font-bold tracking-[0.02em] ${categoryColor}`}>
             {kicker}
           </p>
           <Heading
-            className={`mt-1.5 font-extrabold tracking-[-0.025em] [overflow-wrap:anywhere] [text-wrap:balance] transition-opacity duration-150 [@media(hover:hover)]:group-hover:opacity-80 ${
+            className={`mt-1.5 font-extrabold tracking-[-0.026em] [overflow-wrap:anywhere] [text-wrap:balance] transition-opacity duration-150 [@media(hover:hover)]:group-hover:opacity-80 ${
               isRead && !progressPct ? 'text-[var(--ink)]/70' : 'text-[var(--ink)]'
             } ${
               lead
-                ? 'text-[clamp(1.4rem,4.4vw,2.05rem)] leading-[1.13]'
-                : 'text-[clamp(1.18rem,4vw,1.55rem)] leading-[1.18]'
+                ? 'text-[clamp(1.38rem,4.4vw,1.95rem)] leading-[1.14]'
+                : 'text-[clamp(1.16rem,3.8vw,1.48rem)] leading-[1.18]'
             }`}
           >
             {article.title}
           </Heading>
           {clickbait.isClickbait && clickbait.clarifiedLead ? (
-            <p className="mt-2 max-w-[65ch] text-[13.5px] leading-[1.5] text-[var(--ink-soft,var(--muted))]">
+            <p className="mt-2 max-w-[65ch] text-[13.5px] leading-[1.52] text-[var(--ink-soft,var(--muted))]">
               <span className="font-semibold text-[var(--accent)]">{t('clickbaitShort')}: </span>
               {clickbait.clarifiedLead}
             </p>
           ) : article.summary && (
-            <p className={`mt-2 line-clamp-3 max-w-[65ch] text-[var(--muted)] ${lead ? 'text-[14.5px] leading-[1.55] sm:text-[15.5px]' : 'text-[14px] leading-[1.5] sm:text-[15px]'}`}>
+            <p className={`mt-2 line-clamp-3 max-w-[65ch] text-[var(--muted)] ${lead ? 'text-[14px] leading-[1.55] sm:text-[15px]' : 'text-[13.5px] leading-[1.5] sm:text-[14.5px]'}`}>
               {article.summary}
             </p>
           )}
         </div>
       </button>
-      <div className={`mt-2 flex items-center justify-between gap-x-2 pb-1.5 ${lead ? 'px-4 sm:px-6' : 'px-4 sm:px-5'}`}>
-        <div className="flex min-w-0 items-center gap-2 py-1 text-xs leading-snug text-[var(--muted)] tabular-nums">
+      <div className={`mt-2 flex items-center justify-between gap-x-2 border-t border-[var(--line)]/65 pt-1.5 pb-1.5 ${lead ? 'mx-4 sm:mx-6' : 'mx-4 sm:mx-5'}`}>
+        <div className="flex min-w-0 items-center gap-1.5 py-1 text-xs leading-snug text-[var(--muted)] tabular-nums">
           <SourceIcon
             source={{ id: article.sourceId, shortCode: article.sourceShortCode, accentColor: article.sourceColor }}
-            size="h-4 w-4 rounded-[4px] text-[7px]"
+            size="h-4 w-4 shrink-0 rounded-[4px] text-[7px]"
           />
-          <p className="min-w-0 truncate">
-            <span className="font-semibold text-[var(--ink)]">{article.sourceName}</span>
-            <span aria-hidden="true"> · </span>
-            <span>{formatRelative(article.publishedAt)}</span>
-            {article.readingTimeMin > 0 && (
-              <span className="hidden sm:inline">
-                <span aria-hidden="true"> · </span>
-                {t('briefingReadMin', { min: article.readingTimeMin })}
-              </span>
-            )}
-            {progressPct > 0 ? (
-              <span className="font-semibold text-[var(--accent)]">
-                <span aria-hidden="true"> · </span>
-                {progressPct}%
-              </span>
-            ) : isRead ? (
-              <span>
-                <span aria-hidden="true"> · </span>
-                {t('readLabel')}
-              </span>
-            ) : null}
-          </p>
+          <span className="truncate font-semibold text-[var(--ink)]">{article.sourceName}</span>
+          <span aria-hidden="true">·</span>
+          <span className="shrink-0 whitespace-nowrap">{formatRelative(article.publishedAt)}</span>
+          {article.readingTimeMin > 0 && (
+            <span className="hidden sm:inline shrink-0 whitespace-nowrap">
+              <span aria-hidden="true">· </span>
+              {t('briefingReadMin', { min: article.readingTimeMin })}
+            </span>
+          )}
+          {progressPct > 0 ? (
+            <span className="shrink-0 whitespace-nowrap font-semibold text-[var(--accent)]">
+              <span aria-hidden="true">· </span>
+              {progressPct}%
+            </span>
+          ) : isRead ? (
+            <span className="hidden sm:inline shrink-0 whitespace-nowrap">
+              <span aria-hidden="true">· </span>
+              {t('readLabel')}
+            </span>
+          ) : null}
         </div>
         <ArticleActions article={article} {...actions} layout="row" />
       </div>
@@ -439,13 +393,13 @@ export const CompactArticleCard: React.FC<CardActionsProps> = React.memo(({
         className="flex min-w-0 w-full items-start gap-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] rounded-xl"
         aria-label={`${t('openArticle')}: ${article.title}`}
       >
-        <div className="article-thumbnail relative h-[78px] w-[78px] sm:h-[86px] sm:w-[114px] shrink-0 overflow-hidden rounded-[14px] bg-[var(--control)]">
+        <div className="article-thumbnail relative h-[76px] w-[76px] sm:h-[84px] sm:w-[112px] shrink-0 overflow-hidden rounded-[12px] bg-[var(--control)]">
           <ArticleImage
             src={article.imageUrl}
             alt={article.title}
             sourceShortCode={article.sourceShortCode}
             sourceColor={article.sourceColor}
-            className="h-full w-full transition-transform duration-300 ease-out group-hover:scale-[1.04]"
+            className="h-full w-full transition-transform duration-300 ease-out group-hover:scale-[1.035]"
           />
           {(article.videoUrl || article.youtubeId) && (
             <span className="absolute bottom-1.5 right-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-black/75 text-white backdrop-blur-sm">
@@ -455,10 +409,10 @@ export const CompactArticleCard: React.FC<CardActionsProps> = React.memo(({
         </div>
 
         <div className="min-w-0 flex-1 pt-0.5">
-          <p className={`text-[11.5px] font-bold tracking-[0.01em] ${categoryColor}`}>
+          <p className={`text-[11px] font-bold tracking-[0.02em] ${categoryColor}`}>
             {kicker}
           </p>
-          <h3 className={`mt-0.5 line-clamp-3 [overflow-wrap:anywhere] text-[15px] font-bold leading-[1.3] tracking-[-0.015em] [text-wrap:balance] transition-opacity duration-150 [@media(hover:hover)]:group-hover:opacity-80 ${
+          <h3 className={`mt-0.5 line-clamp-3 [overflow-wrap:anywhere] text-[14.5px] sm:text-[15px] font-bold leading-[1.3] tracking-[-0.015em] [text-wrap:balance] transition-opacity duration-150 [@media(hover:hover)]:group-hover:opacity-80 ${
             isRead && !progressPct ? 'text-[var(--ink)]/70' : 'text-[var(--ink)]'
           }`}>
             {article.title}
@@ -466,30 +420,30 @@ export const CompactArticleCard: React.FC<CardActionsProps> = React.memo(({
         </div>
       </button>
 
-      <div className="mt-1.5 flex items-center justify-between gap-2 pt-0.5">
+      <div className="mt-2 flex items-center justify-between gap-2 pt-0.5">
         <div className="flex min-w-0 items-center gap-1.5 text-xs text-[var(--muted)] tabular-nums">
           <SourceIcon
             source={{ id: article.sourceId, shortCode: article.sourceShortCode, accentColor: article.sourceColor }}
-            size="h-4 w-4 rounded-[4px] text-[7px]"
+            size="h-4 w-4 shrink-0 rounded-[4px] text-[7px]"
           />
           <span className="truncate font-medium text-[var(--ink)]/85">
             {article.sourceName}
           </span>
           <span aria-hidden="true">·</span>
-          <span className="whitespace-nowrap">{formatRelative(article.publishedAt)}</span>
+          <span className="shrink-0 whitespace-nowrap">{formatRelative(article.publishedAt)}</span>
           {article.readingTimeMin > 0 && (
-            <span className="hidden sm:inline whitespace-nowrap">
+            <span className="hidden sm:inline shrink-0 whitespace-nowrap">
               <span aria-hidden="true">· </span>
               {t('briefingReadMin', { min: article.readingTimeMin })}
             </span>
           )}
           {progressPct > 0 ? (
-            <span className="whitespace-nowrap font-semibold text-[var(--accent)]">
+            <span className="shrink-0 whitespace-nowrap font-semibold text-[var(--accent)]">
               <span aria-hidden="true">· </span>
               {progressPct}%
             </span>
           ) : isRead ? (
-            <span className="hidden sm:inline whitespace-nowrap">
+            <span className="hidden sm:inline shrink-0 whitespace-nowrap">
               <span aria-hidden="true">· </span>
               {t('readLabel')}
             </span>
@@ -502,64 +456,6 @@ export const CompactArticleCard: React.FC<CardActionsProps> = React.memo(({
           <div className="h-full bg-[var(--accent)]" style={{ width: `${progressPct}%` }} />
         </div>
       )}
-    </article>
-  );
-});
-
-export const BentoArticleCard: React.FC<CardActionsProps & { tall?: boolean; className?: string }> = React.memo(function BentoArticleCard({
-  article,
-  tall = false,
-  className = '',
-  onOpen,
-  ...actions
-}) {
-  const { t, categoryLabel, formatRelative } = useI18n();
-  return (
-    <article
-      className={`article-card article-card-interactive group relative overflow-hidden bg-slate-900 shadow-md ring-1 ring-black/10 dark:ring-white/10 ${className}`}
-    >
-      <button
-        type="button"
-        onClick={() => onOpen(article)}
-        className={`relative flex w-full flex-col justify-between gap-3 p-3.5 sm:p-4 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] ${
-          tall ? 'h-full min-h-[300px] sm:min-h-[350px]' : 'h-full min-h-[180px] sm:min-h-[192px]'
-        }`}
-        aria-label={`${t('openArticle')}: ${article.title}`}
-      >
-        <div className="article-thumbnail pointer-events-none absolute inset-0 overflow-hidden">
-          <ArticleImage
-            src={article.imageUrl}
-            alt={article.title}
-            sourceShortCode={article.sourceShortCode}
-            sourceColor={article.sourceColor}
-            className="h-full w-full transition-transform duration-500 ease-out group-hover:scale-[1.04]"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/92 via-black/48 to-black/15" />
-        </div>
-
-        <div className="relative z-10">
-          <span className="text-[11px] font-bold tracking-wide text-white/90 drop-shadow-sm">
-            {categoryLabel(article.category)}
-          </span>
-        </div>
-
-        <div className="relative z-10 pb-12">
-          <h3 className={`${tall ? 'text-base sm:text-xl line-clamp-3' : 'text-[13.5px] sm:text-[15px] line-clamp-2'} font-bold leading-snug text-white [text-wrap:balance]`}>
-            {article.title}
-          </h3>
-          {article.summary && (
-            <p className={`mt-1 text-[11.5px] sm:text-xs leading-relaxed text-white/80 ${tall ? 'line-clamp-3' : 'hidden sm:line-clamp-2'}`}>
-              {article.summary}
-            </p>
-          )}
-          <div className="mt-1.5 flex items-center gap-1 text-[10.5px] sm:text-[11px] text-white/78 tabular-nums truncate">
-            <span className="font-medium text-white/95 truncate">{article.sourceName}</span>
-            <span aria-hidden="true">·</span>
-            <span className="shrink-0">{formatRelative(article.publishedAt)}</span>
-          </div>
-        </div>
-      </button>
-      <ArticleActions article={article} {...actions} layout="overlay" />
     </article>
   );
 });
