@@ -12,6 +12,11 @@ export interface ReaderCopy {
   paywallReadInApp: string;
   paywallSearchMore: string;
   paywallOpenSource: string;
+  fullTextOptInTitle: string;
+  fullTextOptInDesc: string;
+  fullTextOptInEnable: string;
+  fullTextOptInDisable: string;
+  fullTextOptOutDesc: string;
   onLabel: string;
   offLabel: string;
   offlineRemoved: string;
@@ -43,6 +48,11 @@ const COPY: Record<AppLanguage, ReaderCopy> = {
     paywallReadInApp: 'Im Reader öffnen',
     paywallSearchMore: 'Weitere Quellen suchen',
     paywallOpenSource: 'Bei der Quelle öffnen',
+    fullTextOptInTitle: 'Nur Feed-Vorschau aktiv',
+    fullTextOptInDesc: 'Volltext ist für diese Quelle standardmäßig ausgeschaltet. Du kannst ihn bei Bedarf laden oder direkt zur Originalseite wechseln.',
+    fullTextOptInEnable: 'Volltext für diese Quelle laden',
+    fullTextOptInDisable: 'Volltext für diese Quelle ausschalten',
+    fullTextOptOutDesc: 'Dieser Verlag hat dem automatischen Volltextabruf widersprochen. Bitte lies den Artikel direkt bei der Quelle.',
     onLabel: 'An',
     offLabel: 'Aus',
     offlineRemoved: 'Offline-Kopie entfernt.',
@@ -72,6 +82,11 @@ const COPY: Record<AppLanguage, ReaderCopy> = {
     paywallReadInApp: 'Read in app',
     paywallSearchMore: 'Find more sources',
     paywallOpenSource: 'Open at publisher',
+    fullTextOptInTitle: 'Feed summary only',
+    fullTextOptInDesc: 'Full-text loading is disabled for this source by default. You can enable it for this source or open the original article.',
+    fullTextOptInEnable: 'Load full text for this source',
+    fullTextOptInDisable: 'Disable full text for this source',
+    fullTextOptOutDesc: 'This publisher opted out of automatic full-text extraction. Please read the article on the publisher site.',
     onLabel: 'On',
     offLabel: 'Off',
     offlineRemoved: 'Offline copy removed.',
@@ -101,6 +116,11 @@ const COPY: Record<AppLanguage, ReaderCopy> = {
     paywallReadInApp: 'Lire ici',
     paywallSearchMore: 'Chercher d’autres sources',
     paywallOpenSource: 'Ouvrir chez la source',
+    fullTextOptInTitle: 'Aperçu du flux uniquement',
+    fullTextOptInDesc: 'Le texte intégral est désactivé par défaut pour cette source. Vous pouvez l’activer ou ouvrir l’article original.',
+    fullTextOptInEnable: 'Charger le texte intégral pour cette source',
+    fullTextOptInDisable: 'Désactiver le texte intégral pour cette source',
+    fullTextOptOutDesc: 'Cet éditeur s’oppose à l’extraction automatique. Veuillez lire l’article directement sur son site.',
     onLabel: 'Activé',
     offLabel: 'Désactivé',
     offlineRemoved: 'Copie hors ligne supprimée.',
@@ -130,6 +150,11 @@ const COPY: Record<AppLanguage, ReaderCopy> = {
     paywallReadInApp: 'Leer aquí',
     paywallSearchMore: 'Buscar más fuentes',
     paywallOpenSource: 'Abrir en la fuente',
+    fullTextOptInTitle: 'Solo resumen del feed',
+    fullTextOptInDesc: 'La carga del texto completo está desactivada por defecto para esta fuente. Puedes activarla o abrir el artículo original.',
+    fullTextOptInEnable: 'Cargar texto completo para esta fuente',
+    fullTextOptInDisable: 'Desactivar texto completo para esta fuente',
+    fullTextOptOutDesc: 'Este medio no permite la extracción automática. Lee el artículo directamente en su web.',
     onLabel: 'Sí',
     offLabel: 'No',
     offlineRemoved: 'Copia sin conexión eliminada.',
@@ -159,6 +184,11 @@ const COPY: Record<AppLanguage, ReaderCopy> = {
     paywallReadInApp: 'Leggi qui',
     paywallSearchMore: 'Cerca altre fonti',
     paywallOpenSource: 'Apri alla fonte',
+    fullTextOptInTitle: 'Solo anteprima del feed',
+    fullTextOptInDesc: 'Il caricamento del testo completo è disattivato per questa fonte. Puoi attivarlo o aprire l’articolo originale.',
+    fullTextOptInEnable: 'Carica testo completo per questa fonte',
+    fullTextOptInDisable: 'Disattiva testo completo per questa fonte',
+    fullTextOptOutDesc: 'Questo editore ha escluso l’estrazione automatica. Leggi l’articolo sul sito della fonte.',
     onLabel: 'Attivo',
     offLabel: 'Spento',
     offlineRemoved: 'Copia offline rimossa.',
@@ -188,6 +218,11 @@ const COPY: Record<AppLanguage, ReaderCopy> = {
     paywallReadInApp: 'Ler no app',
     paywallSearchMore: 'Buscar mais fontes',
     paywallOpenSource: 'Abrir na fonte',
+    fullTextOptInTitle: 'Apenas resumo do feed',
+    fullTextOptInDesc: 'O carregamento do texto completo vem desativado por padrão para esta fonte. Você pode ativá-lo ou abrir o artigo original.',
+    fullTextOptInEnable: 'Carregar texto completo para esta fonte',
+    fullTextOptInDisable: 'Desativar texto completo para esta fonte',
+    fullTextOptOutDesc: 'Este veículo optou por não permitir a extração automática. Leia o artigo diretamente na fonte.',
     onLabel: 'Ativo',
     offLabel: 'Inativo',
     offlineRemoved: 'Cópia offline removida.',

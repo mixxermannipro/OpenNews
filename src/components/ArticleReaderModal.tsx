@@ -123,6 +123,9 @@ interface ArticleReaderModalProps {
   nextArticle?: NewsArticle;
   articlePosition?: { current: number; total: number };
   onSearchTopic?: () => void;
+  allowFullText?: boolean;
+  onEnableFullText?: (sourceId: string) => void;
+  onDisableFullText?: (sourceId: string) => void;
 }
 
 function renderWithHighlights(text: string, quotes: string[]): React.ReactNode {
@@ -183,7 +186,10 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
   nextArticle,
   articlePosition,
   onSearchTopic,
-}) => {
+  allowFullText = false,
+  onEnableFullText,
+  onDisableFullText,
+}: ArticleReaderModalProps) => {
   const { lang, locale, t, categoryLabel, formatRelative, formatHeaderDate } = useI18n();
   const copy = useMemo(() => getReaderCopy(lang), [lang]);
   const openTimestampRef = useRef<number>(Date.now());
@@ -254,6 +260,7 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
   const [loadingFullText, setLoadingFullText] = useState(false);
   const [fullTextUnavailable, setFullTextUnavailable] = useState(false);
   const [blockedWall, setBlockedWall] = useState(false);
+  const [publisherOptOut, setPublisherOptOut] = useState(false);
   const [offlineSaved, setOfflineSaved] = useState(false);
   const [offlineBusy, setOfflineBusy] = useState(false);
   const [offlineStatus, setOfflineStatus] = useState('');
@@ -665,9 +672,9 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
   useEffect(() => {
     let cancelled = false;
     const controller = new AbortController();
-    setLoadingFullText(true);
     setFullTextUnavailable(false);
     setBlockedWall(false);
+    setPublisherOptOut(false);
     let offlineImage: string | undefined;
     const load = async () => {
       try {
@@ -684,22 +691,28 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
           }
           if (!navigator.onLine) return;
         }
-        const data: { paragraphs: string[]; headingIndexes?: number[]; ogImage?: string; unavailable?: boolean; blockedWall?: boolean } | null = Capacitor.isNativePlatform()
+        if (!allowFullText) {
+          setLoadingFullText(false);
+          return;
+        }
+        setLoadingFullText(true);
+        const data: { paragraphs: string[]; headingIndexes?: number[]; ogImage?: string; unavailable?: boolean; blockedWall?: boolean; optOut?: boolean } | null = Capacitor.isNativePlatform()
           ? await extractNativeArticle(article.link)
           : await fetch(
             `/api/article/extract?url=${encodeURIComponent(article.link)}&title=${encodeURIComponent(article.title.slice(0, 200))}`,
             { signal: controller.signal },
           ).then(response => response.ok
-            ? response.json() as Promise<{ paragraphs: string[]; headingIndexes?: number[]; ogImage?: string; unavailable?: boolean; blockedWall?: boolean }>
+            ? response.json() as Promise<{ paragraphs: string[]; headingIndexes?: number[]; ogImage?: string; unavailable?: boolean; blockedWall?: boolean; optOut?: boolean }>
             : null);
         if (cancelled) return;
+        if (data?.optOut) setPublisherOptOut(true);
         if (data?.blockedWall) setBlockedWall(true);
         const contentLength = (items: string[]) => items.join(' ').length;
-        if (!data?.unavailable && data?.paragraphs?.length && contentLength(data.paragraphs) > contentLength(article.paragraphs)) {
+        if (!data?.unavailable && !data?.blockedWall && !data?.optOut && data?.paragraphs?.length && contentLength(data.paragraphs) > contentLength(article.paragraphs)) {
           setParagraphs(data.paragraphs);
           setHeadingIndexes(data.headingIndexes ?? []);
           setAiResult(previous => previous?.mode === 'ai' ? previous : generateLocalExtractiveSummary({ ...article, paragraphs: data.paragraphs }));
-        } else {
+        } else if (!cached) {
           setFullTextUnavailable(true);
         }
         if (!article.imageUrl && data?.ogImage) setHeroImage(data.ogImage);
@@ -715,7 +728,7 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
       controller.abort();
       if (offlineImage) URL.revokeObjectURL(offlineImage);
     };
-  }, [article]);
+  }, [article, allowFullText]);
 
   // Restore saved reading scroll position once article text finishes loading
   useEffect(() => {
@@ -1268,14 +1281,50 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
               </div>
             )}
 
-            {!loadingFullText && (blockedWall || fullTextUnavailable) && (
+            {!allowFullText && !offlineSaved && !loadingFullText && (
+              <section
+                aria-label={copy.fullTextOptInTitle}
+                className="mt-6 space-y-3 rounded-2xl border border-[var(--line)] bg-[var(--panel-2)] p-4 sm:p-5"
+              >
+                <div className="space-y-1">
+                  <p className="text-sm font-bold text-[var(--ink)]">{copy.fullTextOptInTitle}</p>
+                  <p className="text-xs leading-relaxed text-[var(--muted)]">{copy.fullTextOptInDesc}</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                  {onEnableFullText && article.sourceId && (
+                    <button
+                      type="button"
+                      onClick={() => onEnableFullText(article.sourceId)}
+                      className="primary-action inline-flex items-center gap-1.5 px-4 text-xs"
+                    >
+                      {copy.fullTextOptInEnable}
+                    </button>
+                  )}
+                  {safeArticleHref && (
+                    <a
+                      href={safeArticleHref}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="choice-pill inline-flex items-center gap-1.5 text-xs"
+                    >
+                      <ExternalLink size={14} aria-hidden="true" />
+                      {copy.paywallOpenSource}
+                    </a>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {allowFullText && !loadingFullText && (publisherOptOut || blockedWall || fullTextUnavailable) && (
               <section
                 aria-label={copy.paywallTitle}
                 className="mt-6 space-y-3.5 rounded-2xl border border-[var(--line)] bg-[var(--panel-2)] p-4 sm:p-5"
               >
                 <div className="space-y-1">
                   <p className="text-sm font-bold text-[var(--ink)]">{copy.paywallTitle}</p>
-                  <p className="text-xs leading-relaxed text-[var(--muted)]">{copy.paywallDesc}</p>
+                  <p className="text-xs leading-relaxed text-[var(--muted)]">
+                    {publisherOptOut ? copy.fullTextOptOutDesc : copy.paywallDesc}
+                  </p>
                 </div>
 
                 {freeAlternatives.length > 0 && (
@@ -1507,6 +1556,15 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
                   >
                     <Download size={15} aria-hidden="true" />
                     {offlineSaved ? t('readerRemoveOffline') : t('readerSaveOffline')}
+                  </button>
+                )}
+                {allowFullText && onDisableFullText && article.sourceId && (
+                  <button
+                    type="button"
+                    className="choice-pill inline-flex items-center gap-2"
+                    onClick={() => onDisableFullText(article.sourceId)}
+                  >
+                    {copy.fullTextOptInDisable}
                   </button>
                 )}
                 {fullTextUnavailable && safeArticleHref && (

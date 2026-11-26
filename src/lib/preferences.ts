@@ -56,6 +56,7 @@ export interface AppPreferences {
   hero: boolean;
   images: boolean;
   topics: NewsCategory[];
+  fullTextSourceIds?: string[];
 }
 
 export const DEFAULT_PREFERENCES: AppPreferences = {
@@ -72,4 +73,5 @@ export const DEFAULT_PREFERENCES: AppPreferences = {
   hero: true,
   images: true,
   topics: [],
+  fullTextSourceIds: [],
 };

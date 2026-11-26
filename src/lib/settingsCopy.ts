@@ -17,6 +17,9 @@ export interface SettingsCopy {
   ttsSystemPlaying: string;
   ttsProviderPlaying: (name: string) => string;
   ttsTestFailed: string;
+  webKeysPersistLabel: string;
+  webKeysPersistHelp: string;
+  webKeysSessionActive: string;
 }
 
 const COPY: Record<AppLanguage, SettingsCopy> = {
@@ -64,6 +67,9 @@ const COPY: Record<AppLanguage, SettingsCopy> = {
     ttsSystemPlaying: 'Systemstimme spielt Beispiel ab.',
     ttsProviderPlaying: name => `${name} spielt Beispiel ab.`,
     ttsTestFailed: 'Stimm-Test fehlgeschlagen.',
+    webKeysPersistLabel: 'API-Schlüssel dauerhaft im Browser speichern (weniger sicher)',
+    webKeysPersistHelp: 'Standardmäßig merkt sich OpenNews Web-Schlüssel nur für diese Sitzung (sessionStorage). Dauerhaftes Speichern erlaubt es Browser-Erweiterungen oder eingeschleusten Skripten auf dieser Seite, den Schlüssel auszulesen.',
+    webKeysSessionActive: 'Aktuell nur für diese Browser-Sitzung gespeichert.',
   },
   en: {
     accentOptions: { system: 'Neutral', blue: 'Blue', green: 'Green', violet: 'Violet' },
@@ -109,6 +115,9 @@ const COPY: Record<AppLanguage, SettingsCopy> = {
     ttsSystemPlaying: 'System voice is playing a sample.',
     ttsProviderPlaying: name => `${name} is playing a sample.`,
     ttsTestFailed: 'Voice test failed.',
+    webKeysPersistLabel: 'Persist API keys across browser restarts (less secure)',
+    webKeysPersistHelp: 'By default, web API keys are kept in sessionStorage for this tab session only. Persisting them allows browser extensions or injected scripts on this origin to read them later.',
+    webKeysSessionActive: 'Currently kept for this browser session only.',
   },
   fr: {
     accentOptions: { system: 'Neutre', blue: 'Bleu', green: 'Vert', violet: 'Violet' },
@@ -154,6 +163,9 @@ const COPY: Record<AppLanguage, SettingsCopy> = {
     ttsSystemPlaying: 'Lecture d’un extrait avec la voix système.',
     ttsProviderPlaying: name => `Lecture d’un extrait avec ${name}.`,
     ttsTestFailed: 'Le test vocal a échoué.',
+    webKeysPersistLabel: 'Conserver les clés API dans le navigateur (moins sûr)',
+    webKeysPersistHelp: 'Par défaut, les clés web restent uniquement dans sessionStorage pour cette session. Un stockage durable expose les clés aux extensions ou scripts sur cette origine.',
+    webKeysSessionActive: 'Actuellement conservées uniquement pour cette session.',
   },
   es: {
     accentOptions: { system: 'Neutro', blue: 'Azul', green: 'Verde', violet: 'Violeta' },
@@ -199,6 +211,9 @@ const COPY: Record<AppLanguage, SettingsCopy> = {
     ttsSystemPlaying: 'Reproduciendo muestra con la voz del sistema.',
     ttsProviderPlaying: name => `Reproduciendo muestra con ${name}.`,
     ttsTestFailed: 'Error en la prueba de voz.',
+    webKeysPersistLabel: 'Guardar claves API de forma permanente en el navegador (menos seguro)',
+    webKeysPersistHelp: 'Por defecto, las claves web solo se guardan en sessionStorage para esta sesión. Guardarlas de forma permanente permite que extensiones o scripts en este sitio puedan leerlas.',
+    webKeysSessionActive: 'Actualmente guardadas solo para esta sesión.',
   },
   it: {
     accentOptions: { system: 'Neutro', blue: 'Blu', green: 'Verde', violet: 'Viola' },
@@ -244,6 +259,9 @@ const COPY: Record<AppLanguage, SettingsCopy> = {
     ttsSystemPlaying: 'Riproduzione esempio con voce di sistema.',
     ttsProviderPlaying: name => `Riproduzione esempio con ${name}.`,
     ttsTestFailed: 'Test vocale non riuscito.',
+    webKeysPersistLabel: 'Salva le chiavi API in modo permanente nel browser (meno sicuro)',
+    webKeysPersistHelp: 'Per impostazione predefinita, le chiavi web restano solo in sessionStorage per questa sessione. Il salvataggio permanente le rende leggibili da estensioni o script su questa pagina.',
+    webKeysSessionActive: 'Attualmente salvate solo per questa sessione.',
   },
   pt: {
     accentOptions: { system: 'Neutro', blue: 'Azul', green: 'Verde', violet: 'Violeta' },
@@ -289,6 +307,9 @@ const COPY: Record<AppLanguage, SettingsCopy> = {
     ttsSystemPlaying: 'Reproduzindo amostra com a voz do sistema.',
     ttsProviderPlaying: name => `Reproduzindo amostra com ${name}.`,
     ttsTestFailed: 'O teste de voz falhou.',
+    webKeysPersistLabel: 'Salvar chaves de API permanentemente no navegador (menos seguro)',
+    webKeysPersistHelp: 'Por padrão, as chaves da web ficam apenas no sessionStorage desta sessão. O armazenamento permanente permite que extensões ou scripts nesta página leiam as chaves.',
+    webKeysSessionActive: 'Atualmente mantidas apenas para esta sessão.',
   },
 };
 

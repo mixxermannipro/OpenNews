@@ -44,6 +44,12 @@ import { ViewStatus } from './components/ViewStatus';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { HomeView } from './components/HomeView';
 import { recordDiagnostic } from './lib/diagnostics';
+import {
+  isWebKeyPersistenceEnabled,
+  readWebSecret,
+  setWebKeyPersistence,
+  writeWebSecret,
+} from './lib/webSecretStorage';
 import type { SettingsSectionTab } from './components/SettingsView';
 
 import { OfflineIndicator } from './components/PWAInstallButton';
@@ -246,6 +252,9 @@ export default function App() {
     INITIAL_TTS_CONFIG
   );
   const isAndroidPlatform = Capacitor.getPlatform() === 'android';
+  const [persistWebKeys, setPersistWebKeys] = useState<boolean>(() => isWebKeyPersistenceEnabled());
+  const [webAIKey, setWebAIKey] = useState<string>(() => (isAndroidPlatform ? '' : readWebSecret('ai_api_key')));
+  const [webTTSKey, setWebTTSKey] = useState<string>(() => (isAndroidPlatform ? '' : readWebSecret('tts_api_key')));
 
   useEffect(() => {
     if (!isAndroidPlatform) return;
@@ -290,8 +299,11 @@ export default function App() {
     if (isAndroidPlatform && androidAIKey && !base.apiKey) {
       return { ...base, apiKey: androidAIKey };
     }
+    if (!isAndroidPlatform && webAIKey && !base.apiKey) {
+      return { ...base, apiKey: webAIKey };
+    }
     return base;
-  }, [storedAIConfig, aiConfigMigrated, isAndroidPlatform, androidAIKey]);
+  }, [storedAIConfig, aiConfigMigrated, isAndroidPlatform, androidAIKey, webAIKey]);
 
   const updateAIConfig = useCallback((next: AIProviderConfig) => {
     const trimmedKey = next.apiKey.trim();
@@ -310,17 +322,22 @@ export default function App() {
         setAiConfig({ ...next, apiKey: '' });
       }).catch(() => setAiConfig(next));
     } else {
-      setAiConfig(next);
+      setWebAIKey(trimmedKey);
+      writeWebSecret('ai_api_key', trimmedKey, persistWebKeys);
+      setAiConfig(persistWebKeys ? { ...next, apiKey: trimmedKey } : { ...next, apiKey: '' });
     }
     setAIConfigMigrated(true);
-  }, [isAndroidPlatform, setAiConfig, setAIConfigMigrated]);
+  }, [isAndroidPlatform, persistWebKeys, setAiConfig, setAIConfigMigrated]);
 
   const ttsConfig = useMemo(() => {
     if (isAndroidPlatform && androidTTSKey && !storedTTSConfig.apiKey) {
       return { ...storedTTSConfig, apiKey: androidTTSKey };
     }
+    if (!isAndroidPlatform && webTTSKey && !storedTTSConfig.apiKey) {
+      return { ...storedTTSConfig, apiKey: webTTSKey };
+    }
     return storedTTSConfig;
-  }, [storedTTSConfig, isAndroidPlatform, androidTTSKey]);
+  }, [storedTTSConfig, isAndroidPlatform, androidTTSKey, webTTSKey]);
 
   const updateTTSConfig = useCallback((next: TTSProviderConfig) => {
     const trimmedKey = next.apiKey.trim();
@@ -339,9 +356,18 @@ export default function App() {
         setStoredTTSConfig({ ...next, apiKey: '' });
       }).catch(() => setStoredTTSConfig(next));
     } else {
-      setStoredTTSConfig(next);
+      setWebTTSKey(trimmedKey);
+      writeWebSecret('tts_api_key', trimmedKey, persistWebKeys);
+      setStoredTTSConfig(persistWebKeys ? { ...next, apiKey: trimmedKey } : { ...next, apiKey: '' });
     }
-  }, [isAndroidPlatform, setStoredTTSConfig]);
+  }, [isAndroidPlatform, persistWebKeys, setStoredTTSConfig]);
+
+  const handleTogglePersistWebKeys = useCallback((persist: boolean) => {
+    setPersistWebKeys(persist);
+    setWebKeyPersistence(persist, { aiKey: webAIKey, ttsKey: webTTSKey });
+    setAiConfig(prev => ({ ...prev, apiKey: persist ? webAIKey : '' }));
+    setStoredTTSConfig(prev => ({ ...prev, apiKey: persist ? webTTSKey : '' }));
+  }, [webAIKey, webTTSKey, setAiConfig, setStoredTTSConfig]);
 
   const [formatPrefs, setFormatPrefs] = useLocalStorage<FormatPreferences>('opennews_formats', {
     rssAtom: true,
@@ -885,11 +911,14 @@ export default function App() {
     const controller = new AbortController();
     let idleId: number | undefined;
     const startPreload = () => {
-      const todayLeads = homeSections.Heute.slice(0, 4).map(story => story.lead);
+      const allowedFullText = new Set(preferences.fullTextSourceIds ?? []);
+      if (allowedFullText.size === 0) return;
+      const todayLeads = homeSections.Heute.slice(0, 4).map(story => story.lead).filter(a => allowedFullText.has(a.sourceId));
       const prioritySaved = distinctArticles([
         ...readingQueueIds.map(id => savedArticles[id]).filter((a): a is NewsArticle => Boolean(a)),
         ...Object.values(savedArticles).slice(0, 3),
-      ]);
+      ]).filter(a => allowedFullText.has(a.sourceId));
+      if (!todayLeads.length && !prioritySaved.length) return;
       void import('./lib/offlinePreload')
         .then(({ runIntelligentOfflinePreload }) =>
           runIntelligentOfflinePreload(todayLeads, prioritySaved, {
@@ -1735,6 +1764,8 @@ export default function App() {
             onUpdateFormatPrefs={setFormatPrefs}
             onUpdateAIConfig={updateAIConfig}
             onUpdateTTSConfig={updateTTSConfig}
+            persistWebKeys={persistWebKeys}
+            onTogglePersistWebKeys={handleTogglePersistWebKeys}
             pushStatus={pushStatus}
             pushPermissionDenied={pushPermissionDenied}
             requestingPushPermission={requestingPushPermission}
@@ -1897,6 +1928,19 @@ export default function App() {
             nextArticle={readerNeighbors.next}
             articlePosition={readerNeighbors.index >= 0 ? { current: readerNeighbors.index + 1, total: readerNeighbors.total } : undefined}
             onSearchTopic={() => navigate({ tab: 'discover' })}
+            allowFullText={Boolean(activeArticle.sourceId && (preferences.fullTextSourceIds ?? []).includes(activeArticle.sourceId))}
+            onEnableFullText={sourceId => {
+              setPreferences(prev => {
+                const current = prev.fullTextSourceIds ?? [];
+                return current.includes(sourceId) ? prev : { ...prev, fullTextSourceIds: [...current, sourceId] };
+              });
+            }}
+            onDisableFullText={sourceId => {
+              setPreferences(prev => ({
+                ...prev,
+                fullTextSourceIds: (prev.fullTextSourceIds ?? []).filter(id => id !== sourceId),
+              }));
+            }}
           />
       </Suspense>
       </ErrorBoundary>
