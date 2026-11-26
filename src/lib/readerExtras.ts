@@ -27,6 +27,12 @@ export interface AudioPositionEntry {
   updatedAt: number;
 }
 
+export interface ReadingProgressEntry {
+  articleId: string;
+  ratio: number;
+  updatedAt: number;
+}
+
 export interface ConnectionLike {
   saveData?: boolean;
   effectiveType?: string;
@@ -126,6 +132,96 @@ export function upsertAudioPosition(
   const trimmed: Record<string, AudioPositionEntry> = {};
   for (const item of entries.slice(0, maxEntries)) trimmed[item.url] = item;
   return trimmed;
+}
+
+/**
+ * Updates persisted scroll reading progress (0..1); ignores <12%, removes >=92% as completed, caps at 80 entries.
+ */
+export function upsertReadingProgress(
+  progressMap: Record<string, ReadingProgressEntry>,
+  articleId: string,
+  ratio: number,
+  now = Date.now(),
+  maxEntries = 80,
+): Record<string, ReadingProgressEntry> {
+  if (!articleId || !Number.isFinite(ratio)) return progressMap;
+  const clamped = Math.max(0, Math.min(1, ratio));
+  if (clamped >= 0.92) {
+    if (!(articleId in progressMap)) return progressMap;
+    const next = { ...progressMap };
+    delete next[articleId];
+    return next;
+  }
+  if (clamped < 0.12) return progressMap;
+
+  const rounded = Math.round(clamped * 100) / 100;
+  const existing = progressMap[articleId];
+  if (existing && Math.abs(existing.ratio - rounded) < 0.02 && now - existing.updatedAt < 5000) {
+    return progressMap;
+  }
+
+  const next: Record<string, ReadingProgressEntry> = {
+    ...progressMap,
+    [articleId]: { articleId, ratio: rounded, updatedAt: now },
+  };
+  const entries = Object.values(next).sort((a, b) => b.updatedAt - a.updatedAt);
+  if (entries.length <= maxEntries) return next;
+  const trimmed: Record<string, ReadingProgressEntry> = {};
+  for (const item of entries.slice(0, maxEntries)) trimmed[item.articleId] = item;
+  return trimmed;
+}
+
+/**
+ * Resolves previous/next neighbor articles within an ordered reader context list.
+ */
+export function resolveNeighborArticles(
+  articleId: string,
+  list: readonly NewsArticle[],
+): { previous?: NewsArticle; next?: NewsArticle; index: number; total: number } {
+  const index = list.findIndex(item => item.id === articleId);
+  if (index < 0) return { index: -1, total: list.length };
+  return {
+    previous: index > 0 ? list[index - 1] : undefined,
+    next: index + 1 < list.length ? list[index + 1] : undefined,
+    index,
+    total: list.length,
+  };
+}
+
+/**
+ * Selects distinct-source alternative reports covering the same story when full text is paywalled or truncated.
+ */
+export function selectFreeAlternatives(
+  article: NewsArticle,
+  perspectives: readonly NewsArticle[],
+  maxCount = 3,
+): NewsArticle[] {
+  const seenSources = new Set<string>([article.sourceId]);
+  const candidates: NewsArticle[] = [];
+  for (const item of perspectives) {
+    if (item.id === article.id || seenSources.has(item.sourceId)) continue;
+    seenSources.add(item.sourceId);
+    candidates.push(item);
+  }
+  return candidates
+    .sort((a, b) => {
+      const lenA = a.paragraphs.join(' ').length + a.summary.length;
+      const lenB = b.paragraphs.join(' ').length + b.summary.length;
+      return lenB - lenA;
+    })
+    .slice(0, maxCount);
+}
+
+/**
+ * Filters stories to unread items when unread-only mode is enabled.
+ */
+export function filterUnreadStories<T extends { lead: Pick<NewsArticle, 'id'> }>(
+  stories: readonly T[],
+  readIds: ReadonlySet<string>,
+  unreadOnly: boolean,
+): T[] {
+  if (!unreadOnly) return [...stories];
+  return stories.filter(story => !readIds.has(story.lead.id));
 }
 
 /**

@@ -1,6 +1,6 @@
 import express from 'express';
 import { JSDOM } from 'jsdom';
-import { extractArticle } from './src/lib/articleExtraction.ts';
+import { extractArticle, preStripHtml } from './src/lib/articleExtraction.ts';
 import helmet from 'helmet';
 import { isDiagnostic } from './src/lib/diagnosticEvents.ts';
 import { rateLimit } from 'express-rate-limit';
@@ -9,8 +9,9 @@ import http from 'node:http';
 import { isIP } from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { gzipSync } from 'node:zlib';
 import { createServer as createViteServer } from 'vite';
-import { parseFeedPayload } from './src/lib/rssParser.ts';
+import { parseFeedPayload, repairTruncatedFeedXml } from './src/lib/rssParser.ts';
 import { GoogleGenAI } from '@google/genai';
 import { ensureWavBytes } from './src/lib/ttsClient.ts';
 import type { NewsSource } from './src/types/news.ts';
@@ -37,6 +38,10 @@ app.use(helmet({
   strictTransportSecurity: process.env.NODE_ENV === 'production',
   referrerPolicy: { policy: 'no-referrer' },
 }));
+app.use((_req, res, next) => {
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), interest-cohort=()');
+  next();
+});
 app.use('/api', (req, res, next) => {
   const origin = req.get('origin');
   const site = req.get('sec-fetch-site');
@@ -49,7 +54,7 @@ app.use('/api', (req, res, next) => {
 });
 app.use('/api', rateLimit({
   windowMs: 60_000,
-  limit: 45,
+  limit: 65,
   standardHeaders: 'draft-8',
   legacyHeaders: false,
   message: { error: 'Zu viele Anfragen. Bitte versuche es gleich erneut.' },
@@ -61,7 +66,30 @@ app.use('/api/ai/proxy', rateLimit({
   legacyHeaders: false,
   message: { error: 'Zu viele KI-Anfragen. Bitte versuche es gleich erneut.' },
 }));
+app.use('/api/tts/proxy', rateLimit({
+  windowMs: 60_000,
+  limit: 20,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: { error: 'Zu viele Vorlese-Anfragen. Bitte versuche es gleich erneut.' },
+}));
 app.use(express.json({ limit: '128kb' }));
+
+function sendJson(req: express.Request, res: express.Response, payload: unknown, cacheControl?: string) {
+  if (cacheControl) res.setHeader('Cache-Control', cacheControl);
+  const body = JSON.stringify(payload);
+  const acceptEncoding = req.get('accept-encoding') || '';
+  if (body.length >= 1024 && /\bgzip\b/i.test(acceptEncoding)) {
+    const compressed = gzipSync(Buffer.from(body, 'utf8'), { level: 6 });
+    res
+      .setHeader('Content-Type', 'application/json; charset=utf-8')
+      .setHeader('Content-Encoding', 'gzip')
+      .setHeader('Vary', 'Accept-Encoding')
+      .send(compressed);
+    return;
+  }
+  res.setHeader('Content-Type', 'application/json; charset=utf-8').send(body);
+}
 
 app.get('/api/diagnostics', (_req, res) => {
   res.set('Cache-Control', 'no-store').json({ enabled: process.env.OPENNEWS_DIAGNOSTICS === '1' });
@@ -117,10 +145,17 @@ app.post('/api/feeds/fetch', async (req, res) => {
   const now = Date.now();
   const limitedFeeds = feeds.slice(0, 20);
   const results = await Promise.all(
-    limitedFeeds.map(async (source) => {
-      if (!source?.url || !isSafeHttpUrl(source.url)) {
-        return { sourceId: source?.id || 'unknown', ok: false, count: 0, articles: [] };
+    limitedFeeds.map(async (rawSource) => {
+      if (
+        !rawSource
+        || typeof rawSource !== 'object'
+        || typeof rawSource.id !== 'string'
+        || typeof rawSource.url !== 'string'
+        || !isSafeHttpUrl(rawSource.url)
+      ) {
+        return { sourceId: typeof rawSource?.id === 'string' ? rawSource.id : 'unknown', ok: false, count: 0, articles: [] };
       }
+      const source = rawSource;
       const cacheKey = `${source.id}|${source.url}`;
       const cached = feedCache.get(cacheKey);
       if (!forceRefresh && cached && now - cached.fetchedAt < FEED_CACHE_TTL_MS) {
@@ -139,6 +174,7 @@ app.post('/api/feeds/fetch', async (req, res) => {
           const headers: Record<string, string> = {
             'User-Agent': 'OpenNews/1.0 (+https://opennews.local; RSS Reader)',
             Accept: 'application/rss+xml, application/atom+xml, application/feed+json, application/xml, text/xml, */*',
+            'Accept-Language': 'de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7',
           };
           if (cached?.etag) headers['If-None-Match'] = cached.etag;
           if (cached?.lastModified) headers['If-Modified-Since'] = cached.lastModified;
@@ -165,7 +201,9 @@ app.post('/api/feeds/fetch', async (req, res) => {
             }
             return { sourceId: source.id, ok: false, count: 0, articles: [] };
           }
-          const rawText = await readPublicText(response);
+          const rawText = repairTruncatedFeedXml(
+            await readPublicText(response, 1_800_000, { truncateOnLimit: true }),
+          );
           const articles = parseFeedPayload(rawText, source);
           touchFeedCache(cacheKey, {
             articles,
@@ -192,7 +230,7 @@ app.post('/api/feeds/fetch', async (req, res) => {
 
   const allArticles = results.flatMap((r) => r.articles);
   const feedStatuses = results.map(({ sourceId, ok, count }) => ({ sourceId, ok, count }));
-  res.json({ articles: allArticles, feedStatuses });
+  sendJson(req, res, { articles: allArticles, feedStatuses }, 'no-store');
 });
 
 app.get('/api/feeds/discover', async (req, res) => {
@@ -251,7 +289,13 @@ app.get('/api/feeds/discover', async (req, res) => {
         const type = typeMatch?.[1] || '';
         const href = hrefMatch?.[1] || '';
         if (!href || !/(rss|atom|xml|feed\+json)/i.test(type)) continue;
-        const absUrl = href.startsWith('http') ? href : new URL(href, baseOrigin).toString();
+        let absUrl: string;
+        try {
+          absUrl = href.startsWith('http') ? href : new URL(href, baseOrigin).toString();
+        } catch {
+          continue;
+        }
+        if (!isSafeHttpUrl(absUrl)) continue;
         const format = type.includes('json') ? 'json' : type.includes('atom') ? 'atom' : 'rss';
         discovered.push({
           name: titleMatch?.[1]?.trim() || hostLabel,
@@ -295,18 +339,21 @@ app.get('/api/media/transcript', async (req, res) => {
 });
 
 interface CachedArticleEntry {
-  data: ReturnType<typeof extractArticle>;
+  data: ReturnType<typeof extractArticle> & { unavailable?: boolean };
   fetchedAt: number;
+  ttlMs: number;
 }
 
 const ARTICLE_CACHE_TTL_MS = 10 * 60_000;
-const ARTICLE_CACHE_MAX_ENTRIES = 80;
+const ARTICLE_NEGATIVE_TTL_MS = 2 * 60_000;
+const ARTICLE_CACHE_MAX_ENTRIES = 120;
+const MAX_ARTICLE_HTML_BYTES = 2 * 1024 * 1024;
 const articleCache = new Map<string, CachedArticleEntry>();
-const inFlightArticles = new Map<string, Promise<ReturnType<typeof extractArticle> | null>>();
+const inFlightArticles = new Map<string, Promise<CachedArticleEntry['data']>>();
 
-function touchArticleCache(url: string, data: ReturnType<typeof extractArticle>) {
-  if (articleCache.has(url)) articleCache.delete(url);
-  articleCache.set(url, { data, fetchedAt: Date.now() });
+function touchArticleCache(key: string, data: CachedArticleEntry['data'], ttlMs: number) {
+  if (articleCache.has(key)) articleCache.delete(key);
+  articleCache.set(key, { data, fetchedAt: Date.now(), ttlMs });
   while (articleCache.size > ARTICLE_CACHE_MAX_ENTRIES) {
     const oldest = articleCache.keys().next().value;
     if (oldest === undefined) break;
@@ -320,65 +367,73 @@ app.get('/api/article/extract', async (req, res) => {
     res.status(400).json({ error: 'Ungültige Artikel-URL' });
     return;
   }
-  const isPreload = String(req.query.preload || '') === '1';
+  const articleTitle = typeof req.query.title === 'string' ? req.query.title.trim().slice(0, 300) : undefined;
+  const cacheKey = url;
 
-  const cached = articleCache.get(url);
-  if (cached && Date.now() - cached.fetchedAt < ARTICLE_CACHE_TTL_MS) {
-    res.set('Cache-Control', 'no-store').json(cached.data);
+  const cached = articleCache.get(cacheKey);
+  if (cached && Date.now() - cached.fetchedAt < cached.ttlMs) {
+    sendJson(req, res, cached.data, 'no-store');
     return;
   }
 
-  let task = inFlightArticles.get(url);
+  let task = inFlightArticles.get(cacheKey);
   if (!task) {
     task = (async () => {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 6000);
+      const timeout = setTimeout(() => controller.abort(), 7000);
+      const unavailablePayload: CachedArticleEntry['data'] = {
+        paragraphs: [],
+        headingIndexes: [],
+        unavailable: true,
+      };
       try {
         const resp = await fetchPublic(url, {
           signal: controller.signal,
           headers: {
-            'User-Agent': 'Mozilla/5.0 (compatible; OpenNewsReader/1.0)',
-            Accept: 'text/html,application/xhtml+xml',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+            Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7',
           },
         });
-        if (!resp.ok) {
+        const contentType = resp.headers.get('content-type') || '';
+        if (!resp.ok || (contentType && !/^(?:text\/(?:html|plain)|application\/xhtml\+xml)\b/i.test(contentType))) {
           await resp.body?.cancel();
-          return null;
-        }
-        const html = await readPublicText(resp);
-        const dom = new JSDOM(html, { url: resp.url });
-        try {
-          const extracted = extractArticle(dom.window.document, resp.url);
-          if (extracted.paragraphs.length > 0) {
-            touchArticleCache(url, extracted);
+          if ([401, 403, 404, 410, 451].includes(resp.status) || contentType) {
+            touchArticleCache(cacheKey, unavailablePayload, ARTICLE_NEGATIVE_TTL_MS);
           }
-          return extracted;
+          return unavailablePayload;
+        }
+        const rawHtml = await readPublicText(resp, MAX_ARTICLE_HTML_BYTES);
+        const cleanHtml = preStripHtml(rawHtml);
+        const dom = new JSDOM(cleanHtml, { url: resp.url });
+        try {
+          const extracted = extractArticle(dom.window.document, resp.url, articleTitle);
+          if (extracted.paragraphs.length > 0) {
+            touchArticleCache(cacheKey, extracted, ARTICLE_CACHE_TTL_MS);
+            return extracted;
+          }
+          const emptyResult = { ...extracted, unavailable: true };
+          touchArticleCache(cacheKey, emptyResult, ARTICLE_NEGATIVE_TTL_MS);
+          return emptyResult;
         } finally {
           dom.window.close();
         }
       } catch {
-        return null;
+        return unavailablePayload;
       } finally {
         clearTimeout(timeout);
-        inFlightArticles.delete(url);
+        inFlightArticles.delete(cacheKey);
       }
     })();
-    inFlightArticles.set(url, task);
+    inFlightArticles.set(cacheKey, task);
   }
 
   const extracted = await task;
-  if (!extracted) {
-    if (isPreload) {
-      res.set('Cache-Control', 'no-store').json({ paragraphs: [], headingIndexes: [], unavailable: true });
-      return;
-    }
-    res.status(502).json({ error: 'Artikel konnte nicht geladen werden' });
-    return;
-  }
-  res.set('Cache-Control', 'no-store').json(extracted);
+  sendJson(req, res, extracted, 'no-store');
 });
 
 app.post('/api/ai/proxy', async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
   const provider = String(req.body?.provider || 'google');
   const apiKey = String(req.body?.apiKey || '').trim();
   const model = String(req.body?.model || '').trim();
@@ -704,6 +759,13 @@ async function start() {
   httpServer.listen(PORT, '0.0.0.0', () => {
     console.log(`OpenNews server running on http://localhost:${PORT}`);
   });
+
+  const shutdown = () => {
+    httpServer.close(() => process.exit(0));
+    setTimeout(() => process.exit(0), 5000).unref();
+  };
+  process.once('SIGTERM', shutdown);
+  process.once('SIGINT', shutdown);
 }
 
 start();

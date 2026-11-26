@@ -1,5 +1,18 @@
-const trackingParameters = /^(utm_.+|fbclid|gclid|dclid|msclkid|mc_cid|mc_eid)$/i;
-const imageSizeParameters = /^(w|h|width|height|dpr)$/i;
+const trackingParameters = /^(utm_.+|fbclid|gclid|dclid|msclkid|mc_cid|mc_eid|ref|referrer|s_cid)$/i;
+const imageSizeParameters = /^(w|h|width|height|dpr|q|quality|crop|resize|fit|auto|format|fm|strip|imwidth|impolicy|fl|scale|zoom|sharpen|blur|bg)$/i;
+
+export function safeHref(value?: string): string | undefined {
+  if (!value) return undefined;
+  try {
+    const url = new URL(value);
+    if ((url.protocol === 'http:' || url.protocol === 'https:') && !url.username && !url.password) {
+      return url.href;
+    }
+  } catch {
+    return undefined;
+  }
+  return undefined;
+}
 
 export function contentUrlKey(value: string, kind: 'article' | 'image' | 'media'): string {
   let url: URL;

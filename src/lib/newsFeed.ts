@@ -8,27 +8,77 @@ export const DAY_MS = 24 * 60 * 60 * 1000;
 const CACHE_LIMIT = 600;
 const PUBLIC_NEWS = new Set<NewsArticle['category']>(['Politik', 'Europa', 'Wirtschaft', 'Wissenschaft']);
 const TEASER = /^(?:das (?:glaubst|glauben) (?:du|sie) nie|(?:du wirst|sie werden) nicht glauben|was dann geschah|unglaublich(?:er|e|es)?|schock(?:-|\s)|you won['’]?t believe|what happened next|shocking:|vous n['’]allez pas croire|ce qui s['’]est passé ensuite|no vas a creer|lo que pasó después|non crederai|você não vai acreditar)\b/iu;
+const ADVERTORIAL = /^(?:anzeige|werbung|sponsored|promotion|partnerbeitrag|advertorial)\s*[:|\-–—]/iu;
+const PROMO_NOISE = /\b(?:black[- ]friday[- ]deals?|cyber[- ]monday|top[- ]deals?|schnäppchen|rabatt[- ]check|gutschein(?:e|code)?|besten deals|bei amazon|kreuzworträtsel|sudoku|horoskop|gewinnspiel)\b|^(?:ein\s+)?quiz\b|^hier\s+(?:die\s+neue\s+folge|live|im\s+stream|sehen)\b/iu;
+const LIVEBLOG = /\b(?:liveblog|liveticker|business-ticker|newsblog)\b/i;
+
+export function isAdvertorial(article: Pick<NewsArticle, 'title' | 'link'>): boolean {
+  return ADVERTORIAL.test(article.title.trimStart()) || /\/anzeige(?:n)?\//i.test(article.link);
+}
+
+export function isPromotionalNoise(article: Pick<NewsArticle, 'title' | 'link'>): boolean {
+  return isAdvertorial(article) || PROMO_NOISE.test(article.title.trimStart());
+}
+
+function hasSubstantiveSummary(article: NewsArticle): boolean {
+  const summary = article.summary.trim();
+  return summary.length >= 70 && summary !== article.title.trim();
+}
 
 export type HomeStory = ReturnType<typeof clusterStories>[number] & { reason?: string };
 
 function rankStories(
   ranked: ScoredArticle[], now: number, fourthSlot?: (entry: ScoredArticle) => boolean,
 ): HomeStory[] {
-  const candidates = ranked.map(entry => TEASER.test(entry.article.title.trimStart())
-    ? { ...entry, score: entry.score - 6 } : entry).sort(byScore);
+  const candidates = ranked
+    .filter(entry => !isAdvertorial(entry.article))
+    .map(entry => {
+      let penalty = 0;
+      if (TEASER.test(entry.article.title.trimStart())) penalty += 6;
+      if (PROMO_NOISE.test(entry.article.title.trimStart())) penalty += 8;
+      return penalty > 0 ? { ...entry, score: entry.score - penalty } : entry;
+    })
+    .sort(byScore);
   const groups = clusterStories(candidates.map(entry => entry.article));
   const scores = new Map(candidates.map(entry => [entry.article.id, entry]));
-  const groupsByLead = new Map(groups.map(group => [group.lead.id, group]));
-  const leads = groups.map(({ lead, reports }) => {
-    const entry = scores.get(lead.id)!;
-    const sources = new Set(reports.map(report => report.sourceId));
-    const ageHours = (now - Date.parse(lead.publishedAt)) / 3_600_000;
-    const bonus = Math.min(2, sources.size - 1) * 2 * Math.exp(-ageHours / 18);
+  const groupsByLead = new Map<string, { lead: NewsArticle; reports: NewsArticle[] }>();
+
+  const leads = groups.map(({ reports }) => {
+    // Keep at most one report per sourceId to avoid self-duplicate "Weitere Berichte"
+    const bySource = new Map<string, NewsArticle>();
+    for (const report of reports) {
+      const existing = bySource.get(report.sourceId);
+      if (!existing) {
+        bySource.set(report.sourceId, report);
+      } else {
+        const curScore = (scores.get(report.id)?.score ?? 0) + (report.imageUrl ? 1 : 0);
+        const prevScore = (scores.get(existing.id)?.score ?? 0) + (existing.imageUrl ? 1 : 0);
+        if (curScore > prevScore) bySource.set(report.sourceId, report);
+      }
+    }
+    const deduped = [...bySource.values()];
+
+    // Choose the best editorial lead in the cluster (favoring real photos, rich summaries & dedicated articles over liveblogs)
+    const leadQuality = (art: NewsArticle) =>
+      (scores.get(art.id)?.score ?? 0)
+      + (art.imageUrl ? 1.5 : 0)
+      + (hasSubstantiveSummary(art) ? 0.45 : 0)
+      - (LIVEBLOG.test(art.title) ? 0.65 : 0);
+    deduped.sort((a, b) => leadQuality(b) - leadQuality(a) || newestFirst(a, b));
+
+    const bestLead = deduped[0];
+    groupsByLead.set(bestLead.id, { lead: bestLead, reports: deduped });
+
+    const entry = scores.get(bestLead.id)!;
+    const ageHours = Math.max(0, (now - Date.parse(bestLead.publishedAt)) / 3_600_000);
+    const bonus = Math.min(4, deduped.length - 1) * 2.4 * Math.exp(-ageHours / 18);
     return {
-      ...entry, score: entry.score + bonus,
+      ...entry,
+      score: entry.score + bonus,
       reason: entry.reason ?? (bonus >= 1 ? 'Von mehreren Quellen berichtet' : undefined),
     };
   }).sort(byScore);
+
   return diversifyArticles(leads, true, fourthSlot)
     .map(({ article, reason }) => ({ ...groupsByLead.get(article.id)!, reason }));
 }
@@ -149,26 +199,40 @@ export function buildHomeSections(
   const todayStartMs = todayStart.getTime();
 
   const dislikedSet = new Set(profile.dislikedIds);
-  const headlines = latest
-    .filter(article => {
-      if (dislikedSet.has(article.id)) return false;
+  let todayPool = latest.filter(article => {
+    if (dislikedSet.has(article.id) || isAdvertorial(article)) return false;
+    const published = getPublishedMs(article);
+    return published >= todayStartMs && published <= now;
+  });
+
+  // Early-morning grace backfill (00:00–06:00 local) so Heute is never barren right after midnight
+  if (todayPool.length < 8 && now - todayStartMs < 6 * 3_600_000) {
+    const overnightCutoff = now - 18 * 3_600_000;
+    todayPool = latest.filter(article => {
+      if (dislikedSet.has(article.id) || isAdvertorial(article)) return false;
       const published = getPublishedMs(article);
-      return published >= todayStartMs && published <= now;
-    })
-    .map((article): ScoredArticle => {
-      const ageHours = (now - getPublishedMs(article)) / (60 * 60 * 1000);
-      const publicNewsBonus = PUBLIC_NEWS.has(article.category) ? 2 * Math.exp(-ageHours / 12) : 0;
-      const negTopic = Math.min(0, Math.max(-2.5, (profile.topicWeights[article.category] ?? 0) * 0.6));
-      const negSource = Math.min(0, Math.max(-1.5, (profile.sourceWeights[article.sourceId] ?? 0) * 0.4));
-      const negKwSum = article.keywords.reduce((sum, kw) => sum + Math.min(0, profile.keywordWeights[kw] ?? 0), 0);
-      const negKw = Math.max(-2, negKwSum * 0.35);
-      const score = 8 * Math.exp(-ageHours / 18) + publicNewsBonus + (article.isBreaking ? 8 * Math.exp(-ageHours / 12) : 0)
-        + negTopic + negSource + negKw;
-      return { article, score, reason: article.isBreaking ? 'Eilmeldung' : undefined };
+      return published >= overnightCutoff && published <= now;
     });
+  }
+
+  const headlines = todayPool.map((article): ScoredArticle => {
+    const ageHours = Math.max(0, (now - getPublishedMs(article)) / (60 * 60 * 1000));
+    const publicNewsBonus = PUBLIC_NEWS.has(article.category) ? 2 * Math.exp(-ageHours / 12) : 0;
+    const editorialBonus = (article.imageUrl ? 0.85 : 0) * Math.exp(-ageHours / 24)
+      + (hasSubstantiveSummary(article) ? 0.4 : 0);
+    const negTopic = Math.min(0, Math.max(-2.5, (profile.topicWeights[article.category] ?? 0) * 0.6));
+    const negSource = Math.min(0, Math.max(-1.5, (profile.sourceWeights[article.sourceId] ?? 0) * 0.4));
+    const negKwSum = article.keywords.reduce((sum, kw) => sum + Math.min(0, profile.keywordWeights[kw] ?? 0), 0);
+    const negKw = Math.max(-2, negKwSum * 0.35);
+    const score = 8 * Math.exp(-ageHours / 18) + publicNewsBonus + editorialBonus
+      + (article.isBreaking ? 8 * Math.exp(-ageHours / 12) : 0)
+      + negTopic + negSource + negKw;
+    return { article, score, reason: article.isBreaking ? 'Eilmeldung' : undefined };
+  });
 
   const recentCutoff = now - 2 * DAY_MS;
   const recent = latest.filter(article => {
+    if (isAdvertorial(article)) return false;
     const published = getPublishedMs(article);
     return published > recentCutoff && published <= now;
   });

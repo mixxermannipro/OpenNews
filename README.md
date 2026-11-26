@@ -45,29 +45,30 @@ OpenNews bündelt Nachrichten aus frei zugänglichen Feeds in einer ruhigen Ober
 
 | Bereich | Umfang |
 | --- | --- |
-| **Quellen** | 161 vorkonfigurierte internationale Feeds in 6 Sprachen (DACH, UK/US/Global, Frankreich, Spanien/Lateinamerika, Italien, Portugal/Brasilien) inkl. internationaler YouTube-Kanäle, Shorts und Podcasts plus beliebig viele eigene Feeds; standardmäßig ist keine Quelle vorausgewählt (Start über 1-Tipp-Auswahl oder 11 Starterpakete) |
+| **Quellen** | 165 vorkonfigurierte internationale Feeds in 6 Sprachen (DACH, UK/US/Global, Frankreich, Spanien/Lateinamerika, Italien, Portugal/Brasilien) inkl. internationaler YouTube-Kanäle, Shorts und Podcasts (u. a. Tagesschau 20 Uhr, Tagesthemen, ZDF heute journal, NDR Info, DLF, SRF Echo der Zeit) plus beliebig viele eigene Feeds; standardmäßig ist keine Quelle vorausgewählt (Start über 1-Tipp-Auswahl oder 13 Starterpakete) |
 | **Quellensuche** | Gewichtete Relevanzsuche nach Medium, Domain, Land/Region, Sprache, Thema (mehrsprachig), Schlagwörtern und Format; fehlertolerant bei Umlauten und Akzenten; Sprach-, Typ-, Auswahl- und Themenfilter |
 | **Mehrsprachigkeit** | 6 App-Sprachen (**Deutsch**, **English**, **Français**, **Español**, **Italiano**, **Português**) mit automatischer Systemspracherkennung, direktem Wechsel im Onboarding & Profil und lokalisierten Datums-/Zeitformaten |
 | **Feed-Formate** | RSS 2.0, RDF, Atom 1.0, JSON Feed, Podcast-Feeds; Domain-Erkennung über `link rel="alternate"`; OPML-Import/-Export |
-| **Startseite** | **Heute** (ab Mitternacht), **Für dich** (48 h, personalisiert), **Neueste** (streng chronologisch); elastisches Pull-to-Refresh, direkter Aktualisieren-Button mit Zeitstempel, neue Meldungen ohne Sprung beim Lesen, **Wischgeste („Weniger davon“)** links/rechts auf Heute & Für dich mit Rückgängig-Hinweis, ruhiger Abschluss („Auf dem neuesten Stand“), weitere Quellen je Geschichte, Datumsabschnitte in Neueste |
+| **Startseite** | **Heute** (Titelseite mit Aufmacher, Schlagzeilen-Spalte, Ressort-Schnellfilter, Mehrquellen-Icons & Werbungsfilter), **Für dich** (48 h, personalisiert), **Neueste** (streng chronologisch); **Ungelesen-Filter** mit dezentem Gelesen-/Lesefortschritts-Hinweis, **1-Tipp-Warteschlange** („Später lesen“) direkt auf Artikelkarten, elastisches Pull-to-Refresh, direkter Aktualisieren-Button mit Zeitstempel, neue Meldungen ohne Sprung beim Lesen, **Wischgeste („Weniger davon“)** links/rechts auf Heute & Für dich mit Rückgängig-Hinweis, ruhiger Abschluss („Auf dem neuesten Stand“), weitere Quellen je Geschichte, Datumsabschnitte in Neueste |
 | **Personalisierung** | Like, Dislike, Wischgeste („Weniger davon“), Lesezeichen, Lesezeit und Verlauf formen lokale Gewichte für Themen, Quellen und Schlagwörter (wirken auf Für dich und sanft auf Heute; Neueste bleibt streng chronologisch); Vielfalt mischt Quellen und Themen; gelernte Interessen verblassen mit der Zeit |
-| **Reader** | Volltext-Extraktion mit Feed-Fallback, Lesefortschrittslinie im Kopf, intelligente Offline-Vorladung im Hintergrund (beachtet `saveData` und langsame Netze), **Zeitungsmodus** (Fokusmodus mit Zeitungskopf, Initiale und 2-Spalten-Layout ab 900 px), Lesethemen (**Papier [Standard] / Sepia / Nacht / Standard**), **Vorlesen 2.0** (absatzweises synchrones Mitlesen mit Markierung, Tempo, Sleep-Timer sowie Multi-Anbieter-Stimmen inkl. Google AI Studio Gemini TTS, OpenAI, ElevenLabs & Systemstimme), lokale Text-Markierungen & Zitate, Lese-Warteschlange („Als Nächstes lesen“), intelligente Themen-Verlinkung zu passenden Videos, Clips & Podcasts in der App sowie „Was bisher geschah“-Kontext |
+| **Reader** | Volltext-Extraktion mit Feed-Fallback, **Weiterlesen-Position** (gespeicherter Lesestand pro Artikel mit Rücksprung-Hinweis), **Vor-/Zurück-Navigation** im Feed-Kontext inkl. Desktop-Tastaturkürzeln (`←`/`→`, `j`/`k`, `b`, `q`, `n`, `Esc`), **Paywall-Hinweis mit freien Themen-Alternativen** aus dem Cluster, einklappbare **Kapitel-Sprungleiste** ab 3 Zwischenüberschriften, Lesefortschrittslinie im Kopf, intelligente Offline-Vorladung im Hintergrund (beachtet `saveData` und langsame Netze), **Zeitungsmodus** (Fokusmodus mit Zeitungskopf, Initiale und 2-Spalten-Layout ab 900 px), Lesethemen (**Papier [Standard] / Sepia / Nacht / Standard**), **Vorlesen 2.0** (absatzweises synchrones Mitlesen mit Markierung, Tempo, Sleep-Timer sowie Multi-Anbieter-Stimmen inkl. Google AI Studio Gemini TTS, OpenAI, ElevenLabs & Systemstimme), lokale Text-Markierungen & Zitate, Lese-Warteschlange („Als Nächstes lesen“), intelligente Themen-Verlinkung zu passenden Videos, Clips & Podcasts in der App sowie „Was bisher geschah“-Kontext |
 | **Vorlesen & Stimmen (TTS)** | Konfigurierbare Vorlesestimmen je Szenario (**Artikel**, **Tagesüberblick**, **Ruhiger Fokus / Zeitungsmodus**) mit **Google AI Studio (`gemini-3.8-flash-lite-tts` / `gemini-3.8-flash-tts`, kostenloser API-Key)**, **OpenAI Speech**, **ElevenLabs**, eigenen OpenAI-kompatiblen HTTPS-Endpunkten oder **Systemstimme (offline)**; nahtloses Vorladen des nächsten Absatzes, lokaler Audio-Cache & automatischer Rückfall auf die Systemstimme |
-| **Video, Audio & Clips** | Social-Media-inspirierter Medien-Hub mit Kanal-Stories-Leiste, 9:16-Shorts-Vorschaureihe, 16:9-Video-Grid (erweiterbar zum Theater-Player), Podcast-Audio-Deck mit **persistentem Mini-Audio-Player** über alle Reiter hinweg und gespeicherter Abspielposition sowie vollflächigem vertikalem Clips-Feed (Snap-Scroll, Aktionsleiste, Doppeltipp-Like, Auto-Weiter, Tastatursteuerung, Desktop-9:16-Bühne). YouTube über den offiziellen Player. |
+| **Video, Audio & Clips** | Redaktioneller Medien-Hub mit Mediensuche, Format-Reitern (`Alle`, `Videos`, `Audio`, `Radio`, `Clips`) mit Zählern, tab-abhängiger Kanal-Leiste, „Weiterhören“-Regal, **Live-Nachrichtenradio** (24 geprüfte HTTPS-Sender aus DACH & aller Welt inkl. DLF, ARD-Inforadios, SRF 4 News, ORF Ö1, BBC World Service, NPR, France Info mit Favoriten und Live-Schnellleiste), 9:16-Shorts-Reihe, 16:9-Video-Grid (inkl. 16:9-YouTube-Vorschaubildern und Theater-Bühne mit Shownotes), Podcast-Audio-Deck mit Laufzeit & Episoden-Notizen, **persistentem Mini-Audio-Player** (Podcast-Scrubber, automatische Warteschlange, Live-Radio-Modus & Fehler-Fallback), vollflächigem Clips-Feed sowie direkter Medienkanal-Entdeckung. Große Podcast-RSS-Feeds werden per Präfix-Kürzung zuverlässig eingelesen. |
 | **Medientranskripte** | Verlinkte VTT-, SRT- und Text-Transkripte von Podcast- oder Video-Feeds auf Wunsch per KI zusammenfassen. |
 | **KI auf dem Gerät** | Gemini Nano auf unterstützten Chrome- und Android-Geräten. Zudem 100 % lokale Artikeltyp-Erkennung (`Meinung`, `Analyse`, `Interview`, `Faktencheck`, `Eilmeldung`), Clickbait-Entschärfer und lokales Story-Radar. |
 | **KI-Zusammenfassungsstile** | Kernaussagen, 5 W-Fragen, Einfach erklärt (B1) und Auf Englisch. Standard in den KI-Einstellungen, Auswahl auch am Artikel. |
 | **Frag den Artikel** | Fragen in der KI-Zusammenfassung stellen. Antworten zeigen ein wörtliches Zitat aus dem Artikel, wenn ein Beleg vorliegt. |
 | **Perspektiven vergleichen** | Bei Meldungsgruppen mit mindestens zwei Quellen vergleicht die eingerichtete KI Schwerpunkte und Wortwahl – auch sprachübergreifend – und zeigt die beteiligten Quellen an. |
 | **Wochenrückblick** | Die eingerichtete KI fasst bis zu acht der zuletzt veröffentlichten Beiträge aus Lesezeichen und Likes thematisch zusammen. |
-| **Tagesüberblick 2.0** | Kompakter Einstieg im Kopf der Startseite. Synthetisiert lokal und ohne API-Key ein strukturiertes Themen-Briefing mit Begrüßung, gebündelten Stichpunkten, Quellenangaben, „Kurz notiert“ und synchronem Vorlesen (inkl. Szenario-Stimme); optional mit eigener KI (BYOK) vertiefbar. |
-| **Entdecken** | Lokales Story-Radar („Gerade viel besprochen“), Stichwort-Radar, Stummschalt-Filter (24 Std. / 7 Tage / dauerhaft), Themenraster, Quellen- und Volltextsuche, letzte sechs Suchbegriffe lokal gespeichert |
-| **Darstellung** | System/Hell/Dunkel, Akzentfarbe, Kartendichte, Textgröße, Bilder im Feed, reduzierte Bewegung |
+| **Tagesüberblick 2.0** | Kompakter Einstieg im Kopf der Startseite. Synthetisiert lokal und ohne API-Key ein strukturiertes Themen-Briefing mit Begrüßung, gebündelten Stichpunkten, Quellenangaben, „Kurz notiert“, **durchgängigem Mini-Player über alle Tabs** (inkl. Vor/Zurück-Sprung und direktem Artikel-Einstieg) und synchronem Vorlesen (inkl. Szenario-Stimme); optional mit eigener KI (BYOK) vertiefbar. |
+| **Entdecken** | Ressort-Leiste mit Trefferzahlen, quellen-diversifiziertes Aufmacher-/Bento-Spotlight (ohne Werbebeiträge), lokales Story-Radar („Gerade viel besprochen“), einklappbarer Stichwort-Radar & Stummschalt-Filter (24 Std. / 7 Tage / dauerhaft), kompakte Themenwelten, neue Quellen & Perspektiven (Neu entdecken, International, Video & Podcasts, Starter-Pakete), umlaut-tolerante Volltextsuche mit Live-Vorschlägen, Sortierung (`Relevanz`/`Neueste`), Medien-Filter und 1-Tipp-Radar-Übernahme |
+| **Darstellung & Profil** | Vollständig in 6 Sprachen lokalisierte Einstellungen: System/Hell/Dunkel, Akzentfarbe, Kartendichte, Textgröße, Bilder im Feed, reduzierte Bewegung, Lesethema & Zeitungsmodus direkt unter **Profil → Lesen** |
 | **Sicherung** | Export und Import von Abos, Reaktionen und Lesezeichen als JSON-Datei bis 5 MB; bleibt auf dem Gerät |
 | **Diagnose** | Freiwillige lokale Fehleraufzeichnung ohne Fehlertexte, Adressen oder Gerätekennungen; Export als JSON, optionales Senden der Fehlerart an den eigenen Server |
 | **Widget** | Scrollbarer Android-Feed mit Größenanpassung, Filter, Erscheinungsbild und konfigurierbarer Hintergrund-Aktualisierung (Aus, 15/30 Min., 1/2/4 Std.) je Widget; iOS-WidgetKit für drei Größen mit Reitern, benötigt Xcode |
 | **PWA** | Installierbar, Service Worker mit Auto-Update, Offline-Hinweis, maskierbares Icon |
 | **Android** | Capacitor-WebView, direkte HTTP-Aufrufe, nativer Zurück-Knopf, Share-Dialog, Systemstimme und lokale Übersetzung |
+| **Android Auto** | Vollständige Media3-/ExoPlayer-Integration (`OpenNewsAutoMediaService`) mit 4 Fahrzeug-Tabs (**Nachrichten-Updates** inkl. „Alle aktuellen Updates abspielen“ und Tagesschau 20 Uhr auch vom Vortag, **Podcasts**, **Live-Radio** mit 24 Sendern, **Warteschlange**), eigenständigem HTTPS-Feed-Abruf im Auto, ±15-Sekunden-Sprüngen, Lenkrad- & Sprachsuche, Playback Resumption und App-Sync/Einstellungen unter **Profil → Lesen** |
 | **Benachrichtigungen** | Android-Push für unterstützte abonnierte Quellen mit eingerichtetem Firebase. Im Web erscheinen Hinweise in der geöffneten App. |
 
 **Aufbewahrung:** 2, 4, 7, 14, 30 oder 90 Tage (Standard **4**), maximal **600** Beiträge im Speicher. Beim Aktualisieren werden neue Artikel zusammengeführt; Abos, Lesezeichen, Likes und Verlauf bleiben erhalten.
@@ -139,7 +140,7 @@ flowchart LR
 
 | Ebene | Technologie |
 | --- | --- |
-| UI | React 19, Motion 12, lucide-react |
+| UI | React 19, CSS-Animationen, lucide-react |
 | Sprache | TypeScript 7 |
 | Build | Vite 8 |
 | Styling | Tailwind CSS 4 |
@@ -191,16 +192,23 @@ OpenNews/
 │
 ├── native/
 │   ├── android/
+│   │   ├── AndroidAutoSync.java        # Capacitor-Brücke für Android Auto (Abos, Favoriten, Warteschlange)
+│   │   ├── AutoAudioCatalog.java       # Katalog für Nachrichten-Updates, Podcasts & 24 Live-Radiosender
+│   │   ├── AutoAudioStore.java         # Lokaler Android-Auto-Speicher (Positionen, Warteschlange, Cache)
+│   │   ├── AutoFeedFetcher.java        # Nativer HTTPS-Podcast-Fetcher für Android Auto
 │   │   ├── BriefingSpeech.java         # Systemstimme für den Tagesüberblick
 │   │   ├── LocalTranslation.java       # Lokale Übersetzung auf Android
-│   │   ├── MainActivity.java           # Zurück-Navigation und ArticleShare
+│   │   ├── MainActivity.java           # Zurück-Navigation, Plugin-Registrierung und ArticleShare
 │   │   ├── NewsMessagingService.java   # Firebase-Nachrichten
 │   │   ├── NewsPush.java               # Push-Registrierung
 │   │   ├── NewsWidget.java             # Widget-Brücke
+│   │   ├── OpenNewsAutoMediaService.java # Media3/ExoPlayer MediaLibraryService für Android Auto
 │   │   ├── OpenNewsWidget.java         # Android-Widget
 │   │   ├── WidgetFeed.java             # Filter und Meldungszeilen
 │   │   ├── WidgetFeedService.java      # Scrollbare Liste bis Android 11
 │   │   ├── WidgetRefreshService.java   # Konfigurierbare Hintergrund-Aktualisierung (JobScheduler)
+│   │   ├── auto/                       # Android-Auto-Deskriptor und Vektor-Icons
+│   │   ├── auto-manifest.xml           # Android-Auto-Metadaten & MediaLibraryService-Eintrag
 │   │   ├── widget/                     # Layout, Bilder und Farben des Widgets
 │   │   ├── sync-icons.sh               # Launcher-Icons aus dem Logo
 │   │   └── sync-plugins.sh             # Native Dateien ins Android-Projekt kopieren
@@ -238,9 +246,9 @@ OpenNews/
 │   │   ├── DiscoverView.tsx            # Themen- und Quellenübersicht
 │   │   ├── HomeView.tsx                # Heute / Für dich / Neueste
 │   │   ├── MediaPlayer.tsx             # Podcast-Audio-Deck, Video- und YouTube-Player
-│   │   ├── MediaView.tsx               # Medien-Hub (Kanal-Stories, Shorts-Reihe, Videos, Audio)
-│   │   ├── MiniAudioPlayer.tsx         # Persistenter schwebender Podcast-Mini-Player
-│   │   ├── Preferences.tsx             # Onboarding, Profil, Darstellung
+│   │   ├── MediaView.tsx               # Medien-Hub (Kanal-Stories, Shorts-Reihe, Videos, Audio, Live-Radio)
+│   │   ├── MiniAudioPlayer.tsx         # Persistenter schwebender Podcast- & Live-Radio-Player
+│   │   ├── Preferences.tsx             # Onboarding, Profil, Darstellung, Android-Auto-Optionen
 │   │   ├── PWAInstallButton.tsx        # Installationshilfe und Offline-Hinweis
 │   │   ├── SavedView.tsx               # Lesezeichen, Warteschlange, Zitate, Likes, Verlauf
 │   │   ├── SettingsView.tsx            # Einstellungen, KI, Benachrichtigungen
@@ -254,20 +262,24 @@ OpenNews/
 │   │
 │   ├── lib/                            # Fachlogik, unabhängig von React
 │   │   ├── aiClient.ts                 # BYOK-Anbieter, Prompt, Tagesüberblick, Kontext
+│   │   ├── androidAuto.ts              # Payload-Builder & Capacitor-Bridge für Android Auto (lazy)
 │   │   ├── articleExtraction.ts        # Volltext mit Mozilla Readability
 │   │   ├── articleMedia.ts             # Abspielbare Medien eines Artikels
-│   │   ├── catalog.ts                  # 161 internationale Quellen (Standard: abgewählt), 11 Starterpakete
-│   │   ├── clipsEngine.ts              # Clip-Playlist, Quellen-Durchmischung, Virtualisierung & Gesten
+│   │   ├── catalog.ts                  # 165 internationale Quellen (Standard: abgewählt), 13 Starterpakete
+│   │   ├── clipsEngine.ts              # Clip-Playlist, Medienkanäle, Weiterhören, Mediensuche & Quellen-Entdeckung
 │   │   ├── contentIdentity.ts          # Gleiche Beiträge erkennen
 │   │   ├── dailyBriefingSynth.ts       # Lokale Tagesüberblick-Synthese in 6 Sprachen
 │   │   ├── deviceBackup.ts             # Sicherung exportieren und lesen
 │   │   ├── diagnosticEvents.ts         # Erlaubte Fehlerarten
 │   │   ├── diagnostics.ts              # Lokale Diagnose
+│   │   ├── discoverCopy.ts             # Lokalisierte Entdecken-Texte (6 Sprachen, lazy)
+│   │   ├── discoverEngine.ts           # Quellen-diversifiziertes Entdecken, Umlaut-Suche & Live-Vorschläge
 │   │   ├── feedRefresh.ts              # Priorisierte Feed-Batches & Parallelität
 │   │   ├── i18n.tsx                    # 6-Sprachen-Engine (DE/EN inline, FR/ES/IT/PT lazy in locales/)
 │   │   ├── keywordFilter.ts            # Stummschalt-Filter (mit Ablaufzeit) & Stichwort-Radar
 │   │   ├── localEditorialAI.ts         # Artikeltyp-Erkennung, Clickbait-Entschärfer & Story-Radar
 │   │   ├── localTranslation.ts         # Android-Übersetzung
+│   │   ├── mediaCopy.ts                # Lokalisierte Medien-Texte (6 Sprachen, lazy)
 │   │   ├── nativeFeed.ts               # CapacitorHttp und Feed-Erkennung
 │   │   ├── newsFeed.ts                 # Merge, Aufbewahrung, Startseiten
 │   │   ├── newsPush.ts                 # Push-Themen
@@ -279,16 +291,19 @@ OpenNews/
 │   │   ├── preferences.ts              # Presets, Sprache, Aufbewahrung, Defaults
 │   │   ├── publicHttp.ts               # SSRF-Schutz und Größenlimit
 │   │   ├── pullPhysics.ts              # Pull-to-Refresh-Dämpfung & Lesefortschritt
-│   │   ├── readerExtras.ts             # Vorlesen-2.0-Blöcke, Audio-Positionen, Zitate & Warteschlange
+│   │   ├── radioCatalog.ts             # 24 geprüfte HTTPS-Live-Nachrichtenradios & Filter (lazy)
+│   │   ├── readerCopy.ts               # Lokalisierte Reader- & Briefing-Texte (6 Sprachen, lazy)
+│   │   ├── readerExtras.ts             # Vorlesen-2.0-Blöcke, Lesefortschritt, Vor/Zurück, Alternativen, Audio-Positionen & Warteschlange
 │   │   ├── relatedMedia.ts             # Themen-Verlinkung (Artikel ↔ Video/Clip/Podcast) & Vorgeschichte
 │   │   ├── rssParser.ts                # Feed-Parser und Normalisierung
 │   │   ├── scrollNavigation.ts         # Scroll-Richtung und Schwellwerte
+│   │   ├── settingsCopy.ts             # Lokalisierte Profil- & Einstellungs-Texte (6 Sprachen, lazy)
 │   │   ├── shareArticle.ts             # Nativer Share-Dialog
 │   │   ├── sourceSearch.ts             # Gewichtete Quellensuche (Umlaute/Akzente/Region/Sprache)
 │   │   ├── storyClusters.ts            # Ähnliche Meldungen bündeln
 │   │   ├── swipePhysics.ts             # Wischgesten-Physik („Weniger davon“) mit Scroll-Schutz
 │   │   ├── ttsClient.ts                # Multi-Anbieter-TTS je Szenario, WAV-Header & Audio-Cache
-│   │   └── *.test.ts                   # 26 Testdateien
+│   │   └── *.test.ts                   # 29 Testdateien
 │   │
 │   ├── types/news.ts                   # Artikel, Quellen, Profil, KI
 │   ├── App.tsx                         # App-Zustand, Navigation, Feed-Abruf
@@ -385,8 +400,8 @@ NODE_ENV=production npm start
 | `npm start` | `tsx server.ts` | Express starten; mit `NODE_ENV=production` aus `dist/` |
 | `npm run preview` | `vite preview` | Statischen Build ansehen (ohne API) |
 | `npm run lint` | `tsc --noEmit` | TypeScript-Typprüfung |
-| `npm test` | `node --import tsx --test src/lib/*.test.ts` | 116 Unit-Tests |
-| `npm run test:e2e` | `playwright test` | 15 Browsertests |
+| `npm test` | `node --import tsx --test src/lib/*.test.ts` | 151 Unit-Tests |
+| `npm run test:e2e` | `playwright test` | 16 Browsertests |
 | `npm run push:worker` | `tsx scripts/push-news.ts` | Android-Push aus den Standardquellen senden |
 | `node scripts/check-web-budget.mjs` | Node | Prüft das Start-JavaScript gegen 170 KiB gzip |
 | `npm run clean` | `rm -rf dist server.js` | Build-Artefakte entfernen |
@@ -437,7 +452,8 @@ OpenNews nutzt ausschließlich `localStorage` (JSON). Die wichtigsten Schlüssel
 | `opennews_diagnostics`, `opennews_diagnostics_enabled`, `opennews_diagnostics_reports` | Lokale Diagnose, Einwilligung und Versandfreigabe |
 | `opennews_theme`, `opennews_onboarded`, `opennews_font_size`, `opennews_font_family`, `opennews_reader_theme`, `opennews_newspaper_mode` | Theme, Onboarding, Reader-Typografie, Lesethema & Zeitungsmodus |
 | `opennews_muted_keywords`, `opennews_tracked_keywords` | Stummschalt-Filter (mit Ablaufzeit) & Stichwort-Radar |
-| `opennews_highlights`, `opennews_reading_queue`, `opennews_audio_positions` | Lokale Text-Markierungen, Lese-Warteschlange & Podcast-Positionen |
+| `opennews_highlights`, `opennews_reading_queue`, `opennews_reading_progress`, `opennews_audio_positions` | Lokale Text-Markierungen, Lese-Warteschlange, Artikel-Lesefortschritt & Podcast-Positionen |
+| `opennews_radio_favorites`, `opennews_android_auto` | Gespeicherte Radio-Favoriten & Android-Auto-Einstellungen |
 
 Bei Parse- oder Quota-Fehlern fällt der Hook auf den Standardwert zurück, ohne die App abzubrechen.
 
@@ -448,15 +464,15 @@ Bei Parse- oder Quota-Fehlern fällt der Hook auf den Standardwert zurück, ohne
 | `GET` | `/api/health` | — | `{ ok: true, service: "OpenNews" }` |
 | `POST` | `/api/feeds/fetch` | `{ feeds: NewsSource[], force?: boolean }` | `{ articles, feedStatuses }` (inkl. 90 s Kurzzeit-Cache & `ETag`/`Last-Modified`, umgehbar mit `force: true`) |
 | `GET` | `/api/feeds/discover?q=` | URL oder Domain | `{ discovered: [{ name, url, format }] }` |
-| `GET` | `/api/article/extract?url=` | Artikel-URL | `{ paragraphs, headingIndexes, ogImage }` (inkl. 10 Min. Arbeitsspeicher-Cache & Request-Bündelung) |
+| `GET` | `/api/article/extract?url=` | Artikel-URL (optional `title`) | `{ paragraphs, headingIndexes, ogImage, unavailable?, blockedWall? }` (inkl. 10 Min. Cache, 2 Min. Negativ-Cache, Gzip & Request-Bündelung) |
 | `POST` | `/api/ai/proxy` | `{ provider, apiKey, model, prompt, customEndpoint? }` | `{ text }` oder `{ error }` |
 | `POST` | `/api/tts/proxy` | `{ provider, apiKey, model, voice, text, stylePrompt?, speed?, language?, customEndpoint? }` | Binär-Audio (`audio/wav` oder `audio/mpeg`) oder `{ error }` |
 | `GET` | `/api/diagnostics` | — | `{ enabled }` |
 | `POST` | `/api/diagnostics` | `{ event }` | `204`; `404` ohne `OPENNEWS_DIAGNOSTICS=1`, `400` bei unbekannter Fehlerart |
 
-**Grenzen:** maximal 20 Feeds pro Anfrage (5,5 s Timeout je Feed, bis zu 140 gecachte Feeds im Arbeitsspeicher für 90 s), 25 Beiträge pro Feed, 128 KB JSON-Body, 45 API-Anfragen pro Minute und IP, 10 KI-Anfragen pro Minute, 3.000 Zeichen, 20 s Timeout und 10 MB Audio je TTS-Anfrage, 4 MB je Feed-Antwort, 5 Weiterleitungen, 6 s für Volltext (bis zu 80 gecachte Extraktionen für 10 Min.), 5 s und 6 Treffer für die Feed-Erkennung, 6 parallele Abrufe im nativen Betrieb.
+**Grenzen:** maximal 20 Feeds pro Anfrage (5,5 s Timeout je Feed, bis zu 140 gecachte Feeds im Arbeitsspeicher für 90 s, Gzip-Antworten), 25 Beiträge pro Feed, 128 KB JSON-Body, 65 API-Anfragen pro Minute und IP, 10 KI-Anfragen pro Minute, 20 TTS-Anfragen pro Minute (3.000 Zeichen, 20 s Timeout und 10 MB Audio), 4 MB je Feed-Antwort, 2 MB HTML-Limit für Artikel-Extraktion, 5 Weiterleitungen, 7 s für Volltext (bis zu 80 gecachte Extraktionen für 10 Min., Negativ-Cache 2 Min.), 5 s und 6 Treffer für die Feed-Erkennung, 6 parallele Abrufe im nativen Betrieb.
 
-**Sicherheit:** Android prüft eingegebene URLs vor dem Abruf auf lokale Hostnamen und nicht öffentliche IP-Adressen. Auf dem Webserver wird jede ausgehende Adresse per DNS aufgelöst; nur öffentliche Ziele sind erlaubt (kein Loopback, kein `10.*`, `192.168.*` oder `169.254.*`, keine Zugangsdaten in der URL). Helmet setzt Sicherheits-Header. In Produktion erlaubt die Content-Security-Policy für externe Bilder und Medien nur HTTPS. `/api/*` prüft `Origin` bzw. `Sec-Fetch-Site` und begrenzt Anfragen pro IP. Es gibt **keine Authentifizierung** — die API ist für lokalen bzw. privaten Betrieb gedacht. Feed-HTML wird bereinigt, OPML-Importe mit DOCTYPE/ENTITY werden abgelehnt. BYOK-Schlüssel werden nicht gespeichert oder protokolliert, liegen aber im Arbeitsspeicher des Servers.
+**Sicherheit:** Android prüft eingegebene URLs vor dem Abruf auf lokale Hostnamen und nicht öffentliche IP-Adressen. Auf dem Webserver wird jede ausgehende Adresse per DNS aufgelöst; nur öffentliche Ziele sind erlaubt (kein Loopback, kein `10.*`, `192.168.*` oder `169.254.*`, keine internen Domains wie `.internal`/`.localdomain`, keine gesperrten Infrastruktur-Ports, keine Zugangsdaten in der URL; sensible Header werden bei domänenübergreifenden Weiterleitungen entfernt). Helmet setzt Sicherheits-Header inklusive `Permissions-Policy`. In Produktion erlaubt die Content-Security-Policy für externe Bilder und Medien nur HTTPS. `/api/*` prüft `Origin` bzw. `Sec-Fetch-Site` und begrenzt Anfragen pro IP. Es gibt **keine Authentifizierung** — die API ist für lokalen bzw. privaten Betrieb gedacht. Feed-HTML wird bereinigt, Tracking-Pixel werden ausgefiltert, externe Links validiert und OPML-Importe mit DOCTYPE/ENTITY abgelehnt. BYOK-Schlüssel werden nicht gespeichert oder protokolliert, liegen aber im Arbeitsspeicher des Servers.
 
 **Diagnose:** Der Server nimmt nur bekannte Fehlerarten an und schreibt sie mit der auf Stunden gerundeten Empfangszeit ins Betriebsprotokoll. Es gibt keine Authentifizierung; schütze den Endpunkt über den vorgeschalteten Webserver und führe dort keine Zugriffsprotokolle für diesen Pfad.
 
@@ -483,7 +499,7 @@ Die App ist eine Capacitor-WebView mit `CapacitorHttp` (Feed- und KI-Aufrufe dir
 
 **CI:** Die App-Prüfungen laufen bei Pull Requests gegen `main`.
 
-- **Web CI** (`web-ci.yml`): Typprüfung, 116 Unit-Tests, Build, JavaScript-Budget und 15 Browsertests mit Playwright.
+- **Web CI** (`web-ci.yml`): Typprüfung, 145 Unit-Tests, Build, JavaScript-Budget und 15 Browsertests mit Playwright.
 - **OpenNews Android Test APK** (`android-test-apk.yml`): bei Änderungen an `src/**`, `scripts/**`, `native/android/**`, `public/**` und Build-Dateien sowie manuell über **Actions → Run workflow**. Richtet Node 22 und JDK 21 ein, prüft Typen, führt Unit-Tests und Build aus, erzeugt das Android-Projekt, baut `assembleDebug`, prüft, dass die APK vorhanden ist, lädt sie bei verfügbarem GitHub-Speicher als Artefakt (7 Tage) hoch, prüft bei Pull Requests den AAB-Bau mit einem Einmalschlüssel und veröffentlicht bei manuellem Lauf ein öffentliches Pre-Release `v0.1.0-alpha.<Run-Nummer>`.
 
 **Lokal:**
@@ -525,7 +541,7 @@ Android zeigt für OpenNews-Benachrichtigungen ein eigenes monochromes Symbol in
 
 ## Tests und Qualität
 
-`npm test` führt **116 Unit-Tests** aus 26 Dateien aus: `rssParser.test.ts`, `personalization.test.ts`, `newsFeed.test.ts`, `opml.test.ts`, `nativeFeed.test.ts`, `aiClient.test.ts`, `aiCache.test.ts`, `transcript.test.ts`, `articleMedia.test.ts`, `articleExtraction.test.ts`, `publicHttp.test.ts`, `storyClusters.test.ts`, `scrollNavigation.test.ts`, `pullPhysics.test.ts`, `feedRefresh.test.ts`, `i18n.test.ts`, `sourceSearch.test.ts`, `clipsEngine.test.ts`, `localEditorialAI.test.ts`, `dailyBriefingSynth.test.ts`, `keywordFilter.test.ts`, `relatedMedia.test.ts`, `readerExtras.test.ts`, `swipePhysics.test.ts`, `ttsClient.test.ts` und `pagesApi.test.ts`. Abgedeckt sind Parsing und Medien, Aufbewahrung, Ranking und Vielfalt, OPML, native URL-Sicherheit, KI-Antwortparsing, Multi-Anbieter-TTS-Konfiguration und WAV-Verpackung, Wischgesten-Physik, Volltext, SSRF-Schutz, Themencluster, Scroll-Navigation, Pull-Physik, priorisiertes Feed-Batching, Mehrsprachigkeit, Quellensuche, Clips-Engine, lokale Redaktions-KI, Tagesüberblick-Synthese, Stichwort-/Stummschalt-Filter, Themen-Verlinkungen sowie Reader-/Offline-Logik.
+`npm test` führt **145 Unit-Tests** aus 27 Dateien aus: `rssParser.test.ts`, `personalization.test.ts`, `newsFeed.test.ts`, `opml.test.ts`, `nativeFeed.test.ts`, `aiClient.test.ts`, `aiCache.test.ts`, `transcript.test.ts`, `articleMedia.test.ts`, `articleExtraction.test.ts`, `publicHttp.test.ts`, `storyClusters.test.ts`, `scrollNavigation.test.ts`, `pullPhysics.test.ts`, `feedRefresh.test.ts`, `i18n.test.ts`, `sourceSearch.test.ts`, `clipsEngine.test.ts`, `discoverEngine.test.ts`, `localEditorialAI.test.ts`, `dailyBriefingSynth.test.ts`, `keywordFilter.test.ts`, `relatedMedia.test.ts`, `readerExtras.test.ts`, `swipePhysics.test.ts`, `ttsClient.test.ts` und `pagesApi.test.ts`. Abgedeckt sind Parsing und Medien (inkl. großer Podcast-Feeds, Cover-Vererbung und Episodenlaufzeiten), Aufbewahrung, Ranking und Vielfalt, OPML, native URL-Sicherheit, KI-Antwortparsing, Multi-Anbieter-TTS-Konfiguration und WAV-Verpackung, Wischgesten-Physik, Volltext, SSRF-Schutz, Themencluster, Scroll-Navigation, Pull-Physik, priorisiertes Feed-Batching, Mehrsprachigkeit, Quellensuche, Clips- & Medien-Engine, Entdecken-Kuratierung & Umlaut-Suche, lokale Redaktions-KI, Tagesüberblick-Synthese, Stichwort-/Stummschalt-Filter, Themen-Verlinkungen sowie Reader-Fortschritt, Vor/Zurück-Navigation, Paywall-Alternativen & Offline-Logik.
 
 `npm run test:e2e` startet den Produktionsbuild auf Port `3099` und prüft vierzehn Abläufe gegen einen simulierten Feed. Dazu gehören Feeds, Artikel, Medien, Tagesüberblick, Einstellungen, große Schrift und reduzierte Bewegung. Einmalig `npx playwright install chromium` ausführen.
 
@@ -612,7 +628,7 @@ OpenNews ist source-available (siehe [LICENSE](LICENSE) und [CONTRIBUTING.md](CO
 | BYOK-KI | Beta, abhängig von Anbieter und Schlüssel |
 | Tagesüberblick | Lokal synthetisiertes Themen-Briefing mit Vorlesen 2.0, optional mit Anbieter-KI |
 | Diagnose | lokal verfügbar, Senden optional |
-| Tests | 116 Unit-Tests und 15 Playwright-Browsertests |
+| Tests | 126 Unit-Tests und 15 Playwright-Browsertests |
 | Eigener Quellcode | Source-Available ([LICENSE](LICENSE)) |
 
 ## Lizenz

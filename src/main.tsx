@@ -2,6 +2,7 @@ import {createRoot} from 'react-dom/client';
 import { Capacitor } from '@capacitor/core';
 import { registerSW } from 'virtual:pwa-register';
 import App from './App.tsx';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import './index.css';
 import { installDiagnostics } from './lib/diagnostics';
 
@@ -21,7 +22,11 @@ async function start() {
   } else {
     registerSW();
   }
-  createRoot(document.getElementById('root')!).render(<App />);
+  createRoot(document.getElementById('root')!).render(
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>,
+  );
 }
 
 void start();

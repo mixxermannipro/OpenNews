@@ -117,6 +117,10 @@ const CATALOG_ENTRIES: readonly SourceTuple[] = [
   ['dlf-nachrichten-audio', 'Deutschlandfunk Nachrichten (Audio)', 'https://www.deutschlandfunk.de/nachrichten-108.xml', 'podcast', 'Politik', 'Aktuelle Nachrichten aus Deutschland und der Welt zum Anhören.', 'de', 'DE', 'DLF', '#2563EB', false, ['audio']],
   ['tagesthemen-video', 'Tagesthemen (Video)', 'https://www.tagesschau.de/tagesthemen/podcast-tt-video-100~podcast.xml', 'podcast', 'Politik', 'Die Tagesthemen als Video.', 'de', 'DE', 'ARD', '#2563EB', false, ['video']],
   ['tagesschau-100s-audio', 'Tagesschau in 100 Sek. (Audio)', 'https://www.tagesschau.de/tagesschau_in_100_sekunden/podcast-ts100-audio-100~podcast.xml', 'podcast', 'Politik', 'Die wichtigsten Meldungen als kurzer Hörbeitrag.', 'de', 'DE', 'ARD', '#2563EB', false, ['audio']],
+  ['tagesthemen-audio', 'Tagesthemen (Audio)', 'https://www.tagesschau.de/tagesthemen/podcast-tt-audio-100~podcast.xml', 'podcast', 'Politik', 'Die Tagesthemen zum Nachhören als Audio-Podcast.', 'de', 'DE', 'ARD', '#2563EB', false, ['audio', 'ard', 'tagesthemen', 'nachrichten']],
+  ['zdf-heute-journal-podcast', 'heute journal – der Podcast', 'https://cdn.audiorella.com/podcasts/1477-heute-journal-der-podcast/feed.rss', 'podcast', 'Politik', 'Hintergründe und Einordnungen aus der ZDF-heute-journal-Redaktion.', 'de', 'DE', 'ZDF', '#F59E0B', true, ['podcast', 'audio', 'zdf', 'heute journal']],
+  ['ndr-info-nachrichten', 'NDR Info Nachrichten (Audio)', 'https://www.ndr.de/nachrichten/info/podcast4370.xml', 'podcast', 'Politik', 'Die aktuellen NDR Info Nachrichten zum Nachhören.', 'de', 'DE', 'NDR', '#1D4ED8', false, ['audio', 'ndr', 'nachrichten']],
+  ['srf-echo-der-zeit', 'SRF Echo der Zeit', 'https://www.srf.ch/feed/podcast/sd/28549e81-c453-4671-92ad-cb28796d06a8.xml', 'podcast', 'Politik', 'Das tägliche Hintergrundmagazin von Radio SRF.', 'de', 'CH', 'SRF', '#DC2626', true, ['podcast', 'audio', 'schweiz', 'srf']],
   ['dlf-der-tag', 'Deutschlandfunk – Der Tag', 'https://www.deutschlandfunk.de/podcast-104.xml', 'podcast', 'Politik', 'Einordnung zu den wichtigsten Themen des Tages.', 'de', 'DE', 'DLF', '#2563EB', false, ['audio']],
   ['dlf-aktuell', 'Deutschlandfunk aktuell', 'https://www.deutschlandfunk.de/informationen-am-morgen-102.xml', 'podcast', 'Politik', 'Aktuelle Berichte und Interviews zum Anhören.', 'de', 'DE', 'DLF', '#2563EB', false, ['audio']],
 
@@ -207,7 +211,7 @@ const CATALOG_ENTRIES: readonly SourceTuple[] = [
   ['npr-up-first', 'NPR Up First', 'https://feeds.npr.org/510318/podcast.xml', 'podcast', 'Politik', 'The three biggest stories of the day in 15 minutes.', 'en', 'US', 'NPR', '#2563EB', true, ['podcast', 'audio', 'daily']],
   ['npr-planet-money', 'NPR Planet Money', 'https://feeds.npr.org/510289/podcast.xml', 'podcast', 'Wirtschaft', 'The economy explained through engaging storytelling.', 'en', 'US', 'PM', '#0EA5E9', true, ['podcast', 'audio', 'economy']],
   ['npr-short-wave', 'NPR Short Wave', 'https://feeds.npr.org/510351/podcast.xml', 'podcast', 'Wissenschaft', 'Daily science discoveries and mysteries in 15 minutes.', 'en', 'US', 'SW', '#8B5CF6', false, ['podcast', 'audio', 'science']],
-  ['guardian-today-focus', 'Today in Focus (Guardian)', 'https://www.theguardian.com/news/series/todayinfocus/rss', 'podcast', 'Europa', 'Daily deep-dive news stories from The Guardian.', 'en', 'UK', 'GDN', '#1D4ED8', true, ['podcast', 'audio', 'uk']],
+  ['guardian-today-focus', 'Today in Focus (Guardian)', 'https://www.theguardian.com/news/series/todayinfocus/podcast.xml', 'podcast', 'Europa', 'Daily deep-dive news stories from The Guardian.', 'en', 'UK', 'GDN', '#1D4ED8', true, ['podcast', 'audio', 'uk']],
   ['bbc-tech-life', 'BBC Tech Life', 'https://podcasts.files.bbci.co.uk/p002w6r2.rss', 'podcast', 'Technologie', 'How technology is changing life around the world.', 'en', 'UK', 'BBC', '#DC2626', true, ['podcast', 'audio', 'tech']],
   ['bbc-6min-english', 'BBC 6 Minute English', 'https://podcasts.files.bbci.co.uk/p02pc9tn.rss', 'podcast', 'Gesellschaft', 'Short topical discussions from BBC Learning English.', 'en', 'UK', '6M', '#E11D48', false, ['podcast', 'audio', 'english']],
   ['vergecast', 'The Vergecast', 'https://feeds.megaphone.fm/vergecast', 'podcast', 'Technologie', 'Flagship tech, gadgets, and AI podcast from The Verge.', 'en', 'US', 'TV', '#7C3AED', true, ['podcast', 'audio', 'tech', 'ai']],
@@ -304,11 +308,34 @@ export const STARTER_PACKS: readonly StarterPack[] = [
     sourceIds: ['nasa', 'nature', 'spektrum', 'sciencedaily', 'futura-sciences'],
   },
   {
+    id: 'clips-dach',
+    language: 'de',
+    label: 'DACH Videos & Shorts',
+    subtitle: 'tagesschau, ZDFheute, SPIEGEL, Quarks, Terra X, c’t 3003',
+    sourceIds: ['tagesschau-youtube', 'zdfheute-clips', 'spiegel-yt', 'quarks-clips', 'terrax-clips', 'mrwissen2go-clips', 'ct3003-clips'],
+  },
+  {
+    id: 'podcasts-dach',
+    language: 'de',
+    label: 'DACH Podcasts',
+    subtitle: 'Tagesschau 20 Uhr, heute journal, DLF, SRF Echo der Zeit, Lage der Nation',
+    sourceIds: [
+      'tagesschau-20-audio',
+      'tagesschau-100s-audio',
+      'zdf-heute-journal-podcast',
+      'dlf-nachrichten-audio',
+      'dlf-der-tag',
+      'srf-echo-der-zeit',
+      'lage-der-nation',
+      'handelsblatt-today',
+    ],
+  },
+  {
     id: 'clips-social',
     language: 'all',
-    label: 'Clips & Shorts Feed',
-    subtitle: 'Tagesschau, ZDF, SPIEGEL, BBC, Vox, Veritasium, Brut',
-    sourceIds: ['tagesschau-youtube', 'zdfheute-clips', 'spiegel-yt', 'quarks-clips', 'bbc-yt', 'vox-yt', 'veritasium-yt', 'brut-fr'],
+    label: 'Global Clips & Shorts',
+    subtitle: 'BBC, The Guardian, Vox, Veritasium, Kurzgesagt, MKBHD',
+    sourceIds: ['bbc-yt', 'guardian-yt', 'vox-yt', 'veritasium-yt', 'kurzgesagt-en', 'mkbhd-yt', 'nasa-yt'],
   },
   {
     id: 'video-audio',
@@ -320,9 +347,9 @@ export const STARTER_PACKS: readonly StarterPack[] = [
   {
     id: 'podcasts-daily',
     language: 'all',
-    label: 'Daily Podcasts',
-    subtitle: 'Lage der Nation, Handelsblatt, NPR Up First, Vergecast',
-    sourceIds: ['lage-der-nation', 'handelsblatt-today', 'tagesschau-100s-audio', 'npr-up-first', 'guardian-today-focus', 'vergecast'],
+    label: 'International Podcasts',
+    subtitle: 'NPR Up First, Guardian Today in Focus, BBC Global, Vergecast',
+    sourceIds: ['npr-up-first', 'guardian-today-focus', 'bbc-global-podcast', 'npr-planet-money', 'vergecast'],
   },
 ];
 
@@ -333,6 +360,7 @@ export const legacyCatalogUrls: Partial<Record<string, string>> = {
   handelsblatt: 'https://www.handelsblatt.com/contentexport/feed/schlagzeilen',
   hackernews: 'https://hnrss.org/frontpage.jsonfeed',
   'tagesschau-100s': 'https://www.tagesschau.de/export/video-podcast/webxl/tagesschau-in-100-sekunden/',
+  'guardian-today-focus': 'https://www.theguardian.com/news/series/todayinfocus/rss',
 };
 
 const PUSH_SOURCE_IDS = new Set([

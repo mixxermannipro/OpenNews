@@ -1,14 +1,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import type { NewsArticle } from '../types/news';
+import type { NewsArticle, NewsSource } from '../types/news';
+import { STARTER_PACKS } from './catalog';
 import {
   buildClipsPlaylist,
+  extractContinueListening,
   extractMediaChannels,
+  filterMediaEntries,
+  formatDurationLabel,
   formatMediaTime,
   getClipRenderState,
   interleaveClipsBySource,
   isDoubleTap,
   resolveClipStep,
+  selectMediaDiscoverySources,
+  selectMediaStarterPacks,
   type MediaEntry,
 } from './clipsEngine';
 
@@ -112,4 +118,64 @@ test('extractMediaChannels groups sources and ranks clip-bearing channels first'
   assert.equal(channels[0].hasClips, true);
   assert.equal(channels[1].sourceId, 'npr');
   assert.equal(channels[1].hasAudio, true);
+
+  // Tab-aware channel filtering prevents video channels showing under Audio tab
+  const audioChannels = extractMediaChannels(entries, 'audio');
+  assert.deepEqual(audioChannels.map(c => c.sourceId), ['npr']);
+
+  const videoChannels = extractMediaChannels(entries, 'video');
+  assert.deepEqual(videoChannels.map(c => c.sourceId), ['brut']);
+});
+
+test('extractContinueListening returns unfinished audio sorted by most recently heard', () => {
+  const ep1 = makeEntry('ep1', 'ldn', { type: 'audio' });
+  ep1.media.durationSec = 1800;
+  const ep2 = makeEntry('ep2', 'npr', { type: 'audio' });
+  ep2.media.durationSec = 900;
+  const epDone = makeEntry('ep3', 'dlf', { type: 'audio' });
+  epDone.media.durationSec = 600;
+  const video = makeEntry('v1', 'bbc', { type: 'youtube' });
+
+  const positions = {
+    [ep1.media.url]: { url: ep1.media.url, seconds: 420, duration: 1800, updatedAt: 1000 },
+    [ep2.media.url]: { url: ep2.media.url, seconds: 120, duration: 900, updatedAt: 2000 },
+    [epDone.media.url]: { url: epDone.media.url, seconds: 595, duration: 600, updatedAt: 3000 }, // finished
+    [video.media.url]: { url: video.media.url, seconds: 80, duration: 300, updatedAt: 4000 }, // not audio
+  };
+
+  const list = extractContinueListening([ep1, ep2, epDone, video], positions);
+  assert.deepEqual(list.map(item => item.entry.article.id), ['ep2', 'ep1']);
+  assert.equal(list[0].remainingSec, 780);
+  assert.equal(list[1].progressPct, 23);
+});
+
+test('filterMediaEntries matches multi-word umlaut-folded queries and formatDurationLabel handles edge values', () => {
+  const e1 = makeEntry('a1', 'ldn', { type: 'audio' });
+  e1.article.title = 'Österreich und die Energiewende';
+  const e2 = makeEntry('a2', 'zdf', { type: 'youtube' });
+  e2.article.title = 'Künstliche Intelligenz im Alltag';
+
+  const matches = filterMediaEntries([e1, e2], 'Oesterreich Energie');
+  assert.deepEqual(matches.map(m => m.article.id), ['a1']);
+
+  assert.equal(formatDurationLabel(undefined), undefined);
+  assert.equal(formatDurationLabel(0), undefined);
+  assert.equal(formatDurationLabel(865), '14:25');
+});
+
+test('selectMediaDiscoverySources and selectMediaStarterPacks prioritize unsubscribed language-matched channels', () => {
+  const mockSources: NewsSource[] = [
+    { id: 'pod-de', name: 'DACH Pod', url: 'https://example.org/pod.xml', format: 'podcast', category: 'Politik', description: '', language: 'de', subscribed: false, recommended: true, accentColor: '#000', shortCode: 'DP', tags: ['podcast', 'audio'] },
+    { id: 'pod-de-sub', name: 'Subscribed Pod', url: 'https://example.org/pod2.xml', format: 'podcast', category: 'Politik', description: '', language: 'de', subscribed: true, recommended: true, accentColor: '#000', shortCode: 'SP', tags: ['podcast', 'audio'] },
+    { id: 'vid-de', name: 'DACH Video', url: 'https://www.youtube.com/feeds/videos.xml?channel_id=123', format: 'podcast', category: 'Politik', description: '', language: 'de', subscribed: false, recommended: true, accentColor: '#000', shortCode: 'DV', tags: ['video', 'youtube'] },
+  ];
+
+  assert.deepEqual(selectMediaDiscoverySources(mockSources, 'de', 'audio').map(s => s.id), ['pod-de']);
+  assert.deepEqual(selectMediaDiscoverySources(mockSources, 'de', 'video').map(s => s.id), ['vid-de']);
+
+  const deAudioPacks = selectMediaStarterPacks(STARTER_PACKS, 'de', 'audio');
+  assert.equal(deAudioPacks[0]?.id, 'podcasts-dach');
+
+  const enAudioPacks = selectMediaStarterPacks(STARTER_PACKS, 'en', 'audio');
+  assert.ok(enAudioPacks.every(p => p.id !== 'podcasts-dach'));
 });

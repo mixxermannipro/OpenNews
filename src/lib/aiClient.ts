@@ -4,6 +4,7 @@ import { withAIResult } from './aiCache';
 import { Capacitor } from '@capacitor/core';
 import { buildGroundedPrompt, parseArticleAnswer, parseBriefingText, parseSourcedReport, parseSummaryBullets } from './aiResponse';
 import type { AIProviderConfig, AIProviderId, AISummaryResult, NewsArticle, SummaryStyle } from '../types/news';
+export { DEFAULT_AI_CONFIG, migrateAIConfig } from './aiConfig';
 
 export interface AIProviderMeta {
   id: AIProviderId;
@@ -76,21 +77,6 @@ export const AI_PROVIDERS: AIProviderMeta[] = [
 
 export function hasCloudAI(config: AIProviderConfig) {
   return config.provider !== 'device' && (Boolean(config.apiKey.trim()) || config.provider === 'custom');
-}
-
-export const DEFAULT_AI_CONFIG: AIProviderConfig = {
-  provider: 'google',
-  apiKey: '',
-  model: 'gemini-flash-latest',
-  customEndpoint: 'https://openrouter.ai/api/v1/chat/completions',
-  autoSummarize: true,
-};
-
-export function migrateAIConfig(config: AIProviderConfig): AIProviderConfig {
-  if (config.provider !== 'google') return config;
-  if (config.model === 'gemini-2.5-flash') return { ...config, model: 'gemini-flash-latest' };
-  if (config.model === 'gemini-2.5-flash-lite') return { ...config, model: 'gemini-flash-lite-latest' };
-  return config;
 }
 
 export function buildSummaryPrompt(

@@ -366,16 +366,18 @@ test('moves between home sections while respecting both reduced-motion settings'
     .toBeLessThan(0.001);
   await tabs.getByRole('button', { name: 'Neueste', exact: true }).click();
   await expect(tabs.getByRole('button', { name: 'Neueste', exact: true })).toHaveAttribute('aria-pressed', 'true');
-  await dock.getByRole('button', { name: 'Video & Audio' }).click();
-  await page.getByRole('button', { name: 'Clips', exact: true }).click();
-  const clips = page.getByRole('dialog', { name: 'Clips' });
-  await expect(clips).toBeVisible();
-  const clipDuration = await clips.evaluate(dialog =>
+  await page.getByRole('button', { name: 'Tagesüberblick', exact: true }).click();
+  const reducedBriefing = page.getByRole('dialog').filter({ has: page.locator('#briefing-title') });
+  await expect(reducedBriefing).toBeVisible();
+  const dialogDuration = await reducedBriefing.evaluate(dialog =>
     Number.parseFloat(getComputedStyle(dialog).animationDuration),
   );
-  expect(clipDuration).toBeLessThan(0.001);
-  await clips.getByRole('button', { name: 'Schließen' }).click();
-  await expect(clips).toBeHidden();
+  expect(dialogDuration).toBeLessThan(0.001);
+  await reducedBriefing.getByRole('button', { name: 'Schließen' }).click();
+  await expect(reducedBriefing).toBeHidden();
+  await dock.getByRole('button', { name: 'Video & Audio' }).click();
+  await page.getByRole('button', { name: 'Clips', exact: true }).click();
+  await expect(page.getByText('Noch keine Kurz-Clips verfügbar')).toBeVisible();
 });
 
 test('keeps notification and personalization settings in their own groups on the web', async ({ page }) => {
@@ -405,4 +407,26 @@ test('offers an email contact for voluntary beta feedback and privacy requests',
   await page.getByRole('button', { name: 'Einstellungen', exact: true }).click();
   await page.getByRole('button', { name: 'Datenschutz', exact: true }).click();
   await expect(page.getByRole('link', { name: contact })).toHaveAttribute('href', 'mailto:' + contact);
+});
+
+test('opens Live Radio, toggles favorites, and plays in MiniAudioPlayer without seek scrubber', async ({ page }) => {
+  await enterApp(page);
+  await page.getByRole('button', { name: 'Video & Audio' }).click();
+  await page.getByRole('button', { name: /^Radio/ }).click();
+  const dlfCard = page.locator('[data-radio-id="dlf"]');
+  await expect(dlfCard).toBeVisible();
+
+  const favBtn = dlfCard.getByRole('button', { name: 'Sender als Favorit merken' });
+  await favBtn.click();
+  await expect(dlfCard.getByRole('button', { name: 'Sender aus Favoriten entfernen' })).toBeVisible();
+
+  await dlfCard.getByRole('button', { name: /^LIVE/ }).click();
+  const miniPlayer = page.getByRole('complementary', { name: 'Läuft gerade' });
+  await expect(miniPlayer).toBeVisible();
+  await expect(miniPlayer.getByText('Deutschlandfunk', { exact: true })).toBeVisible();
+  await expect(miniPlayer.getByText('LIVE', { exact: true })).toBeVisible();
+  await expect(miniPlayer.locator('input[type="range"]')).toHaveCount(0);
+
+  await miniPlayer.getByRole('button', { name: 'Player schließen' }).click();
+  await expect(miniPlayer).toBeHidden();
 });

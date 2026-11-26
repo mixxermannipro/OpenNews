@@ -16,54 +16,26 @@ export function resolveHomeTab(value: unknown): HomeTab {
   return 'Heute';
 }
 
-export const RETENTION_OPTIONS = {
-  '2': '2 Tage',
-  '4': '4 Tage (Standard)',
-  '7': '7 Tage',
-  '14': '2 Wochen',
-  '30': '1 Monat (30 Tage)',
-  '90': '3 Monate (90 Tage)',
-} as const;
-export type Retention = keyof typeof RETENTION_OPTIONS;
+export const RETENTION_KEYS = ['2', '4', '7', '14', '30', '90'] as const;
+export type Retention = typeof RETENTION_KEYS[number];
 
 export function resolveRetention(value: unknown): Retention {
-  return typeof value === 'string' && Object.hasOwn(RETENTION_OPTIONS, value)
+  return typeof value === 'string' && (RETENTION_KEYS as readonly string[]).includes(value)
     ? value as Retention
     : DEFAULT_PREFERENCES.retention;
 }
 
-export const EDITIONS = {
-  balanced: {
-    label: 'Ausgewogen',
-    sources: ['tagesschau', 'zdfheute', 'deutschlandfunk', 'faz', 'spiegel', 'zeit', 'handelsblatt', 'heise', 'guardian', 'nasa', 'dw'],
-    description: 'Ausgewogene Auswahl aus Nachrichten, Wirtschaft, Technik und Wissenschaft.',
-  },
-  public: {
-    label: 'Öffentlich-rechtliche Nachrichten',
-    sources: ['tagesschau', 'zdfheute', 'deutschlandfunk', 'dw', 'bbc', 'npr'],
-    description: 'Tagesschau, ZDFheute, Deutschlandfunk, DW, BBC und NPR.',
-  },
-  analysis: {
-    label: 'Analyse & Hintergrund',
-    sources: ['zeit', 'faz', 'sueddeutsche', 'handelsblatt', 'spiegel', 'guardian', 'lemonde', 'elpais'],
-    description: 'ZEIT, F.A.Z., SZ, Handelsblatt, SPIEGEL, Guardian, Le Monde und El País.',
-  },
-  technology: {
-    label: 'Technologie & KI',
-    sources: ['heise', 'the-decoder', 'golem', 'netzpolitik', 'hackernews', 'arstechnica', 'theverge', 'mit-tech'],
-    description: 'heise, THE DECODER, Golem, netzpolitik, Hacker News, Ars Technica, The Verge und MIT Tech.',
-  },
-  tabloid: {
-    label: 'Boulevard & Aktuelles',
-    sources: ['bild', 'ntv', 'welt'],
-    description: 'BILD, n-tv und WELT.',
-  },
+const EDITION_SOURCES = {
+  balanced: ['tagesschau', 'zdfheute', 'deutschlandfunk', 'faz', 'spiegel', 'zeit', 'handelsblatt', 'heise', 'guardian', 'nasa', 'dw'],
+  public: ['tagesschau', 'zdfheute', 'deutschlandfunk', 'dw', 'bbc', 'npr'],
+  analysis: ['zeit', 'faz', 'sueddeutsche', 'handelsblatt', 'spiegel', 'guardian', 'lemonde', 'elpais'],
+  technology: ['heise', 'the-decoder', 'golem', 'netzpolitik', 'hackernews', 'arstechnica', 'theverge', 'mit-tech'],
+  tabloid: ['bild', 'ntv', 'welt'],
 } as const;
-export type Edition = keyof typeof EDITIONS;
+export type Edition = keyof typeof EDITION_SOURCES;
 
 export function applyEditionSources(sources: NewsSource[], edition: Edition): NewsSource[] {
-  const preset = EDITIONS[edition] ?? EDITIONS.balanced;
-  const ids = new Set<string>(preset.sources);
+  const ids = new Set<string>(EDITION_SOURCES[edition] ?? EDITION_SOURCES.balanced);
   return sources.map(source => source.isCustom || clipSourceIds.has(source.id)
     ? source
     : { ...source, subscribed: ids.has(source.id) });

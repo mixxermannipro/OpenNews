@@ -1,3 +1,5 @@
+import { cleanExtractedBlocks } from '../../src/lib/articleExtraction.ts';
+import { isTrackingPixelUrl } from '../../src/lib/articleMedia.ts';
 import { handlePagesApiRequest, type ExtractedArticlePayload, type PagesApiEnv } from '../../src/lib/pagesApi.ts';
 
 interface PagesContext {
@@ -26,6 +28,7 @@ declare class HTMLRewriter {
 async function extractArticleWithHtmlRewriter(
   response: Response,
   finalUrl: string,
+  articleTitle?: string,
 ): Promise<ExtractedArticlePayload> {
   let ogImage: string | undefined;
   let ignoreDepth = 0;
@@ -62,7 +65,7 @@ async function extractArticleWithHtmlRewriter(
         if (!content) return;
         try {
           const candidate = new URL(content, finalUrl);
-          if (['http:', 'https:'].includes(candidate.protocol)) {
+          if (['http:', 'https:'].includes(candidate.protocol) && !isTrackingPixelUrl(candidate.href)) {
             ogImage = candidate.href;
           }
         } catch {
@@ -70,7 +73,7 @@ async function extractArticleWithHtmlRewriter(
         }
       },
     })
-    .on('nav, header, footer, aside, script, style, noscript, svg, form, button', {
+    .on('nav, header, footer, aside, script, style, noscript, svg, form, button, figcaption', {
       element(el) {
         ignoreDepth++;
         el.onEndTag(() => {
@@ -114,14 +117,8 @@ async function extractArticleWithHtmlRewriter(
   const chosen =
     articleBlocks.length >= 2 ? articleBlocks : mainBlocks.length >= 2 ? mainBlocks : bodyBlocks;
 
-  const paragraphs: string[] = [];
-  const headingIndexes: number[] = [];
-  for (const block of chosen) {
-    if (block.isHeading) headingIndexes.push(paragraphs.length);
-    paragraphs.push(block.text);
-  }
-
-  return { paragraphs, headingIndexes, ogImage };
+  const cleaned = cleanExtractedBlocks(chosen, { title: articleTitle });
+  return { ...cleaned, ogImage };
 }
 
 export async function onRequest(context: PagesContext): Promise<Response> {

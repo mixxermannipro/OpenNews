@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Bookmark, Flame, Heart, Play, Sparkles, ThumbsDown } from 'lucide-react';
+import { Bookmark, Check, Heart, ListPlus, Play, ThumbsDown } from 'lucide-react';
 import type { NewsArticle } from '../types/news';
 import { useI18n, type TranslationKey } from '../lib/i18n';
 import { classifyArticleType, detectAndClarifyClickbait, type EditorialArticleType } from '../lib/localEditorialAI';
@@ -19,13 +19,17 @@ interface CardActionsProps {
   article: NewsArticle;
   isBookmarked: boolean;
   isLiked: boolean;
+  inQueue?: boolean;
+  isRead?: boolean;
+  readingProgress?: number;
   onOpen: (article: NewsArticle) => void;
   onToggleBookmark: (article: NewsArticle) => void;
   onToggleLike: (article: NewsArticle) => void;
+  onToggleQueue?: (article: NewsArticle) => void;
   onDismissLessLikeThis?: (article: NewsArticle) => void;
 }
 
-const CATEGORY_TEXT_STYLES: Record<string, string> = {
+export const CATEGORY_TEXT_STYLES: Record<string, string> = {
   Politik: 'text-rose-700 dark:text-rose-400',
   Wirtschaft: 'text-emerald-700 dark:text-emerald-400',
   Technologie: 'text-sky-700 dark:text-sky-400',
@@ -36,8 +40,8 @@ const CATEGORY_TEXT_STYLES: Record<string, string> = {
   Sport: 'text-orange-700 dark:text-orange-400',
 };
 
-function ArticleActions({ article, isBookmarked, isLiked, onToggleBookmark, onToggleLike, onDismissLessLikeThis, layout = 'row' }:
-  Omit<CardActionsProps, 'onOpen'> & { layout?: 'column' | 'row' | 'overlay' }) {
+function ArticleActions({ article, isBookmarked, isLiked, inQueue = false, onToggleBookmark, onToggleLike, onToggleQueue, onDismissLessLikeThis, layout = 'row' }:
+  Omit<CardActionsProps, 'onOpen' | 'isRead' | 'readingProgress'> & { layout?: 'column' | 'row' | 'overlay' }) {
   const { t } = useI18n();
   const overlay = layout === 'overlay';
   const style = overlay
@@ -56,6 +60,23 @@ function ArticleActions({ article, isBookmarked, isLiked, onToggleBookmark, onTo
           title={t('swipeLessLikeThis')}
         >
           <ThumbsDown size={15} aria-hidden="true" />
+        </button>
+      )}
+      {onToggleQueue && !overlay && (
+        <button
+          type="button"
+          className={buttonStyle}
+          data-active={inQueue || undefined}
+          onClick={() => onToggleQueue(article)}
+          aria-pressed={inQueue}
+          aria-label={`${inQueue ? t('readerQueueAdded') : t('readerQueueAdd')}: ${article.title}`}
+          title={inQueue ? t('readerQueueAdded') : t('readerQueueAdd')}
+        >
+          {inQueue ? (
+            <Check size={16} className="text-[var(--accent)]" strokeWidth={2.5} aria-hidden="true" />
+          ) : (
+            <ListPlus size={16} aria-hidden="true" />
+          )}
         </button>
       )}
       <button
@@ -247,16 +268,11 @@ export const HeroArticleCard: React.FC<CardActionsProps & { badgeLabel?: string;
         </div>
 
         <div className="relative z-10 flex items-center justify-between gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-black/45 px-3 py-1 text-xs font-semibold text-white backdrop-blur-md ring-1 ring-white/20">
-            {resolvedBadge === t('featuredTopic') ? (
-              <Sparkles className="h-3.5 w-3.5 text-white" aria-hidden="true" />
-            ) : (
-              <Flame className="h-3.5 w-3.5 text-amber-200" aria-hidden="true" />
-            )}
+          <span className="text-[11px] font-bold uppercase tracking-[0.11em] text-white/92 drop-shadow-sm">
             {resolvedBadge}
           </span>
           {hasMedia && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-black/50 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-md ring-1 ring-white/20">
+            <span className="inline-flex items-center gap-1 rounded-full bg-black/55 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-md ring-1 ring-white/20">
               <Play className="h-3 w-3 fill-current" aria-hidden="true" />
               {t('mediaLabel')}
             </span>
@@ -287,8 +303,7 @@ export const HeroArticleCard: React.FC<CardActionsProps & { badgeLabel?: string;
   );
 };
 
-export function HeadlineArticleCard({ article, lead = false, onOpen, ...actions }:
-  CardActionsProps & { lead?: boolean }) {
+export const HeadlineArticleCard: React.FC<CardActionsProps & { lead?: boolean }> = React.memo(function HeadlineArticleCard({ article, lead = false, isRead = false, readingProgress, onOpen, ...actions }) {
   const { t, categoryLabel, formatRelative } = useI18n();
   const Heading = lead ? 'h2' : 'h3';
   const hasVideo = Boolean(article.videoUrl || article.youtubeId);
@@ -300,16 +315,19 @@ export function HeadlineArticleCard({ article, lead = false, onOpen, ...actions 
   const typeKey = TYPE_LABEL_KEY[articleType];
   const kicker = typeKey ? `${t(typeKey)} · ${localizedCategory}` : localizedCategory;
   const clickbait = React.useMemo(() => detectAndClarifyClickbait(article), [article]);
+  const progressPct = readingProgress && readingProgress >= 0.12 && readingProgress < 0.92
+    ? Math.round(readingProgress * 100)
+    : 0;
 
   return (
-    <article className={`settings-group article-card article-card-interactive min-w-0 overflow-hidden ${lead ? 'article-card-lead' : ''}`}>
+    <article className={`settings-group article-card article-card-interactive relative min-w-0 overflow-hidden ${lead ? 'article-card-lead' : ''}`}>
       <button
         type="button"
         onClick={() => onOpen(article)}
         className="group block w-full text-left focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--accent)]"
       >
         {article.imageUrl && (
-          <div className={`article-thumbnail relative w-full overflow-hidden bg-[var(--control)] ${lead ? 'aspect-[16/9] sm:aspect-[2.05] max-h-[25rem]' : 'aspect-[16/9] sm:aspect-[2.15] max-h-[21rem]'}`}>
+          <div className={`article-thumbnail relative w-full overflow-hidden bg-[var(--control)] ${lead ? 'aspect-[16/10] lg:aspect-[16/9] max-h-[20.5rem]' : 'aspect-[16/9] sm:aspect-[2.15] max-h-[20rem]'}`}>
             <ArticleImage
               key={article.imageUrl}
               src={article.imageUrl}
@@ -332,10 +350,12 @@ export function HeadlineArticleCard({ article, lead = false, onOpen, ...actions 
             {kicker}
           </p>
           <Heading
-            className={`mt-1.5 font-extrabold tracking-[-0.025em] text-[var(--ink)] [overflow-wrap:anywhere] [text-wrap:balance] transition-opacity duration-150 [@media(hover:hover)]:group-hover:opacity-80 ${
+            className={`mt-1.5 font-extrabold tracking-[-0.025em] [overflow-wrap:anywhere] [text-wrap:balance] transition-opacity duration-150 [@media(hover:hover)]:group-hover:opacity-80 ${
+              isRead && !progressPct ? 'text-[var(--ink)]/70' : 'text-[var(--ink)]'
+            } ${
               lead
-                ? 'text-[clamp(1.45rem,5.4vw,2.35rem)] leading-[1.12]'
-                : 'text-[clamp(1.2rem,4.3vw,1.65rem)] leading-[1.18]'
+                ? 'text-[clamp(1.4rem,4.4vw,2.05rem)] leading-[1.13]'
+                : 'text-[clamp(1.18rem,4vw,1.55rem)] leading-[1.18]'
             }`}
           >
             {article.title}
@@ -346,7 +366,7 @@ export function HeadlineArticleCard({ article, lead = false, onOpen, ...actions 
               {clickbait.clarifiedLead}
             </p>
           ) : article.summary && (
-            <p className={`mt-2.5 line-clamp-3 max-w-[65ch] text-[var(--muted)] ${lead ? 'text-[15px] leading-[1.55] sm:text-base' : 'text-[14px] leading-[1.5] sm:text-[15px]'}`}>
+            <p className={`mt-2 line-clamp-3 max-w-[65ch] text-[var(--muted)] ${lead ? 'text-[14.5px] leading-[1.55] sm:text-[15.5px]' : 'text-[14px] leading-[1.5] sm:text-[15px]'}`}>
               {article.summary}
             </p>
           )}
@@ -362,16 +382,40 @@ export function HeadlineArticleCard({ article, lead = false, onOpen, ...actions 
             <span className="font-semibold text-[var(--ink)]">{article.sourceName}</span>
             <span aria-hidden="true"> · </span>
             <span>{formatRelative(article.publishedAt)}</span>
+            {article.readingTimeMin > 0 && (
+              <span className="hidden sm:inline">
+                <span aria-hidden="true"> · </span>
+                {t('briefingReadMin', { min: article.readingTimeMin })}
+              </span>
+            )}
+            {progressPct > 0 ? (
+              <span className="font-semibold text-[var(--accent)]">
+                <span aria-hidden="true"> · </span>
+                {progressPct}%
+              </span>
+            ) : isRead ? (
+              <span>
+                <span aria-hidden="true"> · </span>
+                {t('readLabel')}
+              </span>
+            ) : null}
           </p>
         </div>
         <ArticleActions article={article} {...actions} layout="row" />
       </div>
+      {progressPct > 0 && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[2.5px] bg-[var(--control)]" aria-hidden="true">
+          <div className="h-full bg-[var(--accent)]" style={{ width: `${progressPct}%` }} />
+        </div>
+      )}
     </article>
   );
-}
+});
 
-export const CompactArticleCard: React.FC<CardActionsProps> = ({
+export const CompactArticleCard: React.FC<CardActionsProps> = React.memo(({
   article,
+  isRead = false,
+  readingProgress,
   onOpen,
   ...actions
 }) => {
@@ -383,9 +427,12 @@ export const CompactArticleCard: React.FC<CardActionsProps> = ({
   const articleType = React.useMemo(() => classifyArticleType(article), [article]);
   const typeKey = TYPE_LABEL_KEY[articleType];
   const kicker = typeKey ? `${t(typeKey)} · ${localizedCategory}` : localizedCategory;
+  const progressPct = readingProgress && readingProgress >= 0.12 && readingProgress < 0.92
+    ? Math.round(readingProgress * 100)
+    : 0;
 
   return (
-    <article className="liquid-glass article-card article-card-compact article-card-interactive group relative flex flex-col justify-between p-3 sm:p-3.5">
+    <article className="liquid-glass article-card article-card-compact article-card-interactive group relative flex flex-col justify-between overflow-hidden p-3 sm:p-3.5">
       <button
         type="button"
         onClick={() => onOpen(article)}
@@ -411,7 +458,9 @@ export const CompactArticleCard: React.FC<CardActionsProps> = ({
           <p className={`text-[11.5px] font-bold tracking-[0.01em] ${categoryColor}`}>
             {kicker}
           </p>
-          <h3 className="mt-0.5 line-clamp-3 [overflow-wrap:anywhere] text-[15px] font-bold leading-[1.3] tracking-[-0.015em] text-[var(--ink)] [text-wrap:balance] transition-opacity duration-150 [@media(hover:hover)]:group-hover:opacity-80">
+          <h3 className={`mt-0.5 line-clamp-3 [overflow-wrap:anywhere] text-[15px] font-bold leading-[1.3] tracking-[-0.015em] [text-wrap:balance] transition-opacity duration-150 [@media(hover:hover)]:group-hover:opacity-80 ${
+            isRead && !progressPct ? 'text-[var(--ink)]/70' : 'text-[var(--ink)]'
+          }`}>
             {article.title}
           </h3>
         </div>
@@ -428,12 +477,34 @@ export const CompactArticleCard: React.FC<CardActionsProps> = ({
           </span>
           <span aria-hidden="true">·</span>
           <span className="whitespace-nowrap">{formatRelative(article.publishedAt)}</span>
+          {article.readingTimeMin > 0 && (
+            <span className="hidden sm:inline whitespace-nowrap">
+              <span aria-hidden="true">· </span>
+              {t('briefingReadMin', { min: article.readingTimeMin })}
+            </span>
+          )}
+          {progressPct > 0 ? (
+            <span className="whitespace-nowrap font-semibold text-[var(--accent)]">
+              <span aria-hidden="true">· </span>
+              {progressPct}%
+            </span>
+          ) : isRead ? (
+            <span className="hidden sm:inline whitespace-nowrap">
+              <span aria-hidden="true">· </span>
+              {t('readLabel')}
+            </span>
+          ) : null}
         </div>
         <ArticleActions article={article} {...actions} layout="row" />
       </div>
+      {progressPct > 0 && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[2.5px] bg-[var(--control)]" aria-hidden="true">
+          <div className="h-full bg-[var(--accent)]" style={{ width: `${progressPct}%` }} />
+        </div>
+      )}
     </article>
   );
-};
+});
 
 export const BentoArticleCard: React.FC<CardActionsProps & { tall?: boolean; className?: string }> = ({
   article,

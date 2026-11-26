@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { safeHref } from '../lib/contentIdentity';
 import type { NewsArticle } from '../types/news';
 import {
   buildClipsPlaylist,
@@ -488,11 +489,11 @@ export function ClipsFeed({
 
                     {(isYouTube || (showHint && idx === 0 && items.length > 1)) && (
                       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
-                        {isYouTube && (
+                        {isYouTube && safeHref(article.link) && (
                           <a
-                            href={article.link}
+                            href={safeHref(article.link)}
                             target="_blank"
-                            rel="noreferrer"
+                            rel="noopener noreferrer"
                             className="inline-flex items-center gap-1 text-xs font-medium text-white/75 hover:text-white"
                           >
                             <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />

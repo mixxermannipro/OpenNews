@@ -7,9 +7,11 @@ import { readOfflineArticle, removeOfflineArticle, storeOfflineArticle } from '.
 import { extractNativeArticle } from '../lib/nativeFeed';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ArrowLeft,
   ArrowRight,
   Bookmark,
   Check,
+  ChevronDown,
   ChevronLeft,
   Columns2,
   Download,
@@ -25,6 +27,7 @@ import {
   Newspaper,
   Pause,
   Play,
+  Search,
   Settings,
   Share2,
   SkipBack,
@@ -37,7 +40,6 @@ import {
   Volume2,
   X,
 } from 'lucide-react';
-import { motion } from 'motion/react';
 import type {
   AIProviderConfig,
   AISummaryResult,
@@ -55,11 +57,18 @@ import { trackNavigationScroll } from '../lib/scrollNavigation';
 import { computeReadingProgress } from '../lib/pullPhysics';
 import { classifyArticleType, type EditorialArticleType } from '../lib/localEditorialAI';
 import { findPriorCoverage, findRelatedMediaForArticle, type RelatedMediaLink } from '../lib/relatedMedia';
-import { buildSpeechBlocks, type ArticleHighlight, type ReaderSurfaceTheme } from '../lib/readerExtras';
+import {
+  buildSpeechBlocks,
+  selectFreeAlternatives,
+  type ArticleHighlight,
+  type ReaderSurfaceTheme,
+} from '../lib/readerExtras';
+import { getReaderCopy } from '../lib/readerCopy';
 import { ArticleImage } from './ArticleImage';
 import { SourceIcon } from './SourceIcon';
 import { shareArticle } from '../lib/shareArticle';
 import { translateToGerman } from '../lib/localTranslation';
+import { safeHref } from '../lib/contentIdentity';
 import { ArticleMedia } from './ArticleMedia';
 import { MediaPlayer } from './MediaPlayer';
 
@@ -111,6 +120,12 @@ interface ArticleReaderModalProps {
   showSummary: boolean;
   onOpenSummary: () => void;
   onClose: () => void;
+  initialReadingRatio?: number;
+  onSaveReadingProgress?: (articleId: string, ratio: number) => void;
+  previousArticle?: NewsArticle;
+  nextArticle?: NewsArticle;
+  articlePosition?: { current: number; total: number };
+  onSearchTopic?: () => void;
 }
 
 function renderWithHighlights(text: string, quotes: string[]): React.ReactNode {
@@ -165,12 +180,24 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
   showSummary,
   onOpenSummary,
   onClose,
+  initialReadingRatio,
+  onSaveReadingProgress,
+  previousArticle,
+  nextArticle,
+  articlePosition,
+  onSearchTopic,
 }) => {
   const { lang, locale, t, categoryLabel, formatRelative, formatHeaderDate } = useI18n();
+  const copy = useMemo(() => getReaderCopy(lang), [lang]);
   const openTimestampRef = useRef<number>(Date.now());
   const recordedRef = useRef<boolean>(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const progressBarRef = useRef<HTMLDivElement>(null);
   const articleRef = useRef<HTMLElement>(null);
+  const lastRatioRef = useRef<number>(initialReadingRatio ?? 0);
+  const progressSaveTimerRef = useRef<number | undefined>(undefined);
+  const restoredScrollRef = useRef<boolean>(false);
+  const [resumeBannerPct, setResumeBannerPct] = useState<number | null>(null);
   const [trackActionsScroll] = useState(() => trackNavigationScroll(0));
   const [actionsHidden, setActionsHidden] = useState(false);
   const [compactHeader, setCompactHeader] = useState(false);
@@ -221,14 +248,15 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
   }, [translate, article.title, article.summary, originalParagraphs]);
 
   const [headingIndexes, setHeadingIndexes] = useState<number[]>([]);
-  const hasStandLine = /^Stand:\s*\d{1,2}[./]\d{1,2}[./]\d{2,4}\b/i.test(paragraphs[0] ?? '');
-  const firstTextIndex = hasStandLine ? 1 : 0;
+  const hasLeadMetaLine = /^(?:Stand:\s*\d{1,2}[./]\d{1,2}[./]\d{2,4}\b|Online seit\b|\d{1,2}\.\d{1,2}\.\d{2,4}(?:[\s,-]+\d{1,2}[:.]\d{2})?)/i.test(paragraphs[0] ?? '');
+  const firstTextIndex = hasLeadMetaLine ? 1 : 0;
   const leadIsHeading = headingIndexes.includes(firstTextIndex);
   const lead = (leadIsHeading ? summary : paragraphs[firstTextIndex]) || summary;
   const bodyStart = firstTextIndex + (leadIsHeading ? 0 : 1);
   const [heroImage, setHeroImage] = useState<string | undefined>(article.imageUrl);
   const [loadingFullText, setLoadingFullText] = useState(false);
   const [fullTextUnavailable, setFullTextUnavailable] = useState(false);
+  const [blockedWall, setBlockedWall] = useState(false);
   const [offlineSaved, setOfflineSaved] = useState(false);
   const [offlineBusy, setOfflineBusy] = useState(false);
   const [offlineStatus, setOfflineStatus] = useState('');
@@ -295,15 +323,15 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
       if (offlineSaved) {
         await removeOfflineArticle(article.link);
         setOfflineSaved(false);
-        setOfflineStatus('Offline-Kopie entfernt.');
+        setOfflineStatus(copy.offlineRemoved);
       } else {
         const hasImage = await storeOfflineArticle(article.link, originalParagraphs.length ? originalParagraphs : [article.summary], headingIndexes, heroImage);
         if (!isBookmarked) onToggleBookmark(article);
         setOfflineSaved(true);
-        setOfflineStatus(hasImage ? 'Text und Bild offline verfügbar.' : 'Text offline verfügbar.');
+        setOfflineStatus(hasImage ? copy.offlineSavedFull : copy.offlineSavedText);
       }
     } catch {
-      setOfflineStatus('Offline-Kopie konnte nicht gespeichert oder entfernt werden.');
+      setOfflineStatus(copy.offlineError);
     } finally {
       setOfflineBusy(false);
     }
@@ -642,6 +670,7 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
     const controller = new AbortController();
     setLoadingFullText(true);
     setFullTextUnavailable(false);
+    setBlockedWall(false);
     let offlineImage: string | undefined;
     const load = async () => {
       try {
@@ -658,13 +687,18 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
           }
           if (!navigator.onLine) return;
         }
-        const data = Capacitor.isNativePlatform()
+        const data: { paragraphs: string[]; headingIndexes?: number[]; ogImage?: string; unavailable?: boolean; blockedWall?: boolean } | null = Capacitor.isNativePlatform()
           ? await extractNativeArticle(article.link)
-          : await fetch(`/api/article/extract?url=${encodeURIComponent(article.link)}`, { signal: controller.signal })
-            .then(response => response.ok ? response.json() as Promise<{ paragraphs: string[]; headingIndexes?: number[]; ogImage?: string }> : null);
+          : await fetch(
+            `/api/article/extract?url=${encodeURIComponent(article.link)}&title=${encodeURIComponent(article.title.slice(0, 200))}`,
+            { signal: controller.signal },
+          ).then(response => response.ok
+            ? response.json() as Promise<{ paragraphs: string[]; headingIndexes?: number[]; ogImage?: string; unavailable?: boolean; blockedWall?: boolean }>
+            : null);
         if (cancelled) return;
+        if (data?.blockedWall) setBlockedWall(true);
         const contentLength = (items: string[]) => items.join(' ').length;
-        if (data?.paragraphs?.length && contentLength(data.paragraphs) > contentLength(article.paragraphs)) {
+        if (!data?.unavailable && data?.paragraphs?.length && contentLength(data.paragraphs) > contentLength(article.paragraphs)) {
           setParagraphs(data.paragraphs);
           setHeadingIndexes(data.headingIndexes ?? []);
           setAiResult(previous => previous?.mode === 'ai' ? previous : generateLocalExtractiveSummary({ ...article, paragraphs: data.paragraphs }));
@@ -685,6 +719,81 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
       if (offlineImage) URL.revokeObjectURL(offlineImage);
     };
   }, [article]);
+
+  // Restore saved reading scroll position once article text finishes loading
+  useEffect(() => {
+    if (loadingFullText || restoredScrollRef.current) return;
+    restoredScrollRef.current = true;
+    if (!initialReadingRatio || initialReadingRatio < 0.12 || initialReadingRatio >= 0.92) return;
+    const raf = window.requestAnimationFrame(() => {
+      const container = scrollContainerRef.current;
+      if (!container) return;
+      const scrollable = container.scrollHeight - container.clientHeight;
+      if (scrollable < 320) return;
+      container.scrollTo({
+        top: Math.round(scrollable * initialReadingRatio),
+        behavior: reducedMotion ? 'auto' : 'smooth',
+      });
+      setResumeBannerPct(Math.round(initialReadingRatio * 100));
+    });
+    return () => window.cancelAnimationFrame(raf);
+  }, [loadingFullText, initialReadingRatio, reducedMotion]);
+
+  // Persist reading progress cleanly on unmount
+  useEffect(() => {
+    return () => {
+      window.clearTimeout(progressSaveTimerRef.current);
+      if (onSaveReadingProgress && lastRatioRef.current > 0) {
+        onSaveReadingProgress(article.id, lastRatioRef.current);
+      }
+    };
+  }, [article.id, onSaveReadingProgress]);
+
+  // Desktop keyboard shortcuts (Prev/Next, Bookmark, Queue, Newspaper mode, Escape)
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (showSummary || event.metaKey || event.ctrlKey || event.altKey) return;
+      const target = event.target as HTMLElement | null;
+      if (target && (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable)) {
+        return;
+      }
+      if (event.key === 'Escape' && showTypography) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        setShowTypography(false);
+        return;
+      }
+      if ((event.key === 'ArrowLeft' || event.key === 'k') && previousArticle) {
+        event.preventDefault();
+        onOpenArticle(previousArticle);
+      } else if ((event.key === 'ArrowRight' || event.key === 'j') && nextArticle) {
+        event.preventDefault();
+        onOpenArticle(nextArticle);
+      } else if (event.key === 'b') {
+        event.preventDefault();
+        onToggleBookmark(article);
+      } else if (event.key === 'q') {
+        event.preventDefault();
+        onToggleQueue(article);
+      } else if (event.key === 'n') {
+        event.preventDefault();
+        onNewspaperMode(!newspaperMode);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown, true);
+    return () => window.removeEventListener('keydown', onKeyDown, true);
+  }, [
+    showSummary,
+    showTypography,
+    previousArticle,
+    nextArticle,
+    article,
+    newspaperMode,
+    onOpenArticle,
+    onToggleBookmark,
+    onToggleQueue,
+    onNewspaperMode,
+  ]);
 
   const showShareMessage = (message: string) => {
     window.clearTimeout(shareTimerRef.current);
@@ -709,14 +818,40 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
         ? 'text-[17.5px] leading-[1.78]'
         : 'text-[16px] leading-[1.74]';
 
-  const readingMinutes = Math.max(1, Math.ceil((paragraphs.join(' ').match(/\S+/g)?.length ?? 0) / 220));
+  const readingMinutes = useMemo(
+    () => Math.max(1, Math.ceil((paragraphs.join(' ').match(/\S+/g)?.length ?? 0) / 220)),
+    [paragraphs],
+  );
   const resolvedSurfaceTheme: ReaderSurfaceTheme = newspaperMode && readerTheme === 'default' ? 'paper' : readerTheme;
   const effectiveSerif = newspaperMode || fontFamily === 'serif';
   const activeBlockId = speechIndex >= 0 ? speechBlocks[speechIndex]?.id : undefined;
 
-  const articleType = classifyArticleType(article);
+  const articleType = useMemo(() => classifyArticleType(article), [article]);
   const typeKey = TYPE_LABEL_KEY[articleType];
   const kicker = typeKey ? `${t(typeKey)} · ${categoryLabel(article.category)}` : categoryLabel(article.category);
+  const safeArticleHref = useMemo(() => safeHref(article.link), [article.link]);
+  const headingSet = useMemo(() => new Set(headingIndexes), [headingIndexes]);
+  const headingItems = useMemo(
+    () =>
+      bodyParagraphs
+        .map((text, index) => ({
+          blockId: `body-${index}`,
+          text: text.trim(),
+          isHeading: headingSet.has(index + bodyStart),
+        }))
+        .filter(item => item.isHeading && item.text.length >= 4),
+    [bodyParagraphs, headingSet, bodyStart],
+  );
+  const freeAlternatives = useMemo(
+    () => selectFreeAlternatives(article, perspectiveArticles, 3),
+    [article, perspectiveArticles],
+  );
+  const firstProseIndex = useMemo(
+    () => newspaperMode
+      ? bodyParagraphs.findIndex((p, i) => !headingSet.has(i + bodyStart) && p.trim().length >= 110 && /^\p{L}/u.test(p.trim()))
+      : -1,
+    [newspaperMode, bodyParagraphs, headingSet, bodyStart],
+  );
 
   const registerBlockNode = (id: string) => (el: HTMLElement | null) => {
     if (el) blockNodesRef.current.set(id, el);
@@ -730,40 +865,38 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
       aria-label={`Artikel lesen: ${title}`}
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
     >
-      <motion.div
+      <div
         aria-hidden="true"
         onClick={onClose}
-        className="absolute inset-0 bg-black/60 backdrop-blur-[2px]"
-        initial={reducedMotion ? false : { opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: reducedMotion ? 0 : 0.22, ease: 'easeOut' }}
+        className={`absolute inset-0 bg-black/60 backdrop-blur-[2px] ${reducedMotion ? '' : 'reader-backdrop-enter'}`}
       />
-      <motion.div
+      <div
         onClick={event => event.stopPropagation()}
-        initial={reducedMotion ? false : { opacity: 0, y: 26, scale: 0.99 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={reducedMotion ? undefined : { opacity: 0, y: 20, transition: { duration: 0.2, ease: [0.32, 0, 0.35, 1] } }}
-        transition={reducedMotion ? { duration: 0 } : {
-          y: { type: 'spring', stiffness: 360, damping: 34, mass: 0.85 },
-          scale: { duration: 0.22, ease: [0.16, 1, 0.3, 1] },
-          opacity: { duration: 0.16, ease: 'easeOut' },
-        }}
         data-reader-theme={resolvedSurfaceTheme !== 'default' ? resolvedSurfaceTheme : undefined}
         className={`relative flex h-[100dvh] sm:h-[92vh] w-full flex-col overflow-hidden rounded-none sm:rounded-[30px] reader-surface shadow-2xl ring-1 ring-black/10 dark:ring-white/12 transition-[max-width] duration-300 ${
+          reducedMotion ? '' : 'reader-sheet-enter'
+        } ${
           newspaperMode && twoColumns ? 'max-w-5xl' : 'max-w-3xl'
         }`}
       >
         <div
+          ref={scrollContainerRef}
           className="flex-1 overflow-y-auto overscroll-y-contain scroll-smooth"
           onScroll={event => {
             const { scrollTop, scrollHeight, clientHeight } = event.currentTarget;
             setActionsHidden(trackActionsScroll(scrollTop, scrollHeight - clientHeight));
             const nextCompact = scrollTop > 120;
             if (nextCompact !== compactHeader) setCompactHeader(nextCompact);
+            const progress = computeReadingProgress(scrollTop, scrollHeight, clientHeight);
             if (progressBarRef.current) {
-              const progress = computeReadingProgress(scrollTop, scrollHeight, clientHeight);
               progressBarRef.current.style.transform = `scaleX(${progress})`;
+            }
+            lastRatioRef.current = progress;
+            if (onSaveReadingProgress) {
+              window.clearTimeout(progressSaveTimerRef.current);
+              progressSaveTimerRef.current = window.setTimeout(() => {
+                onSaveReadingProgress(article.id, progress);
+              }, 600);
             }
           }}
         >
@@ -889,7 +1022,7 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
                           aria-pressed={newspaperMode}
                           onClick={() => onNewspaperMode(!newspaperMode)}
                         >
-                          {newspaperMode ? 'An' : 'Aus'}
+                          {newspaperMode ? copy.onLabel : copy.offLabel}
                         </button>
                       </div>
 
@@ -951,7 +1084,12 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
                   {title}
                 </h1>
                 <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[var(--muted)] tabular-nums">
-                  {article.author && <span>{article.author} ·</span>}
+                  {article.author && (
+                    <>
+                      <span>{article.author}</span>
+                      <span aria-hidden="true">·</span>
+                    </>
+                  )}
                   <span>{formatRelative(article.publishedAt)}</span>
                   <span aria-hidden="true">·</span>
                   <span>{t('readerReadMinutes', { min: readingMinutes })}</span>
@@ -1017,6 +1155,65 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
               </>
             )}
 
+            {resumeBannerPct !== null && (
+              <div
+                role="status"
+                className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-[var(--line)] bg-[var(--panel-2)] px-3.5 py-2 text-xs text-[var(--ink)]"
+              >
+                <span className="font-medium tabular-nums">{copy.resumeReading(resumeBannerPct)}</span>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      scrollContainerRef.current?.scrollTo({ top: 0, behavior: reducedMotion ? 'auto' : 'smooth' });
+                      setResumeBannerPct(null);
+                    }}
+                    className="rounded-full px-2.5 py-1 font-semibold text-[var(--accent)] hover:bg-[var(--control)]"
+                  >
+                    {copy.backToTop}
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={t('close')}
+                    onClick={() => setResumeBannerPct(null)}
+                    className="grid h-7 w-7 place-items-center rounded-full text-[var(--muted)] hover:bg-[var(--control)] hover:text-[var(--ink)]"
+                  >
+                    <X size={13} aria-hidden="true" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {headingItems.length >= 3 && (
+              <details className="mt-4 rounded-2xl border border-[var(--line)] bg-[var(--panel-2)] px-3.5 py-2.5 text-sm">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-xs font-semibold text-[var(--ink)]">
+                  <span>{copy.chaptersLabel(headingItems.length)}</span>
+                  <ChevronDown size={15} className="text-[var(--muted)]" aria-hidden="true" />
+                </summary>
+                <ol className="mt-2.5 space-y-1 border-t border-[var(--line)] pt-2">
+                  {headingItems.map((item, idx) => (
+                    <li key={item.blockId}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          blockNodesRef.current.get(item.blockId)?.scrollIntoView({
+                            behavior: reducedMotion ? 'auto' : 'smooth',
+                            block: 'start',
+                          });
+                        }}
+                        className="flex min-h-10 w-full items-baseline gap-2.5 rounded-xl px-2 py-1.5 text-left text-xs font-medium text-[var(--ink)] transition-colors hover:bg-[var(--control)] hover:text-[var(--accent)]"
+                      >
+                        <span className="shrink-0 font-bold text-[var(--muted)] tabular-nums">
+                          {String(idx + 1).padStart(2, '0')}
+                        </span>
+                        <span className="line-clamp-2 leading-snug">{item.text}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ol>
+              </details>
+            )}
+
             <div className={`reader-prose mt-6 space-y-5 ${textSizeClass} ${effectiveSerif ? 'font-editorial-serif' : ''}`}>
               {lead && (
                 <p
@@ -1042,10 +1239,7 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
                 {bodyParagraphs.map((paragraph, index) => {
                   const blockId = `body-${index}`;
                   const isSpeakingBlock = activeBlockId === blockId;
-                  const isHeading = headingIndexes.includes(index + bodyStart);
-                  const firstProseIndex = newspaperMode
-                    ? bodyParagraphs.findIndex((p, i) => !headingIndexes.includes(i + bodyStart) && p.trim().length >= 110 && /^\p{L}/u.test(p.trim()))
-                    : -1;
+                  const isHeading = headingSet.has(index + bodyStart);
                   const isFirstProse = newspaperMode && !isHeading && index === firstProseIndex;
                   return isHeading ? (
                     <h2
@@ -1075,6 +1269,77 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
                 <div className="image-shimmer h-4 w-11/12 rounded-md" aria-hidden="true" />
                 <div className="image-shimmer h-4 w-4/5 rounded-md" aria-hidden="true" />
               </div>
+            )}
+
+            {!loadingFullText && (blockedWall || fullTextUnavailable) && (
+              <section
+                aria-label={copy.paywallTitle}
+                className="mt-6 space-y-3.5 rounded-2xl border border-[var(--line)] bg-[var(--panel-2)] p-4 sm:p-5"
+              >
+                <div className="space-y-1">
+                  <p className="text-sm font-bold text-[var(--ink)]">{copy.paywallTitle}</p>
+                  <p className="text-xs leading-relaxed text-[var(--muted)]">{copy.paywallDesc}</p>
+                </div>
+
+                {freeAlternatives.length > 0 && (
+                  <div className="space-y-2 border-t border-[var(--line)] pt-3">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-[var(--muted)]">
+                      {copy.paywallAlternativesTitle}
+                    </p>
+                    <ul className="divide-y divide-[var(--line)] rounded-xl border border-[var(--line)] bg-[var(--panel)] px-3">
+                      {freeAlternatives.map(alt => (
+                        <li key={alt.id}>
+                          <button
+                            type="button"
+                            onClick={() => onOpenArticle(alt)}
+                            className="group flex min-h-12 w-full items-center justify-between gap-3 py-2.5 text-left"
+                          >
+                            <div className="min-w-0 flex-1 space-y-0.5">
+                              <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[var(--muted)]">
+                                <SourceIcon
+                                  source={{ id: alt.sourceId, shortCode: alt.sourceShortCode, accentColor: alt.sourceColor }}
+                                  size="h-4 w-4 rounded-[4px] text-[7px]"
+                                />
+                                {alt.sourceName} · {formatRelative(alt.publishedAt)}
+                              </span>
+                              <p className="line-clamp-2 text-xs font-bold leading-snug text-[var(--ink)] group-hover:text-[var(--accent)]">
+                                {alt.title}
+                              </p>
+                            </div>
+                            <span className="shrink-0 text-xs font-semibold text-[var(--accent)]">
+                              {copy.paywallReadInApp}
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                  {safeArticleHref && (
+                    <a
+                      href={safeArticleHref}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="choice-pill inline-flex items-center gap-1.5 text-xs"
+                    >
+                      <ExternalLink size={14} aria-hidden="true" />
+                      {copy.paywallOpenSource}
+                    </a>
+                  )}
+                  {onSearchTopic && (
+                    <button
+                      type="button"
+                      onClick={onSearchTopic}
+                      className="choice-pill inline-flex items-center gap-1.5 text-xs"
+                    >
+                      <Search size={14} aria-hidden="true" />
+                      {copy.paywallSearchMore}
+                    </button>
+                  )}
+                </div>
+              </section>
             )}
 
             {/* Intelligent Related Cross-Media Links (Article -> Video / Clip / Podcast in-app) */}
@@ -1175,6 +1440,56 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
               </div>
             )}
 
+            {/* Prev / Next Article Navigation inside Feed Context */}
+            {(previousArticle || nextArticle) && (
+              <nav
+                aria-label={`${copy.prevArticle} / ${copy.nextArticle}`}
+                className="mt-7 space-y-2.5 border-t border-[var(--line)] pt-5"
+              >
+                {articlePosition && articlePosition.total > 1 && (
+                  <p className="text-[11px] font-semibold text-[var(--muted)] tabular-nums">
+                    {articlePosition.current} / {articlePosition.total}
+                  </p>
+                )}
+                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                  {previousArticle ? (
+                    <button
+                      type="button"
+                      onClick={() => onOpenArticle(previousArticle)}
+                      className="group flex min-h-[64px] items-center gap-3 rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-3.5 text-left transition-colors hover:border-[var(--accent)]/40"
+                    >
+                      <ArrowLeft size={16} className="shrink-0 text-[var(--muted)] transition-transform group-hover:-translate-x-0.5" aria-hidden="true" />
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-semibold text-[var(--muted)]">
+                          {copy.prevArticle} · {previousArticle.sourceName}
+                        </p>
+                        <p className="mt-0.5 line-clamp-2 text-xs font-bold leading-snug text-[var(--ink)] group-hover:text-[var(--accent)]">
+                          {previousArticle.title}
+                        </p>
+                      </div>
+                    </button>
+                  ) : <div className="hidden sm:block" aria-hidden="true" />}
+                  {nextArticle && (
+                    <button
+                      type="button"
+                      onClick={() => onOpenArticle(nextArticle)}
+                      className="group flex min-h-[64px] items-center justify-between gap-3 rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-3.5 text-left transition-colors hover:border-[var(--accent)]/40"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-semibold text-[var(--muted)]">
+                          {copy.nextArticle} · {nextArticle.sourceName}
+                        </p>
+                        <p className="mt-0.5 line-clamp-2 text-xs font-bold leading-snug text-[var(--ink)] group-hover:text-[var(--accent)]">
+                          {nextArticle.title}
+                        </p>
+                      </div>
+                      <ArrowRight size={16} className="shrink-0 text-[var(--muted)] transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+                    </button>
+                  )}
+                </div>
+              </nav>
+            )}
+
             <footer className="mt-8 space-y-3 border-t border-[var(--line)] pt-5 pb-20">
               <div className="flex flex-wrap items-center gap-2.5">
                 <button
@@ -1197,9 +1512,9 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
                     {offlineSaved ? t('readerRemoveOffline') : t('readerSaveOffline')}
                   </button>
                 )}
-                {fullTextUnavailable && (
+                {fullTextUnavailable && safeArticleHref && (
                   <a
-                    href={article.link}
+                    href={safeArticleHref}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="choice-pill inline-flex items-center gap-2"
@@ -1384,13 +1699,15 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
               >
                 <ThumbsDown aria-hidden="true" /><span>{t('readerLessLikeThis')}</span>
               </button>
-              <a href={article.link} target="_blank" rel="noopener noreferrer" className="preference-row settings-link">
-                <ExternalLink aria-hidden="true" /><span>{t('readerOpenOriginal')}</span>
-              </a>
+              {safeArticleHref && (
+                <a href={safeArticleHref} target="_blank" rel="noopener noreferrer" className="preference-row settings-link">
+                  <ExternalLink aria-hidden="true" /><span>{t('readerOpenOriginal')}</span>
+                </a>
+              )}
             </div>
           </details>
         </div>
-      </motion.div>
+      </div>
 
       <dialog
         ref={summaryDialog}
