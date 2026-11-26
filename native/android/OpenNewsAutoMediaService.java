@@ -14,6 +14,7 @@ import androidx.media3.common.AudioAttributes;
 import androidx.media3.common.C;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.MediaMetadata;
+import androidx.media3.common.PlaybackException;
 import androidx.media3.common.Player;
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.exoplayer.ExoPlayer;
@@ -32,11 +33,11 @@ import com.google.common.util.concurrent.ListenableFuture;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 @OptIn(markerClass = UnstableApi.class)
 public class OpenNewsAutoMediaService extends MediaLibraryService {
@@ -56,18 +57,23 @@ public class OpenNewsAutoMediaService extends MediaLibraryService {
     private static final int CONTENT_STYLE_GRID = 2;
 
     private static volatile OpenNewsAutoMediaService activeInstance;
+    private static final Handler MAIN_HANDLER = new Handler(Looper.getMainLooper());
 
     private AutoAudioStore store;
     private ExoPlayer player;
     private MediaLibrarySession mediaSession;
     private CommandButton replay15Button;
     private CommandButton forward15Button;
-    private final Map<String, List<String>> parentContextOrder = new HashMap<>();
+    private final Map<String, List<String>> parentContextOrder = new ConcurrentHashMap<>();
+    private volatile String activeAudioUrl = "";
+    private volatile boolean activeIsLive = false;
+    private volatile long activeDurationMs = 0L;
+    private int consecutivePlaybackErrors = 0;
 
     static void notifyLibraryChanged(Context context, String parentId) {
-        OpenNewsAutoMediaService instance = activeInstance;
+        final OpenNewsAutoMediaService instance = activeInstance;
         if (instance != null && instance.mediaSession != null) {
-            new Handler(Looper.getMainLooper()).post(new Runnable() {
+            MAIN_HANDLER.post(new Runnable() {
                 @Override
                 public void run() {
                     if (instance.mediaSession != null) {
@@ -106,8 +112,23 @@ public class OpenNewsAutoMediaService extends MediaLibraryService {
             }
 
             @Override
+            public void onPositionDiscontinuity(
+                @NonNull Player.PositionInfo oldPosition,
+                @NonNull Player.PositionInfo newPosition,
+                int reason
+            ) {
+                boolean switchedTrack = oldPosition.mediaItemIndex != newPosition.mediaItemIndex
+                    || reason == Player.DISCONTINUITY_REASON_AUTO_TRANSITION
+                    || reason == Player.DISCONTINUITY_REASON_REMOVE
+                    || reason == Player.DISCONTINUITY_REASON_SKIP;
+                if (switchedTrack && !activeIsLive && !activeAudioUrl.isEmpty()) {
+                    store.savePlaybackPosition(activeAudioUrl, Math.max(0L, oldPosition.positionMs), activeDurationMs);
+                }
+            }
+
+            @Override
             public void onMediaItemTransition(@Nullable MediaItem mediaItem, int reason) {
-                persistCurrentPlayback();
+                updateActiveTrackSnapshot(mediaItem);
                 updateCustomTransportLayout(mediaItem);
                 if (mediaItem != null) {
                     AutoAudioStore.EpisodeEntry ep = store.findEpisodeByMediaId(mediaItem.mediaId);
@@ -117,8 +138,31 @@ public class OpenNewsAutoMediaService extends MediaLibraryService {
 
             @Override
             public void onPlaybackStateChanged(int playbackState) {
-                if (playbackState == Player.STATE_ENDED) {
+                if (playbackState == Player.STATE_READY) {
+                    consecutivePlaybackErrors = 0;
+                    if (player != null) {
+                        long dur = player.getDuration();
+                        if (dur != C.TIME_UNSET && dur > 0L) activeDurationMs = dur;
+                    }
+                } else if (playbackState == Player.STATE_ENDED) {
+                    if (!activeIsLive && !activeAudioUrl.isEmpty()) {
+                        store.clearPlaybackPosition(activeAudioUrl);
+                    }
+                } else if (playbackState == Player.STATE_IDLE) {
                     persistCurrentPlayback();
+                }
+            }
+
+            @Override
+            public void onPlayerError(@NonNull PlaybackException error) {
+                consecutivePlaybackErrors++;
+                if (player != null && consecutivePlaybackErrors <= 3 && player.hasNextMediaItem()) {
+                    player.seekToNextMediaItem();
+                    player.prepare();
+                    player.play();
+                } else if (player != null) {
+                    persistCurrentPlayback();
+                    player.stop();
                 }
             }
         });
@@ -160,6 +204,7 @@ public class OpenNewsAutoMediaService extends MediaLibraryService {
     public void onDestroy() {
         persistCurrentPlayback();
         activeInstance = null;
+        MAIN_HANDLER.removeCallbacksAndMessages(null);
         if (mediaSession != null) {
             mediaSession.release();
             mediaSession = null;
@@ -171,15 +216,36 @@ public class OpenNewsAutoMediaService extends MediaLibraryService {
         super.onDestroy();
     }
 
+    private void updateActiveTrackSnapshot(@Nullable MediaItem item) {
+        if (item == null) {
+            activeAudioUrl = "";
+            activeIsLive = false;
+            activeDurationMs = 0L;
+            return;
+        }
+        activeIsLive = isLiveMediaItem(item);
+        activeAudioUrl = item.localConfiguration != null && item.localConfiguration.uri != null
+            ? item.localConfiguration.uri.toString()
+            : "";
+        long dur = player != null ? player.getDuration() : C.TIME_UNSET;
+        activeDurationMs = (dur != C.TIME_UNSET && dur > 0L) ? dur : 0L;
+    }
+
     private void persistCurrentPlayback() {
         if (player == null || store == null) return;
         MediaItem current = player.getCurrentMediaItem();
-        if (current == null || isLiveMediaItem(current)) return;
-        String url = current.localConfiguration != null && current.localConfiguration.uri != null
-            ? current.localConfiguration.uri.toString()
-            : "";
-        if (!url.isEmpty()) {
-            store.savePlaybackPosition(url, player.getCurrentPosition(), player.getDuration());
+        if (current != null) {
+            if (isLiveMediaItem(current)) return;
+            String url = current.localConfiguration != null && current.localConfiguration.uri != null
+                ? current.localConfiguration.uri.toString()
+                : "";
+            if (!url.isEmpty()) {
+                store.savePlaybackPosition(url, player.getCurrentPosition(), player.getDuration());
+                return;
+            }
+        }
+        if (!activeIsLive && !activeAudioUrl.isEmpty()) {
+            store.savePlaybackPosition(activeAudioUrl, Math.max(0L, player.getCurrentPosition()), activeDurationMs);
         }
     }
 
@@ -437,8 +503,18 @@ public class OpenNewsAutoMediaService extends MediaLibraryService {
             }
 
             if (TAB_UPDATES.equals(parentId)) {
-                AutoFeedFetcher.refreshAsync(OpenNewsAutoMediaService.this, false);
                 List<AutoAudioStore.EpisodeEntry> updates = store.getRecentUpdateEpisodes();
+                AutoFeedFetcher.refreshAsync(OpenNewsAutoMediaService.this, updates.isEmpty());
+                if (updates.isEmpty()) {
+                    // Cold-start fallback: surface queued news episodes synced from the main app immediately.
+                    List<AutoAudioStore.EpisodeEntry> fallback = new ArrayList<>();
+                    for (AutoAudioStore.EpisodeEntry queued : store.getQueueEpisodes()) {
+                        if (queued.newsUpdate || AutoAudioCatalog.isNewsUpdateFeed(queued.feedId, queued.feedName, queued.audioUrl)) {
+                            fallback.add(queued);
+                        }
+                    }
+                    updates = fallback;
+                }
                 if (!updates.isEmpty()) {
                     MediaMetadata playAllMeta = new MediaMetadata.Builder()
                         .setTitle(AutoAudioCatalog.label(lang, "playAllTitle"))
@@ -701,12 +777,16 @@ public class OpenNewsAutoMediaService extends MediaLibraryService {
         if (normalized.isEmpty()) return results;
         String[] tokens = normalized.split("\\s+");
 
-        // 1. News Update episodes & podcasts matching query
+        // 1. News Update episodes, podcasts & queue episodes matching query
         List<AutoAudioStore.EpisodeEntry> allEps = new ArrayList<>(store.getRecentUpdateEpisodes());
         for (List<AutoAudioStore.EpisodeEntry> feedEps : store.getCachedEpisodesByFeed().values()) {
             for (AutoAudioStore.EpisodeEntry ep : feedEps) {
                 if (!ep.newsUpdate) allEps.add(ep);
             }
+        }
+        allEps.addAll(store.getQueueEpisodes());
+        if (allEps.isEmpty()) {
+            AutoFeedFetcher.refreshAsync(OpenNewsAutoMediaService.this, true);
         }
         Set<String> seenIds = new HashSet<>();
         for (AutoAudioStore.EpisodeEntry ep : allEps) {

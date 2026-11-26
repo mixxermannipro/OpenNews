@@ -60,12 +60,16 @@ public class WidgetRefreshService extends JobService {
 
     static final String PREF_REFRESH = "refresh-";
     static final String PREF_FEEDS = "feeds";
+    static final String PREF_MUTED_KEYWORDS = "muted-keywords";
+    static final String PREF_HTTP_CACHE = "feed-http-cache";
+    static final String PREF_REFRESHING = "widget-refreshing";
     static final String PREF_LAST_REFRESH = "last-bg-refresh";
     static final String PREF_SCHEDULED_INTERVAL = "scheduled-interval";
 
     private static final int MAX_FEEDS = 25;
     private static final int MAX_ITEMS_PER_FEED = 8;
     private static final int MAX_SECTION_ITEMS = 24;
+    private static final int MAX_HTTP_CACHE_ENTRIES = 50;
     private static final int MAX_BODY_BYTES = 1024 * 1024;
     private static final int CONNECT_TIMEOUT_MS = 7000;
     private static final int READ_TIMEOUT_MS = 9000;
@@ -74,6 +78,9 @@ public class WidgetRefreshService extends JobService {
     private static final Pattern HTML_TAG = Pattern.compile("<[^>]*>");
     private static final Pattern WHITESPACE = Pattern.compile("\\s+");
     private static final Pattern NUMERIC_ENTITY = Pattern.compile("&#(x?[0-9a-fA-F]+);");
+    private static final Handler MAIN_HANDLER = new Handler(Looper.getMainLooper());
+    private static final AtomicBoolean MANUAL_IN_FLIGHT = new AtomicBoolean(false);
+    private static final List<Runnable> PENDING_CALLBACKS = new ArrayList<>();
 
     private final AtomicBoolean cancelled = new AtomicBoolean(false);
     private volatile ExecutorService runner;
@@ -134,6 +141,63 @@ public class WidgetRefreshService extends JobService {
         OpenNewsWidget.store(context).edit().remove(PREF_SCHEDULED_INTERVAL).apply();
     }
 
+    static void refreshNowAsync(Context context, Runnable onComplete) {
+        final Context appContext = context.getApplicationContext();
+        synchronized (PENDING_CALLBACKS) {
+            if (onComplete != null) PENDING_CALLBACKS.add(onComplete);
+            if (!MANUAL_IN_FLIGHT.compareAndSet(false, true)) {
+                return;
+            }
+        }
+        SharedPreferences store = OpenNewsWidget.store(appContext);
+        JSONArray feeds = readFeeds(store);
+        if (feeds.length() == 0) {
+            MANUAL_IN_FLIGHT.set(false);
+            dispatchCallbacks();
+            return;
+        }
+        store.edit().putBoolean(PREF_REFRESHING, true).apply();
+        notifyWidgetsUpdated(appContext);
+
+        Thread worker = new Thread(() -> {
+            try {
+                refreshFeedsBlocking(appContext, store, feeds, new AtomicBoolean(false));
+            } finally {
+                store.edit().putBoolean(PREF_REFRESHING, false).apply();
+                notifyWidgetsUpdated(appContext);
+                MANUAL_IN_FLIGHT.set(false);
+                dispatchCallbacks();
+            }
+        }, "OpenNewsWidgetManualRefresh");
+        worker.start();
+    }
+
+    private static void dispatchCallbacks() {
+        final List<Runnable> callbacks;
+        synchronized (PENDING_CALLBACKS) {
+            if (PENDING_CALLBACKS.isEmpty()) return;
+            callbacks = new ArrayList<>(PENDING_CALLBACKS);
+            PENDING_CALLBACKS.clear();
+        }
+        MAIN_HANDLER.post(() -> {
+            for (Runnable cb : callbacks) {
+                try {
+                    cb.run();
+                } catch (Exception ignored) {}
+            }
+        });
+    }
+
+    private static void notifyWidgetsUpdated(Context appContext) {
+        MAIN_HANDLER.post(() -> {
+            AppWidgetManager wm = AppWidgetManager.getInstance(appContext);
+            int[] activeIds = wm.getAppWidgetIds(new ComponentName(appContext, OpenNewsWidget.class));
+            if (activeIds.length > 0) {
+                new OpenNewsWidget().updateWidgets(appContext, wm, activeIds, false);
+            }
+        });
+    }
+
     @Override
     public boolean onStartJob(JobParameters params) {
         Context appContext = getApplicationContext();
@@ -154,13 +218,9 @@ public class WidgetRefreshService extends JobService {
         runner = executor;
         executor.execute(() -> {
             try {
-                boolean updated = refreshFeeds(appContext, store, feeds);
+                boolean updated = refreshFeedsBlocking(appContext, store, feeds, cancelled);
                 if (updated && !cancelled.get()) {
-                    new Handler(Looper.getMainLooper()).post(() -> {
-                        AppWidgetManager wm = AppWidgetManager.getInstance(appContext);
-                        int[] activeIds = wm.getAppWidgetIds(new ComponentName(appContext, OpenNewsWidget.class));
-                        new OpenNewsWidget().updateWidgets(appContext, wm, activeIds, false);
-                    });
+                    notifyWidgetsUpdated(appContext);
                 }
             } finally {
                 jobFinished(params, false);
@@ -178,7 +238,7 @@ public class WidgetRefreshService extends JobService {
         return true;
     }
 
-    private static JSONArray readFeeds(SharedPreferences store) {
+    static JSONArray readFeeds(SharedPreferences store) {
         try {
             return new JSONArray(store.getString(PREF_FEEDS, "[]"));
         } catch (JSONException ignored) {
@@ -186,7 +246,43 @@ public class WidgetRefreshService extends JobService {
         }
     }
 
-    private boolean refreshFeeds(Context context, SharedPreferences store, JSONArray feeds) {
+    static List<String> readMutedKeywords(SharedPreferences store) {
+        List<String> keywords = new ArrayList<>();
+        try {
+            JSONArray arr = new JSONArray(store.getString(PREF_MUTED_KEYWORDS, "[]"));
+            for (int i = 0; i < arr.length(); i++) {
+                String kw = arr.optString(i).trim().toLowerCase(Locale.ROOT);
+                if (kw.length() >= 2) keywords.add(kw);
+            }
+        } catch (JSONException ignored) {}
+        return keywords;
+    }
+
+    static boolean isMutedArticle(String title, String summary, List<String> muted) {
+        if (muted == null || muted.isEmpty()) return false;
+        String haystack = ((title != null ? title : "") + " " + (summary != null ? summary : "")).toLowerCase(Locale.ROOT);
+        for (String kw : muted) {
+            if (haystack.contains(kw)) return true;
+        }
+        return false;
+    }
+
+    private static final class FeedFetchResult {
+        final List<JSONObject> articles;
+        final boolean reachable;
+
+        FeedFetchResult(List<JSONObject> articles, boolean reachable) {
+            this.articles = articles;
+            this.reachable = reachable;
+        }
+    }
+
+    private static boolean refreshFeedsBlocking(
+        Context context,
+        SharedPreferences store,
+        JSONArray feeds,
+        AtomicBoolean cancelledFlag
+    ) {
         int count = Math.min(feeds.length(), MAX_FEEDS);
         List<JSONObject> feedList = new ArrayList<>(count);
         for (int i = 0; i < count; i++) {
@@ -197,57 +293,87 @@ public class WidgetRefreshService extends JobService {
         }
         if (feedList.isEmpty()) return false;
 
+        JSONObject httpCache = readJsonObject(store.getString(PREF_HTTP_CACHE, "{}"));
         ExecutorService pool = Executors.newFixedThreadPool(Math.min(4, feedList.size()));
-        List<Future<List<JSONObject>>> futures = new ArrayList<>(feedList.size());
+        List<Future<FeedFetchResult>> futures = new ArrayList<>(feedList.size());
         for (JSONObject feed : feedList) {
-            futures.add(pool.submit(() -> fetchAndParseFeed(feed)));
+            futures.add(pool.submit(() -> fetchAndParseFeed(feed, httpCache, cancelledFlag)));
         }
 
+        List<String> muted = readMutedKeywords(store);
         List<JSONObject> fetched = new ArrayList<>();
-        for (Future<List<JSONObject>> future : futures) {
-            if (cancelled.get()) break;
+        boolean anyReachable = false;
+        for (Future<FeedFetchResult> future : futures) {
+            if (cancelledFlag.get()) break;
             try {
-                List<JSONObject> items = future.get(15, TimeUnit.SECONDS);
-                if (items != null) fetched.addAll(items);
+                FeedFetchResult res = future.get(15, TimeUnit.SECONDS);
+                if (res == null) continue;
+                if (res.reachable) anyReachable = true;
+                for (JSONObject item : res.articles) {
+                    if (!isMutedArticle(item.optString("title"), item.optString("summary"), muted)) {
+                        fetched.add(item);
+                    }
+                }
             } catch (Exception ignored) {
                 // Skip individual failing feeds so healthy feeds still update the widget.
             }
         }
         pool.shutdownNow();
 
-        if (cancelled.get() || fetched.isEmpty()) return false;
+        if (cancelledFlag.get()) return false;
 
-        JSONObject existing = OpenNewsWidget.readSnapshot(context);
-        JSONObject merged = mergeIntoSnapshot(existing, fetched, System.currentTimeMillis());
-        store.edit()
-            .putString("snapshot", merged.toString())
-            .putLong(PREF_LAST_REFRESH, System.currentTimeMillis())
-            .apply();
-        return true;
-    }
-
-    private List<JSONObject> fetchAndParseFeed(JSONObject source) {
-        if (cancelled.get()) return Collections.emptyList();
-        String rawUrl = source.optString("url");
-        String body = fetchPublicUrl(rawUrl);
-        if (body == null || body.isEmpty() || cancelled.get()) return Collections.emptyList();
-        String trimmed = body.trim();
-        if (trimmed.startsWith("{")) {
-            return parseJsonFeed(trimmed, source);
+        SharedPreferences.Editor editor = store.edit();
+        boolean changed = false;
+        long nowMs = System.currentTimeMillis();
+        if (!fetched.isEmpty()) {
+            JSONObject existing = OpenNewsWidget.readSnapshot(context);
+            JSONObject merged = mergeIntoSnapshot(existing, fetched, nowMs);
+            editor.putString("snapshot", merged.toString());
+            editor.putLong(PREF_LAST_REFRESH, nowMs);
+            changed = true;
+        } else if (anyReachable) {
+            editor.putLong(PREF_LAST_REFRESH, nowMs);
+            changed = true;
         }
-        return parseXmlFeed(trimmed, source);
+        synchronized (httpCache) {
+            if (httpCache.length() > MAX_HTTP_CACHE_ENTRIES) {
+                editor.putString(PREF_HTTP_CACHE, "{}");
+            } else {
+                editor.putString(PREF_HTTP_CACHE, httpCache.toString());
+            }
+        }
+        editor.apply();
+        return changed;
     }
 
-    private String fetchPublicUrl(String initialUrl) {
-        String current = initialUrl;
+    private static FeedFetchResult fetchAndParseFeed(
+        JSONObject source,
+        JSONObject httpCache,
+        AtomicBoolean cancelledFlag
+    ) {
+        if (cancelledFlag.get()) return new FeedFetchResult(Collections.emptyList(), false);
+        String rawUrl = source.optString("url");
+        if (!isSafeWebUrl(rawUrl)) return new FeedFetchResult(Collections.emptyList(), false);
+
+        String etag = "";
+        String lastModified = "";
+        synchronized (httpCache) {
+            JSONObject cached = httpCache.optJSONObject(rawUrl);
+            if (cached != null) {
+                etag = cached.optString("etag");
+                lastModified = cached.optString("lastModified");
+            }
+        }
+
+        String current = rawUrl;
         for (int hops = 0; hops <= MAX_REDIRECTS; hops++) {
-            if (cancelled.get()) return null;
+            if (cancelledFlag.get()) return new FeedFetchResult(Collections.emptyList(), false);
             HttpURLConnection conn = null;
             try {
                 URL url = new URL(current);
-                String protocol = url.getProtocol().toLowerCase(Locale.ROOT);
-                if (!"https".equals(protocol) && !"http".equals(protocol)) return null;
-                if (!isPublicHost(url.getHost())) return null;
+                if (!isSafeWebUrl(current) || !isPublicHost(url.getHost())) {
+                    return new FeedFetchResult(Collections.emptyList(), false);
+                }
 
                 conn = (HttpURLConnection) url.openConnection();
                 conn.setInstanceFollowRedirects(false);
@@ -255,36 +381,65 @@ public class WidgetRefreshService extends JobService {
                 conn.setReadTimeout(READ_TIMEOUT_MS);
                 conn.setRequestProperty("User-Agent", "OpenNews-Widget/1.0");
                 conn.setRequestProperty("Accept", "application/rss+xml, application/atom+xml, application/feed+json, application/xml, text/xml, application/json;q=0.9, */*;q=0.1");
+                if (hops == 0 && !etag.isEmpty()) conn.setRequestProperty("If-None-Match", etag);
+                if (hops == 0 && !lastModified.isEmpty()) conn.setRequestProperty("If-Modified-Since", lastModified);
 
                 int status = conn.getResponseCode();
+                if (status == HttpURLConnection.HTTP_NOT_MODIFIED) {
+                    return new FeedFetchResult(Collections.emptyList(), true);
+                }
                 if (status >= 300 && status < 400) {
                     String location = conn.getHeaderField("Location");
-                    if (location == null || location.isEmpty()) return null;
+                    if (location == null || location.isEmpty()) return new FeedFetchResult(Collections.emptyList(), false);
                     current = new URL(url, location).toString();
                     continue;
                 }
-                if (status < 200 || status >= 300) return null;
+                if (status < 200 || status >= 300) return new FeedFetchResult(Collections.emptyList(), false);
 
+                String nextEtag = conn.getHeaderField("ETag");
+                String nextLastMod = conn.getHeaderField("Last-Modified");
                 try (InputStream in = conn.getInputStream()) {
                     ByteArrayOutputStream out = new ByteArrayOutputStream();
                     byte[] buffer = new byte[8192];
                     int read;
                     int total = 0;
                     while ((read = in.read(buffer)) != -1) {
-                        if (cancelled.get()) return null;
+                        if (cancelledFlag.get()) return new FeedFetchResult(Collections.emptyList(), false);
                         total += read;
                         if (total > MAX_BODY_BYTES) break;
                         out.write(buffer, 0, read);
                     }
-                    return out.toString(StandardCharsets.UTF_8.name());
+                    String body = out.toString(StandardCharsets.UTF_8.name());
+                    if (body.isEmpty() || cancelledFlag.get()) return new FeedFetchResult(Collections.emptyList(), false);
+                    String trimmed = body.trim();
+                    List<JSONObject> parsed = trimmed.startsWith("{")
+                        ? parseJsonFeed(trimmed, source)
+                        : parseXmlFeed(trimmed, source);
+                    if (!parsed.isEmpty() && ((nextEtag != null && !nextEtag.isEmpty()) || (nextLastMod != null && !nextLastMod.isEmpty()))) {
+                        synchronized (httpCache) {
+                            JSONObject entry = new JSONObject();
+                            if (nextEtag != null && !nextEtag.isEmpty()) entry.put("etag", nextEtag);
+                            if (nextLastMod != null && !nextLastMod.isEmpty()) entry.put("lastModified", nextLastMod);
+                            httpCache.put(rawUrl, entry);
+                        }
+                    }
+                    return new FeedFetchResult(parsed, true);
                 }
             } catch (Exception ignored) {
-                return null;
+                return new FeedFetchResult(Collections.emptyList(), false);
             } finally {
                 if (conn != null) conn.disconnect();
             }
         }
-        return null;
+        return new FeedFetchResult(Collections.emptyList(), false);
+    }
+
+    private static JSONObject readJsonObject(String raw) {
+        try {
+            return new JSONObject(raw);
+        } catch (JSONException ignored) {
+            return new JSONObject();
+        }
     }
 
     private static boolean isPublicHost(String host) {
@@ -419,9 +574,28 @@ public class WidgetRefreshService extends JobService {
         return (colon >= 0 ? raw.substring(colon + 1) : raw).toLowerCase(Locale.ROOT);
     }
 
+    private static boolean isSafeWebUrl(String rawUrl) {
+        if (rawUrl == null || rawUrl.isEmpty()) return false;
+        try {
+            URL url = new URL(rawUrl);
+            String protocol = url.getProtocol().toLowerCase(Locale.ROOT);
+            return ("https".equals(protocol) || "http".equals(protocol)) && url.getHost() != null && !url.getHost().isEmpty();
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    private static boolean isAdvertorialTitle(String title) {
+        String lower = title.toLowerCase(Locale.ROOT);
+        return lower.startsWith("anzeige:") || lower.startsWith("werbung:")
+            || lower.contains("[anzeige]") || lower.contains("advertorial")
+            || lower.startsWith("sponsored") || lower.contains("pr-meldung");
+    }
+
     private static JSONObject buildArticle(JSONObject source, String rawId, String title, String summary, String link, String rawDate) {
-        if (title.isEmpty()) return null;
+        if (title.isEmpty() || isAdvertorialTitle(title)) return null;
         if (link.isEmpty()) link = source.optString("url");
+        if (!isSafeWebUrl(link)) return null;
         String sourceId = source.optString("id");
         String articleId = !rawId.isEmpty() ? rawId : (sourceId + ":" + (!link.isEmpty() ? link : title));
         if (summary.length() > 400) summary = summary.substring(0, 400).trim();
@@ -572,7 +746,23 @@ public class WidgetRefreshService extends JobService {
             .replace("&#39;", "'")
             .replace("&nbsp;", " ")
             .replace("&ndash;", "–")
-            .replace("&mdash;", "—");
+            .replace("&mdash;", "—")
+            .replace("&hellip;", "…")
+            .replace("&bdquo;", "„")
+            .replace("&ldquo;", "“")
+            .replace("&rdquo;", "”")
+            .replace("&lsquo;", "‘")
+            .replace("&rsquo;", "’")
+            .replace("&laquo;", "«")
+            .replace("&raquo;", "»")
+            .replace("&euro;", "€")
+            .replace("&auml;", "ä")
+            .replace("&ouml;", "ö")
+            .replace("&uuml;", "ü")
+            .replace("&Auml;", "Ä")
+            .replace("&Ouml;", "Ö")
+            .replace("&Uuml;", "Ü")
+            .replace("&szlig;", "ß");
         if (!result.contains("&#")) return result;
         Matcher matcher = NUMERIC_ENTITY.matcher(result);
         StringBuffer sb = new StringBuffer();

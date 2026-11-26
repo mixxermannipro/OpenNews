@@ -71,11 +71,14 @@ final class WidgetFeed {
         JSONArray articles = snapshot.optJSONArray(OpenNewsWidget.SECTIONS[section]);
         hasSnapshot = articles != null;
         Set<String> seen = new HashSet<>();
+        List<String> muted = WidgetRefreshService.readMutedKeywords(store);
         for (int i = 0; articles != null && i < articles.length(); i++) {
             JSONObject article = articles.optJSONObject(i);
-            if (article == null || article.optString("title").isEmpty()) continue;
+            String title = article != null ? article.optString("title") : "";
+            if (article == null || title.isEmpty()) continue;
             if (!topic.isEmpty() && !topic.equals(article.optString("category"))) continue;
             if (!source.isEmpty() && !source.equals(article.optString("sourceId"))) continue;
+            if (WidgetRefreshService.isMutedArticle(title, article.optString("summary"), muted)) continue;
             String key = article.optString("id");
             if (!key.isEmpty() && seen.add(key)) stories.add(article);
         }

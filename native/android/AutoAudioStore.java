@@ -377,6 +377,10 @@ final class AutoAudioStore {
             .apply();
     }
 
+    synchronized void touchLastRefreshAt() {
+        prefs.edit().putLong(KEY_LAST_REFRESH, System.currentTimeMillis()).apply();
+    }
+
     synchronized long getPlaybackPositionMs(String audioUrl) {
         if (audioUrl == null || audioUrl.isEmpty()) return 0L;
         JSONObject positions = readJsonObject(prefs.getString(KEY_POSITIONS, "{}"));
@@ -405,6 +409,15 @@ final class AutoAudioStore {
             }
         } catch (JSONException ignored) {}
         prefs.edit().putString(KEY_POSITIONS, prunePositions(positions).toString()).apply();
+    }
+
+    synchronized void clearPlaybackPosition(String audioUrl) {
+        if (audioUrl == null || audioUrl.isEmpty()) return;
+        JSONObject positions = readJsonObject(prefs.getString(KEY_POSITIONS, "{}"));
+        if (positions.has(audioUrl)) {
+            positions.remove(audioUrl);
+            prefs.edit().putString(KEY_POSITIONS, positions.toString()).apply();
+        }
     }
 
     synchronized void saveLastPlayed(String mediaId, EpisodeEntry episode) {

@@ -49,6 +49,8 @@ public class WidgetSettingsActivity extends Activity {
         Map<String, String> sources = new LinkedHashMap<>();
         topics.put("", labels.getString(R.string.widget_all_topics));
         sources.put("", labels.getString(R.string.widget_all_sources));
+        Map<String, String> discoveredTopics = new LinkedHashMap<>();
+        Map<String, String> discoveredSources = new LinkedHashMap<>();
         for (String key : OpenNewsWidget.SECTIONS) {
             JSONArray articles = snapshot.optJSONArray(key);
             for (int i = 0; articles != null && i < articles.length(); i++) {
@@ -56,10 +58,29 @@ public class WidgetSettingsActivity extends Activity {
                 if (article == null) continue;
                 String topic = article.optString("category");
                 String source = article.optString("sourceId");
-                if (!topic.isEmpty()) topics.put(topic, topic);
-                if (!source.isEmpty()) sources.put(source, article.optString("sourceName", source));
+                if (!topic.isEmpty()) discoveredTopics.put(topic, topic);
+                if (!source.isEmpty()) discoveredSources.put(source, article.optString("sourceName", source));
             }
         }
+        JSONArray subscribedFeeds = WidgetRefreshService.readFeeds(store);
+        for (int i = 0; i < subscribedFeeds.length(); i++) {
+            JSONObject subscribed = subscribedFeeds.optJSONObject(i);
+            if (subscribed == null) continue;
+            String topic = subscribed.optString("category");
+            String source = subscribed.optString("id");
+            if (!topic.isEmpty() && !discoveredTopics.containsKey(topic)) discoveredTopics.put(topic, topic);
+            if (!source.isEmpty() && !discoveredSources.containsKey(source)) {
+                discoveredSources.put(source, subscribed.optString("name", source));
+            }
+        }
+        List<Map.Entry<String, String>> sortedTopics = new ArrayList<>(discoveredTopics.entrySet());
+        sortedTopics.sort((a, b) -> a.getValue().compareToIgnoreCase(b.getValue()));
+        for (Map.Entry<String, String> entry : sortedTopics) topics.put(entry.getKey(), entry.getValue());
+
+        List<Map.Entry<String, String>> sortedSources = new ArrayList<>(discoveredSources.entrySet());
+        sortedSources.sort((a, b) -> a.getValue().compareToIgnoreCase(b.getValue()));
+        for (Map.Entry<String, String> entry : sortedSources) sources.put(entry.getKey(), entry.getValue());
+
         if (!topics.containsKey(savedTopic)) topics.put(savedTopic, savedTopic);
         if (!sources.containsKey(savedSource)) sources.put(savedSource, savedSource);
 
@@ -97,8 +118,28 @@ public class WidgetSettingsActivity extends Activity {
         Switch metadata = toggle(content, R.id.widget_pref_metadata, R.string.widget_metadata, feed.metadata);
 
         heading(content, R.string.widget_refresh_section, 20);
+        TextView refreshStatus = new TextView(this);
+        refreshStatus.setTextSize(13);
+        refreshStatus.setPadding(0, 0, 0, dp(8));
+        updateRefreshStatusLabel(refreshStatus, store);
+        content.addView(refreshStatus);
+
         Spinner refreshInterval = option(content, R.id.widget_pref_refresh, R.string.widget_refresh_interval,
             names(WidgetRefreshService.INTERVAL_LABELS), WidgetRefreshService.intervalIndex(store, id));
+
+        if (subscribedFeeds.length() > 0) {
+            Button refreshNowBtn = button(content, R.string.widget_refresh_now);
+            refreshNowBtn.setOnClickListener(view -> {
+                refreshNowBtn.setEnabled(false);
+                refreshNowBtn.setText(labels.getText(R.string.widget_refreshing));
+                WidgetRefreshService.refreshNowAsync(this, () -> {
+                    if (isFinishing() || isDestroyed()) return;
+                    refreshNowBtn.setEnabled(true);
+                    refreshNowBtn.setText(labels.getText(R.string.widget_refresh_now));
+                    updateRefreshStatusLabel(refreshStatus, store);
+                });
+            });
+        }
 
         Button save = button(content, R.string.widget_save_settings);
         save.setOnClickListener(view -> {
@@ -135,6 +176,16 @@ public class WidgetSettingsActivity extends Activity {
         if (Intent.ACTION_VIEW.equals(getIntent().getAction())) {
             button(content, R.string.widget_refresh).setOnClickListener(view -> open(feed, "refresh"));
             button(content, R.string.widget_discover).setOnClickListener(view -> open(feed, "discover"));
+        }
+    }
+
+    private void updateRefreshStatusLabel(TextView target, SharedPreferences store) {
+        long lastMs = store.getLong(WidgetRefreshService.PREF_LAST_REFRESH, 0L);
+        if (lastMs > 0L) {
+            String formatted = OpenNewsWidget.formatUpdatedTimestamp(labels, lastMs);
+            target.setText(labels.getString(R.string.widget_last_updated, formatted));
+        } else {
+            target.setText(labels.getText(R.string.widget_never_updated));
         }
     }
 

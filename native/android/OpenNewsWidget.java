@@ -19,12 +19,17 @@ import io.opennews.app.WidgetFeed.Tone;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 public class OpenNewsWidget extends AppWidgetProvider {
     private static final String PICK = "io.opennews.app.WIDGET_PICK";
+    static final String REFRESH_NOW = "io.opennews.app.WIDGET_REFRESH_NOW";
     static final String[] SECTIONS = {"today", "personal", "latest"};
     static final int[] SECTION_LABELS = {R.string.widget_today, R.string.widget_personal, R.string.widget_latest};
     private static final int[] TABS = {R.id.widget_tab_0, R.id.widget_tab_1, R.id.widget_tab_2};
@@ -49,15 +54,32 @@ public class OpenNewsWidget extends AppWidgetProvider {
     @Override
     public void onReceive(Context context, Intent intent) {
         super.onReceive(context, intent);
-        if (!PICK.equals(intent.getAction())) return;
-        int id = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID);
-        int section = intent.getIntExtra("section", -1);
-        AppWidgetManager manager = AppWidgetManager.getInstance(context);
-        if (section < 0 || section >= SECTIONS.length || !ownsWidget(manager, id)) return;
-        SharedPreferences preferences = store(context);
-        if (WidgetFeed.choice(preferences, "section-", id, SECTIONS.length) == section) return;
-        preferences.edit().putInt("section-" + id, section).apply();
-        updateWidgets(context, manager, new int[]{id}, true);
+        String action = intent.getAction();
+        if (PICK.equals(action)) {
+            int id = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID);
+            int section = intent.getIntExtra("section", -1);
+            AppWidgetManager manager = AppWidgetManager.getInstance(context);
+            if (section < 0 || section >= SECTIONS.length || !ownsWidget(manager, id)) return;
+            SharedPreferences preferences = store(context);
+            if (WidgetFeed.choice(preferences, "section-", id, SECTIONS.length) == section) return;
+            preferences.edit().putInt("section-" + id, section).apply();
+            updateWidgets(context, manager, new int[]{id}, true);
+            return;
+        }
+        if (REFRESH_NOW.equals(action)) {
+            int id = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID);
+            AppWidgetManager manager = AppWidgetManager.getInstance(context);
+            if (id != AppWidgetManager.INVALID_APPWIDGET_ID && !ownsWidget(manager, id)) return;
+            SharedPreferences store = store(context);
+            if (WidgetRefreshService.readFeeds(store).length() > 0) {
+                final PendingResult pending = goAsync();
+                WidgetRefreshService.refreshNowAsync(context.getApplicationContext(), () -> {
+                    try {
+                        pending.finish();
+                    } catch (Exception ignored) {}
+                });
+            }
+        }
     }
 
     @Override
@@ -146,10 +168,38 @@ public class OpenNewsWidget extends AppWidgetProvider {
             .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, feed.id);
         PendingIntent configure = PendingIntent.getActivity(context, 0, settings,
             PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+        SharedPreferences rawStore = store(context);
+        boolean hasFeeds = WidgetRefreshService.readFeeds(rawStore).length() > 0;
+        boolean refreshing = rawStore.getBoolean(WidgetRefreshService.PREF_REFRESHING, false);
+        long updatedMs = rawStore.getLong(WidgetRefreshService.PREF_LAST_REFRESH, 0L);
+
+        PendingIntent refreshIntent;
+        if (hasFeeds) {
+            Intent refreshBroadcast = new Intent(context, OpenNewsWidget.class).setAction(REFRESH_NOW)
+                .setData(Uri.parse("opennews://widget/" + feed.id + "/refresh-now"))
+                .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, feed.id);
+            refreshIntent = PendingIntent.getBroadcast(context, 0, refreshBroadcast,
+                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+        } else {
+            refreshIntent = openApp(feed, "refresh", false);
+        }
+
         views.setOnClickPendingIntent(R.id.widget_settings, configure);
         views.setOnClickPendingIntent(R.id.widget_heading, configure);
-        views.setOnClickPendingIntent(R.id.widget_refresh, openApp(feed, "refresh", false));
+        views.setOnClickPendingIntent(R.id.widget_updated, configure);
+        views.setOnClickPendingIntent(R.id.widget_refresh, refreshIntent);
         views.setOnClickPendingIntent(R.id.widget_discover, openApp(feed, "discover", false));
+
+        boolean showUpdated = size >= WidgetFeed.STANDARD && (refreshing || updatedMs > 0L);
+        views.setViewVisibility(R.id.widget_updated, showUpdated ? View.VISIBLE : View.GONE);
+        if (showUpdated) {
+            String updatedText = refreshing
+                ? context.getString(R.string.widget_refreshing)
+                : formatUpdatedTimestamp(context, updatedMs);
+            views.setTextViewText(R.id.widget_updated, updatedText);
+            feed.color(views, R.id.widget_updated, "setTextColor", Tone.MUTED);
+        }
+
         views.setViewVisibility(R.id.widget_refresh, size >= WidgetFeed.STANDARD ? View.VISIBLE : View.GONE);
         views.setViewVisibility(R.id.widget_discover, size >= WidgetFeed.EXPANDED ? View.VISIBLE : View.GONE);
         views.setViewVisibility(R.id.widget_tabs, size >= WidgetFeed.EXPANDED ? View.VISIBLE : View.GONE);
@@ -160,7 +210,7 @@ public class OpenNewsWidget extends AppWidgetProvider {
             : feed.filtered ? R.string.widget_no_matches : R.string.widget_no_stories));
         feed.color(views, R.id.widget_empty, "setTextColor", Tone.INK);
         views.setOnClickPendingIntent(R.id.widget_empty, feed.filtered && hasSnapshot
-            ? configure : openApp(feed, "refresh", false));
+            ? configure : refreshIntent);
         views.setEmptyView(R.id.widget_list, R.id.widget_empty);
         views.setPendingIntentTemplate(R.id.widget_list, openApp(feed, "article", true));
         if (Build.VERSION.SDK_INT >= 31) {
@@ -219,5 +269,19 @@ public class OpenNewsWidget extends AppWidgetProvider {
         int flags = template ? (Build.VERSION.SDK_INT >= 31 ? PendingIntent.FLAG_MUTABLE : 0)
             : PendingIntent.FLAG_IMMUTABLE;
         return PendingIntent.getActivity(context, 0, intent, flags | PendingIntent.FLAG_UPDATE_CURRENT);
+    }
+
+    static String formatUpdatedTimestamp(Context context, long updatedMs) {
+        if (updatedMs <= 0L) return "";
+        Calendar now = Calendar.getInstance();
+        Calendar updated = Calendar.getInstance();
+        updated.setTimeInMillis(updatedMs);
+        Date date = new Date(updatedMs);
+        String timeStr = android.text.format.DateFormat.getTimeFormat(context).format(date);
+        boolean today = now.get(Calendar.YEAR) == updated.get(Calendar.YEAR)
+            && now.get(Calendar.DAY_OF_YEAR) == updated.get(Calendar.DAY_OF_YEAR);
+        if (today) return timeStr;
+        Locale locale = context.getResources().getConfiguration().getLocales().get(0);
+        return new SimpleDateFormat("d MMM", locale).format(date) + " · " + timeStr;
     }
 }

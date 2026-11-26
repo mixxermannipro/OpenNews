@@ -47,17 +47,27 @@ public class NewsWidget extends Plugin {
         String json = snapshot.toString();
         com.getcapacitor.JSArray feeds = call.getArray("feeds");
         String feedsJson = feeds != null ? feeds.toString() : null;
+        com.getcapacitor.JSArray muted = call.getArray("mutedKeywords");
+        String mutedJson = muted != null ? muted.toString() : null;
         getActivity().runOnUiThread(() -> {
             Context context = getContext();
             android.content.SharedPreferences store = OpenNewsWidget.store(context);
             android.content.SharedPreferences.Editor editor = store.edit();
             boolean snapshotChanged = !json.equals(store.getString("snapshot", ""));
-            if (snapshotChanged) editor.putString("snapshot", json);
+            if (snapshotChanged) {
+                editor.putString("snapshot", json);
+                editor.putLong(WidgetRefreshService.PREF_LAST_REFRESH, System.currentTimeMillis());
+            }
             if (feedsJson != null && !feedsJson.equals(store.getString(WidgetRefreshService.PREF_FEEDS, ""))) {
                 editor.putString(WidgetRefreshService.PREF_FEEDS, feedsJson);
             }
+            boolean mutedChanged = mutedJson != null
+                && !mutedJson.equals(store.getString(WidgetRefreshService.PREF_MUTED_KEYWORDS, ""));
+            if (mutedChanged) {
+                editor.putString(WidgetRefreshService.PREF_MUTED_KEYWORDS, mutedJson);
+            }
             editor.apply();
-            if (snapshotChanged) {
+            if (snapshotChanged || mutedChanged) {
                 AppWidgetManager manager = AppWidgetManager.getInstance(context);
                 int[] ids = manager.getAppWidgetIds(new ComponentName(context, OpenNewsWidget.class));
                 new OpenNewsWidget().onUpdate(context, manager, ids);
@@ -102,7 +112,12 @@ public class NewsWidget extends Plugin {
                     if (candidate != null && article.equals(candidate.optString("id"))) {
                         candidate.remove("widgetSaved");
                         data.put("article", candidate);
-                        if ("save".equals(action) || intent.getBooleanExtra(SAVE, false)) data.put("save", true);
+                        if (intent.hasExtra(SAVE)) {
+                            data.put("save", intent.getBooleanExtra(SAVE, true));
+                            intent.removeExtra(SAVE);
+                        } else if ("save".equals(action)) {
+                            data.put("save", true);
+                        }
                         return data;
                     }
                 }
