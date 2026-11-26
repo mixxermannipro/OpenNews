@@ -275,6 +275,7 @@ OpenNews/
 │   ├── lib/                            # Fachlogik, unabhängig von React
 │   │   ├── aiClient.ts                 # BYOK-Anbieter, Prompt, Tagesüberblick, Kontext
 │   │   ├── androidAuto.ts              # Payload-Builder & Capacitor-Bridge für Android Auto (lazy)
+│   │   ├── apiCore.ts                  # Gemeinsame API-Validierung, Rate-Limits, Origin-Check & Proxy-Logik
 │   │   ├── articleExtraction.ts        # Volltext mit Mozilla Readability
 │   │   ├── articleMedia.ts             # Abspielbare Medien eines Artikels
 │   │   ├── catalog.ts                  # 165 internationale Quellen (Standard: abgewählt), 13 Starterpakete
@@ -303,6 +304,7 @@ OpenNews/
 │   │   ├── personalization.ts          # Profil, Gewichte, Scoring
 │   │   ├── preferences.ts              # Presets, Sprache, Aufbewahrung, Defaults
 │   │   ├── publicHttp.ts               # SSRF-Schutz und Größenlimit
+│   │   ├── publisherPolicy.ts          # Verlags-Opt-out, Robots (`noarchive`/`noai`) & Paywall-Schutz
 │   │   ├── pullPhysics.ts              # Pull-to-Refresh-Dämpfung & Lesefortschritt
 │   │   ├── radioCatalog.ts             # 50 geprüfte HTTPS-Live-Radiosender (Nachrichten & Musik, lazy)
 │   │   ├── readerCopy.ts               # Lokalisierte Reader- & Briefing-Texte (6 Sprachen, lazy)
@@ -318,7 +320,8 @@ OpenNews/
 │   │   ├── swipePhysics.ts             # Wischgesten-Physik („Weniger davon“) mit Scroll-Schutz
 │   │   ├── textSearch.ts               # Gemeinsame Umlaut- und Diakritika-Normalisierung
 │   │   ├── ttsClient.ts                # Multi-Anbieter-TTS je Szenario, WAV-Header & Audio-Cache
-│   │   └── *.test.ts                   # 30 Testdateien
+│   │   ├── webSecretStorage.ts         # Sitzungsbasierte Web-Schlüsselablage (sessionStorage + Opt-in)
+│   │   └── *.test.ts                   # 33 Testdateien
 │   │
 │   ├── types/news.ts                   # Artikel, Quellen, Profil, KI
 │   ├── App.tsx                         # App-Zustand, Navigation, Feed-Abruf
@@ -400,7 +403,7 @@ NODE_ENV=production npm start
 1. **Onboarding:** Sprache, erste Nachrichtenquellen (oder Starterpaket), Themenschwerpunkte und Darstellung wählen.
 2. **Quellen:** Unter **Profil → Quellen** internationale Medien durchsuchen, per 1-Tipp an-/abwählen oder eigene Feeds ergänzen.
 3. **Aktualisieren:** Beim Start automatisch; auf Touch-Geräten nach unten ziehen.
-4. **Lesen:** Artikel antippen — der Reader lädt nach Möglichkeit den Volltext.
+4. **Lesen:** Artikel antippen — standardmäßig erscheint die Feed-Zusammenfassung mit Original-Link; Volltext lässt sich pro Quelle per Opt-in im Reader aktivieren.
 5. **Personalisieren:** Like, Dislike, Lesezeichen und Lesezeit formen die Empfehlungen.
 6. **KI (optional):** Unter **Profil → KI & Personalisierung** Anbieter und Schlüssel hinterlegen.
 7. **Installieren:** Installationshilfe für PWA im Profil; die Android-App ist im Google Play Store verfügbar.
@@ -415,7 +418,7 @@ NODE_ENV=production npm start
 | `npm start` | `tsx server.ts` | Express starten; mit `NODE_ENV=production` aus `dist/` |
 | `npm run preview` | `vite preview` | Statischen Build ansehen (ohne API) |
 | `npm run lint` | `tsc --noEmit` | TypeScript-Typprüfung |
-| `npm test` | `node --import tsx --test src/lib/*.test.ts` | 164 Unit-Tests |
+| `npm test` | `node --import tsx --test src/lib/*.test.ts` | 183 Unit-Tests |
 | `npm run test:e2e` | `playwright test` | 16 Browsertests |
 | `npm run push:worker` | `tsx scripts/push-news.ts` | Android-Push aus den Standardquellen senden |
 | `node scripts/check-web-budget.mjs` | Node | Prüft das Start-JavaScript gegen 170 KiB gzip |
@@ -435,6 +438,7 @@ NODE_ENV=production npm start
 | `OPENNEWS_ORIGIN` | Anfrage-Host | Erlaubte Herkunft für `/api/*` hinter einem Reverse-Proxy, z. B. `https://news.example.org` |
 | `OPENNEWS_TRUST_PROXY` | nicht gesetzt | IP-Adressen oder Netzbereiche eigener Reverse-Proxys, mit Komma getrennt. Nur dann nutzt Express die weitergereichte Client-IP für Anfragelimits. Der öffentliche Proxy muss eingehende Weiterleitungsheader ersetzen. |
 | `OPENNEWS_DIAGNOSTICS` | nicht gesetzt | `1` aktiviert den Empfang freiwilliger Fehlerberichte unter `/api/diagnostics` |
+| `OPENNEWS_OPTOUT_DOMAINS` | nicht gesetzt | Kommagetrennte Verlags-Domains für das Sperren der Volltext-Extraktion |
 | `OPENNEWS_FIREBASE_PROJECT` | nicht gesetzt | Firebase-Projekt-ID für `npm run push:worker` (Pflicht dort) |
 | `OPENNEWS_PUSH_STATE` | `./opennews-push-state.json` | Datei mit bereits versendeten Meldungen |
 
@@ -479,32 +483,18 @@ Bei Parse- oder Quota-Fehlern fällt der Hook auf den Standardwert zurück, ohne
 | `GET` | `/api/health` | — | `{ ok: true, service: "OpenNews" }` |
 | `POST` | `/api/feeds/fetch` | `{ feeds: NewsSource[], force?: boolean }` | `{ articles, feedStatuses }` (inkl. 90 s Kurzzeit-Cache & `ETag`/`Last-Modified`, umgehbar mit `force: true`) |
 | `GET` | `/api/feeds/discover?q=` | URL oder Domain | `{ discovered: [{ name, url, format }] }` |
-| `GET` | `/api/article/extract?url=` | Artikel-URL (optional `title`) | `{ paragraphs, headingIndexes, ogImage, unavailable?, blockedWall? }` (inkl. 10 Min. Cache, 2 Min. Negativ-Cache, Gzip & Request-Bündelung) |
+| `GET` | `/api/article/extract?url=` | Artikel-URL (optional `title`) | `{ paragraphs, headingIndexes, ogImage, unavailable?, blockedWall?, optOut? }` (ohne Server-Cache, respektiert Opt-out, Paywalls & `noarchive`/`noai`) |
 | `POST` | `/api/ai/proxy` | `{ provider, apiKey, model, prompt, customEndpoint? }` | `{ text }` oder `{ error }` |
 | `POST` | `/api/tts/proxy` | `{ provider, apiKey, model, voice, text, stylePrompt?, speed?, language?, customEndpoint? }` | Binär-Audio (`audio/wav` oder `audio/mpeg`) oder `{ error }` |
 | `GET` | `/api/diagnostics` | — | `{ enabled }` |
 | `POST` | `/api/diagnostics` | `{ event }` | `204`; `404` ohne `OPENNEWS_DIAGNOSTICS=1`, `400` bei unbekannter Fehlerart |
 
-**Grenzen:** maximal 20 Feeds pro Anfrage (5,5 s Timeout je Feed, bis zu 140 gecachte Feeds im Arbeitsspeicher für 90 s, Gzip-Antworten), 25 Beiträge pro Feed, 128 KB JSON-Body, 65 API-Anfragen pro Minute und IP, 10 KI-Anfragen pro Minute, 20 TTS-Anfragen pro Minute (3.000 Zeichen, 20 s Timeout und 10 MB Audio), 4 MB je Feed-Antwort, 2 MB HTML-Limit für Artikel-Extraktion, 5 Weiterleitungen, 7 s für Volltext (bis zu 80 gecachte Extraktionen für 10 Min., Negativ-Cache 2 Min.), 5 s und 6 Treffer für die Feed-Erkennung, 6 parallele Abrufe im nativen Betrieb.
+**Grenzen:** maximal 20 Feeds pro Anfrage (5,5 s Timeout je Feed, bis zu 140 gecachte Feeds im Arbeitsspeicher für 90 s in Express, Gzip-Antworten), 25 Beiträge pro Feed, 128 KB JSON-Body, 65 API-Anfragen pro Minute und IP, 10 KI-Anfragen pro Minute, 20 TTS-Anfragen pro Minute (3.000 Zeichen, 20 s Timeout und 10 MB Audio), 4 MB je Feed-Antwort, 2 MB HTML-Limit für Artikel-Extraktion, 5 Weiterleitungen, 7 s für Volltext (ohne serverseitigen Volltext-Cache), 5 s und 6 Treffer für die Feed-Erkennung, 6 parallele Abrufe im nativen Betrieb.
 
-**Sicherheit:** Android prüft eingegebene URLs vor dem Abruf auf lokale Hostnamen und nicht öffentliche IP-Adressen. Auf dem Webserver wird jede ausgehende Adresse per DNS aufgelöst; nur öffentliche Ziele sind erlaubt (kein Loopback, kein `10.*`, `192.168.*` oder `169.254.*`, keine internen Domains wie `.internal`/`.localdomain`, keine gesperrten Infrastruktur-Ports, keine Zugangsdaten in der URL; sensible Header werden bei domänenübergreifenden Weiterleitungen entfernt). Helmet setzt Sicherheits-Header inklusive `Permissions-Policy`. In Produktion erlaubt die Content-Security-Policy für externe Bilder und Medien nur HTTPS. `/api/*` prüft `Origin` bzw. `Sec-Fetch-Site` und begrenzt Anfragen pro IP. Es gibt **keine Authentifizierung** — die API ist für lokalen bzw. privaten Betrieb gedacht. Feed-HTML wird bereinigt, Tracking-Pixel werden ausgefiltert, externe Links validiert und OPML-Importe mit DOCTYPE/ENTITY abgelehnt. BYOK-Schlüssel werden nicht gespeichert oder protokolliert, liegen aber im Arbeitsspeicher des Servers.
-
-**Diagnose:** Der Server nimmt nur bekannte Fehlerarten an und schreibt sie mit der auf Stunden gerundeten Empfangszeit ins Betriebsprotokoll. Es gibt keine Authentifizierung; schütze den Endpunkt über den vorgeschalteten Webserver und führe dort keine Zugriffsprotokolle für diesen Pfad.
-
-Im statischen Browserbetrieb kann Anthropic direkt mit dem in der App hinterlegten eigenen Schlüssel aufgerufen werden. Bei einem verfügbaren OpenNews-Server hat der Serveraufruf Vorrang.
-
-## Datenschutz
-
-**Nicht vorhanden:** Benutzerkonten, Cloud-Sync, Analytics, Tracking, Werbung, Telemetrie, serverseitige Speicherung von Artikeln oder Profilen.
-
-**Das Gerät verlässt:** die IP-Adresse und der User-Agent beim Abruf von Feeds und Artikeln, beim Öffnen eines Artikels die Artikel-URL, bei BYOK der Prompt mit Quellname, Rubrik, Titel und Artikeltext an den gewählten KI-Anbieter sowie bei aktivierter Cloud-Vorlesestimme der jeweils vorgelesene Absatz bzw. Briefing-Abschnitt an den gewählten TTS-Anbieter (Standard: lokale Systemstimme ohne Übertragung). Für den **Tagesüberblick** gehen bis zu acht Überschriften und Kurztexte an die eingerichtete KI. Für die **Android-Übersetzung** lädt ML Kit Sprachmodelle von Google; übersetzt wird auf dem Gerät. Die **Sicherung** bleibt als Datei auf dem Gerät.
-
-**Freiwillige Diagnose:** Standardmäßig aus. Wer sie einschaltet, speichert Fehlerarten und auf Stunden gerundete Zeiten lokal. Auf einem selbst betriebenen Server lässt sich zusätzlich das Senden der reinen Fehlerart aktivieren (`OPENNEWS_DIAGNOSTICS=1`); der Server protokolliert sie mit gerundeter Stunde, ohne IP-Adresse, URL, Gerätekennung oder Fehlertexte. Beim Verbindungsaufbau ist die IP-Adresse für den Betreiber technisch sichtbar.
-
-**Löschen:** Website-Daten im Browser bzw. App-Speicher unter Android; den Algorithmus über **Gespeichert → Algorithmus zurücksetzen**; den Suchverlauf über **Entdecken → Alle löschen**; die Diagnose beim Ausschalten.
+**Sicherheit:** Android prüft eingegebene URLs vor dem Abruf auf lokale Hostnamen und nicht öffentliche IP-Adressen. Auf dem Webserver und in Cloudflare Pages laufen identische Regeln über `src/lib/apiCore.ts` (Origin- & `Sec-Fetch-Site: same-origin`-Pflicht außer `/api/health`, Rate-Limiting 65/10/20 je Min., SSRF-Prüfung, Redirect-Header-Bereinigung, Secret-Redaction). Express erzwingt zusätzlich DNS-Pinning über `src/lib/publicHttp.ts`. BYOK-Schlüssel werden nicht gespeichert oder protokolliert. Im Web liegen API-Schlüssel standardmäßig nur im flüchtigen `sessionStorage` (`webSecretStorage.ts`); dauerhafte Ablage in `localStorage` erfordert ein ausdrückliches Opt-in.
 
 > [!WARNING]
-> Im Web-Betrieb ist `localStorage` nicht verschlüsselt. Wer Zugriff auf dein Browserprofil oder dein entsperrtes Gerät hat, kann dort den API-Schlüssel auslesen. Nutze Schlüssel mit engem Budget und widerrufe sie bei Gerätewechsel. Auf **Android** verschlüsselt `SecureSecrets` KI- und TTS-Schlüssel automatisch per hardwaregestütztem Android Keystore (`AES-256-GCM`) und entfernt den Klartext aus `localStorage`.
+> Im Web-Betrieb ist `localStorage` nicht verschlüsselt. Standardmäßig speichert OpenNews Web-Schlüssel daher nur für die laufende Browser-Sitzung in `sessionStorage`; dauerhaftes Speichern ist opt-in. Auf **Android** verschlüsselt `SecureSecrets` KI- und TTS-Schlüssel automatisch per hardwaregestütztem Android Keystore (`AES-256-GCM`).
 
 ## Android
 
@@ -514,7 +504,7 @@ Die App ist eine Capacitor-WebView mit `CapacitorHttp` (Feed- und KI-Aufrufe dir
 
 **CI:** Die App-Prüfungen laufen bei Pull Requests gegen `main`.
 
-- **Web CI** (`web-ci.yml`): Typprüfung, 164 Unit-Tests, Build, JavaScript-Budget und 16 Browsertests mit Playwright.
+- **Web CI** (`web-ci.yml`): `npm audit --omit=dev --audit-level=moderate`, Typprüfung, 183 Unit-Tests, Build, JavaScript-Budget und 16 Browsertests mit Playwright.
 - **OpenNews Android Test APK** (`android-test-apk.yml`): bei Änderungen an `src/**`, `scripts/**`, `native/android/**`, `public/**` und Build-Dateien sowie manuell über **Actions → Run workflow**. Richtet Node 22 und JDK 21 ein, prüft Typen, führt Unit-Tests und Build aus, erzeugt das Android-Projekt, führt **12 native Android-JUnit-Tests** (`./gradlew testDebugUnitTest`) aus, baut `assembleDebug`, prüft, dass die APK vorhanden ist, lädt sie bei verfügbarem GitHub-Speicher als Artefakt (7 Tage) hoch, prüft bei Pull Requests den AAB-Bau mit einem Einmalschlüssel und veröffentlicht bei manuellem Lauf ein öffentliches Pre-Release `v0.1.0-alpha.<Run-Nummer>`.
 
 **Lokal:**
@@ -556,7 +546,7 @@ Android zeigt für OpenNews-Benachrichtigungen ein eigenes monochromes Symbol in
 
 ## Tests und Qualität
 
-`npm test` führt **164 Unit-Tests** aus 30 Dateien aus: `rssParser.test.ts`, `personalization.test.ts`, `newsFeed.test.ts`, `opml.test.ts`, `nativeFeed.test.ts`, `aiClient.test.ts`, `aiCache.test.ts`, `transcript.test.ts`, `articleMedia.test.ts`, `articleExtraction.test.ts`, `publicHttp.test.ts`, `storyClusters.test.ts`, `scrollNavigation.test.ts`, `pullPhysics.test.ts`, `feedRefresh.test.ts`, `i18n.test.ts`, `sourceSearch.test.ts`, `clipsEngine.test.ts`, `discoverEngine.test.ts`, `localEditorialAI.test.ts`, `dailyBriefingSynth.test.ts`, `keywordFilter.test.ts`, `relatedMedia.test.ts`, `readerExtras.test.ts`, `swipePhysics.test.ts`, `ttsClient.test.ts`, `textSearch.test.ts`, `radioCatalog.test.ts`, `androidAuto.test.ts` und `pagesApi.test.ts`. Abgedeckt sind Parsing und Medien (inkl. großer Podcast-Feeds, Cover-Vererbung und Episodenlaufzeiten), 50 Live-Radiosender (Nachrichten & Musik), Android-Auto-Payloads, Cloudflare Pages API-Parität (inkl. `/api/tts/proxy`), Suchtext-Faltung, Aufbewahrung, Ranking und Vielfalt, OPML, native URL-Sicherheit, KI-Antwortparsing, Multi-Anbieter-TTS-Konfiguration und WAV-Verpackung, Wischgesten-Physik, Volltext, SSRF-Schutz, Themencluster, Scroll-Navigation, Pull-Physik, priorisiertes Feed-Batching, Mehrsprachigkeit, Quellensuche, Clips- & Medien-Engine, Entdecken-Kuratierung & Umlaut-Suche, lokale Redaktions-KI, Tagesüberblick-Synthese, Stichwort-/Stummschalt-Filter, Themen-Verlinkungen sowie Reader-Fortschritt, Vor/Zurück-Navigation, Paywall-Alternativen & Offline-Logik.
+`npm test` führt **183 Unit-Tests** aus 33 Dateien aus: `rssParser.test.ts`, `personalization.test.ts`, `newsFeed.test.ts`, `opml.test.ts`, `nativeFeed.test.ts`, `aiClient.test.ts`, `aiCache.test.ts`, `transcript.test.ts`, `articleMedia.test.ts`, `articleExtraction.test.ts`, `publicHttp.test.ts`, `storyClusters.test.ts`, `scrollNavigation.test.ts`, `pullPhysics.test.ts`, `feedRefresh.test.ts`, `i18n.test.ts`, `sourceSearch.test.ts`, `clipsEngine.test.ts`, `discoverEngine.test.ts`, `localEditorialAI.test.ts`, `dailyBriefingSynth.test.ts`, `keywordFilter.test.ts`, `relatedMedia.test.ts`, `readerExtras.test.ts`, `swipePhysics.test.ts`, `ttsClient.test.ts`, `textSearch.test.ts`, `radioCatalog.test.ts`, `androidAuto.test.ts`, `pagesApi.test.ts`, `apiParity.test.ts`, `publisherPolicy.test.ts` und `webSecretStorage.test.ts`. Abgedeckt sind Parsing und Medien (inkl. großer Podcast-Feeds, Cover-Vererbung und Episodenlaufzeiten), 50 Live-Radiosender (Nachrichten & Musik), Android-Auto-Payloads, Cloudflare-Pages- & Express-API-Parität (inkl. Origin-Check, Rate-Limiting, Secret-Redaction & `/api/tts/proxy`), Verlags-Opt-out/Paywall/Robots, Web-Secret-Speicherung (`sessionStorage`), Suchtext-Faltung, Aufbewahrung, Ranking und Vielfalt, OPML, native URL-Sicherheit, KI-Antwortparsing, Multi-Anbieter-TTS-Konfiguration und WAV-Verpackung, Wischgesten-Physik, Volltext, SSRF-Schutz, Themencluster, Scroll-Navigation, Pull-Physik, priorisiertes Feed-Batching, Mehrsprachigkeit, Quellensuche, Clips- & Medien-Engine, Entdecken-Kuratierung & Umlaut-Suche, lokale Redaktions-KI, Tagesüberblick-Synthese, Stichwort-/Stummschalt-Filter, Themen-Verlinkungen sowie Reader-Fortschritt, Vor/Zurück-Navigation, Paywall-Alternativen & Offline-Logik.
 
 Zusätzlich prüft `./gradlew testDebugUnitTest` im Ordner `android/` (nach `npm run android:sync`) **12 native JUnit-4-Tests** (`OpenNewsAndroidUnitTests.java`) für den Android-Auto-Katalog (50 Sender & Umlaut-Suche), URL-/SSRF-Sicherheit, Widget-Feed-Parsing inkl. Thumbnail-Extraktion & Merkstatus-Erhalt sowie Eilmeldungs-, Zeitfenster- und Intervall-Regeln.
 
@@ -645,7 +635,7 @@ OpenNews ist source-available (siehe [LICENSE](LICENSE) und [CONTRIBUTING.md](CO
 | BYOK-KI | Beta, abhängig von Anbieter und Schlüssel |
 | Tagesüberblick | Lokal synthetisiertes Themen-Briefing mit Vorlesen 2.0, optional mit Anbieter-KI |
 | Diagnose | lokal verfügbar, Senden optional |
-| Tests | 164 Web-Unit-Tests, 12 Android-JUnit-Tests und 16 Playwright-Browsertests |
+| Tests | 183 Web-Unit-Tests, 12 Android-JUnit-Tests und 16 Playwright-Browsertests |
 | Eigener Quellcode | Source-Available ([LICENSE](LICENSE)) |
 
 ## Lizenz

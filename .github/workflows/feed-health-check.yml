@@ -1,0 +1,47 @@
+name: Weekly Feed & Stream Health Check
+
+on:
+  schedule:
+    - cron: '17 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check-feeds:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check catalog feeds and radio streams
+        run: |
+          node scripts/check-feeds.mjs | tee feed-report.txt
+      - name: Open or update issue on failures
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          failing=$(grep -E '^- \[(feed|radio)\]' feed-report.txt || true)
+          if [ -z "$failing" ]; then
+            echo "All feeds and streams healthy."
+            exit 0
+          fi
+          body_file=$(mktemp)
+          {
+            echo "Automatischer wöchentlicher Feed- und Stream-Check:"
+            echo ""
+            echo '```'
+            cat feed-report.txt
+            echo '```'
+          } > "$body_file"
+          existing=$(gh issue list --state open --search "Feed & Stream Health Check in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body-file "$body_file"
+          else
+            gh issue create --title "Feed & Stream Health Check: Ausfälle gemeldet" --body-file "$body_file"
+          fi

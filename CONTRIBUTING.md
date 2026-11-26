@@ -1,6 +1,12 @@
 # Zu OpenNews beitragen
 
-`npm ci` richtet das Projekt mit Node.js 22 ein. `npm run dev` startet Web-App und API lokal. Die [README](README.md) beschreibt auch den Android-Testbuild.
+`npm ci` richtet das Projekt mit Node.js 22 ein (`.nvmrc` und `engine-strict=true` in `.npmrc` erzwingen mindestens Node 22). `npm run dev` startet Web-App und API lokal. Die [README](README.md) beschreibt auch den Android-Testbuild.
+
+## Bewusste Abhängigkeitsentscheidungen
+
+- **`express@^4.21.2`:** Bleibt bewusst auf Express 4, solange `express-rate-limit` und die schlanke API-Adapter-Schicht damit stabil ohne Migrationsrisiko laufen.
+- **`lucide-react@^0.546.0`:** Bleibt stabil gepinnt, um unerwartete Icon-Umbenennungen oder Tree-Shaking-Sprünge am 170-KiB-JS-Budget zu vermeiden.
+- **Abhängigkeits-Audits:** `npm audit --omit=dev --audit-level=moderate` läuft fest in der Web-CI (gepatchte `minimatch`/`glob`-Versionen via `overrides`).
 
 Eröffne für eine konkrete Änderung einen Branch. Beschreibe im Pull Request das Problem, die Lösung und die ausgeführten Prüfungen. Bei Änderungen an der Oberfläche hilft ein Bildschirmfoto ohne persönliche Daten.
 
