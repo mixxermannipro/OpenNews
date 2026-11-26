@@ -2,6 +2,7 @@ import type { AppLanguage, NewsArticle, NewsSource } from '../types/news';
 import type { PlayableMedia } from './articleMedia';
 import type { StarterPack } from './catalog';
 import type { AudioPositionEntry } from './readerExtras';
+import { foldSearchText } from './textSearch';
 
 export interface MediaEntry {
   article: NewsArticle;
@@ -238,14 +239,7 @@ export function extractContinueListening(
 }
 
 function normalizeSearchFold(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/ä/g, 'ae')
-    .replace(/ö/g, 'oe')
-    .replace(/ü/g, 'ue')
-    .replace(/ß/g, 'ss')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+  return foldSearchText(value)
     .replace(/[^a-z0-9]+/g, ' ')
     .trim();
 }

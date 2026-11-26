@@ -1,5 +1,6 @@
 import type { ActiveAudioTrack } from '../components/MiniAudioPlayer';
 import type { AppLanguage } from '../types/news';
+import { foldSearchText as foldText } from './textSearch';
 
 export type RadioCategory = 'news' | 'culture' | 'international';
 export type RadioFilterGroup = 'all' | 'dach' | 'international' | 'favorites';
@@ -350,15 +351,8 @@ export const RADIO_STATIONS: readonly RadioStation[] = [
 
 const DACH_REGIONS = new Set(['DE', 'AT', 'CH']);
 
-function foldSearchText(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/ä/g, 'ae')
-    .replace(/ö/g, 'oe')
-    .replace(/ü/g, 'ue')
-    .replace(/ß/g, 'ss')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+function normalizeRadioSearchText(value: string): string {
+  return foldText(value)
     .replace(/[^a-z0-9]+/g, ' ')
     .trim();
 }
@@ -374,7 +368,7 @@ export function filterRadioStations(
 ): RadioStation[] {
   const { query = '', group = 'all', language = 'de', favoriteIds = [] } = options;
   const favorites = new Set(favoriteIds);
-  const foldedQuery = foldSearchText(query);
+  const foldedQuery = normalizeRadioSearchText(query);
   const tokens = foldedQuery ? foldedQuery.split(/\s+/).filter(Boolean) : [];
 
   const filtered = stations.filter((station) => {
@@ -383,7 +377,7 @@ export function filterRadioStations(
     if (group === 'international' && DACH_REGIONS.has(station.region)) return false;
 
     if (tokens.length === 0) return true;
-    const haystack = foldSearchText(
+    const haystack = normalizeRadioSearchText(
       `${station.name} ${station.subtitle} ${station.region} ${station.shortCode} ${station.keywords.join(' ')}`,
     );
     return tokens.every((token) => haystack.includes(token));
