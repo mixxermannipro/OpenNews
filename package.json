@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.1.0-alpha.1",
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "tsx server.ts",
     "build": "vite build",
@@ -21,10 +24,7 @@
     "@capacitor/android": "8.6.0",
     "@capacitor/core": "8.6.0",
     "@capacitor/ios": "8.6.0",
-    "@google/genai": "^3.6.1",
     "@mozilla/readability": "^0.6.0",
-    "@tailwindcss/vite": "^4.3.3",
-    "@vitejs/plugin-react": "^6.1.1",
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
     "express-rate-limit": "^8.7.4",
@@ -36,23 +36,29 @@
     "lucide-react": "^0.546.0",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
-    "undici": "^8.12.4",
-    "vite": "^8.3.0",
-    "vite-plugin-pwa": "^2.0.0"
+    "undici": "^8.12.4"
   },
   "devDependencies": {
     "@capacitor/cli": "8.6.0",
     "@playwright/test": "^1.65.1",
+    "@tailwindcss/vite": "^4.3.3",
     "@types/express": "^4.17.21",
     "@types/jsdom": "^30.0.0",
     "@types/node": "^22.14.0",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
     "autoprefixer": "^10.4.21",
     "esbuild": "^0.28.0",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.21.0",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vite": "^8.3.0",
+    "vite-plugin-pwa": "^2.0.0"
+  },
+  "overrides": {
+    "minimatch": "^11.0.9",
+    "glob": "^14.0.6"
   },
   "description": "Datenschutzfreundliche Nachrichten-App für Web und Android",
   "repository": {
