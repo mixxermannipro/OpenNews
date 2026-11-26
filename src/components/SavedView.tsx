@@ -3,11 +3,12 @@ import { WeeklyReview } from './WeeklyReview';
 import { selectWeeklyArticles, reviewWeek } from '../lib/weeklyReview';
 import { ViewStatus } from './ViewStatus';
 import { distinctArticles } from '../lib/newsFeed';
-import { estimateQueueMinutes, exportHighlightsMarkdown, type ArticleHighlight } from '../lib/readerExtras';
+import { estimateQueueMinutes, exportHighlightsMarkdown, type ArticleHighlight, type ReadingProgressEntry } from '../lib/readerExtras';
 import React, { useMemo, useState } from 'react';
 import { ArrowLeft, Copy, Sparkles, Trash2 } from 'lucide-react';
 import type { AIProviderConfig, NewsArticle, NewsSource, PersonalizationProfile } from '../types/news';
 import { useI18n } from '../lib/i18n';
+import { safeHref } from '../lib/contentIdentity';
 import { CompactArticleCard } from './ArticleCards';
 
 interface SavedViewProps {
@@ -16,12 +17,15 @@ interface SavedViewProps {
   history: NewsArticle[];
   articles: NewsArticle[];
   queueArticles: NewsArticle[];
+  readingQueueIds?: string[];
+  readingProgress?: Record<string, ReadingProgressEntry>;
   highlights: ArticleHighlight[];
   sources: NewsSource[];
   profile: PersonalizationProfile;
-  onOpenArticle: (article: NewsArticle) => void;
+  onOpenArticle: (article: NewsArticle, contextList?: readonly NewsArticle[]) => void;
   onToggleBookmark: (article: NewsArticle) => void;
   onToggleLike: (article: NewsArticle) => void;
+  onToggleQueue?: (article: NewsArticle) => void;
   onRemoveFromQueue: (articleId: string) => void;
   onRemoveHighlight: (id: string) => void;
   onClearHistory: () => Promise<void>;
@@ -37,18 +41,23 @@ export const SavedView: React.FC<SavedViewProps> = ({
   history,
   articles,
   queueArticles,
+  readingQueueIds = [],
+  readingProgress = {},
   highlights,
   sources,
   profile,
   onOpenArticle,
   onToggleBookmark,
   onToggleLike,
+  onToggleQueue,
   onRemoveFromQueue,
   onRemoveHighlight,
   onClearHistory,
   onBack,
 }) => {
   const { t, categoryLabel } = useI18n();
+  const queueSet = useMemo(() => new Set(readingQueueIds), [readingQueueIds]);
+  const readSet = useMemo(() => new Set(profile.readIds), [profile.readIds]);
   const [subTab, setSubTab] = useState<SavedSubTab>(initialPage);
   const [confirmClear, setConfirmClear] = useState(false);
   const [clearStatus, setClearStatus] = useState('');
@@ -225,9 +234,13 @@ export const SavedView: React.FC<SavedViewProps> = ({
                       article={article}
                       isBookmarked={profile.bookmarkedIds.includes(article.id)}
                       isLiked={profile.likedIds.includes(article.id)}
-                      onOpen={onOpenArticle}
+                      inQueue={queueSet.has(article.id)}
+                      isRead={readSet.has(article.id)}
+                      readingProgress={readingProgress[article.id]?.ratio}
+                      onOpen={a => onOpenArticle(a, queueArticles)}
                       onToggleBookmark={onToggleBookmark}
                       onToggleLike={onToggleLike}
+                      onToggleQueue={onToggleQueue}
                     />
                     <button
                       type="button"
@@ -266,14 +279,20 @@ export const SavedView: React.FC<SavedViewProps> = ({
                       „{item.quote}“
                     </blockquote>
                     <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-                      <a
-                        href={item.articleLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="min-w-0 flex-1 truncate text-xs font-medium text-[var(--muted)] hover:text-[var(--ink)]"
-                      >
-                        <span className="font-semibold text-[var(--ink)]">{item.sourceName}</span> · {item.articleTitle}
-                      </a>
+                      {safeHref(item.articleLink) ? (
+                        <a
+                          href={safeHref(item.articleLink)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="min-w-0 flex-1 truncate text-xs font-medium text-[var(--muted)] hover:text-[var(--ink)]"
+                        >
+                          <span className="font-semibold text-[var(--ink)]">{item.sourceName}</span> · {item.articleTitle}
+                        </a>
+                      ) : (
+                        <span className="min-w-0 flex-1 truncate text-xs font-medium text-[var(--muted)]">
+                          <span className="font-semibold text-[var(--ink)]">{item.sourceName}</span> · {item.articleTitle}
+                        </span>
+                      )}
                       <button
                         type="button"
                         onClick={() => onRemoveHighlight(item.id)}
@@ -366,9 +385,13 @@ export const SavedView: React.FC<SavedViewProps> = ({
                 article={article}
                 isBookmarked={profile.bookmarkedIds.includes(article.id)}
                 isLiked={profile.likedIds.includes(article.id)}
-                onOpen={onOpenArticle}
+                inQueue={queueSet.has(article.id)}
+                isRead={subTab !== 'history' && readSet.has(article.id)}
+                readingProgress={readingProgress[article.id]?.ratio}
+                onOpen={a => onOpenArticle(a, activeList)}
                 onToggleBookmark={onToggleBookmark}
                 onToggleLike={onToggleLike}
+                onToggleQueue={onToggleQueue}
               />
             ))}
           </div>

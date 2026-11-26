@@ -1,40 +1,61 @@
 import {
   Bookmark,
+  Check,
   ChevronRight,
   ExternalLink,
+  FileText,
   Film,
   Headphones,
   Heart,
   Layers,
   Play,
   Plus,
+  Search,
   Share2,
-  Sparkles,
   Video,
+  X,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { collectDistinctMedia, type PlayableMedia } from '../lib/articleMedia';
 import { STARTER_PACKS } from '../lib/catalog';
-import { buildClipsPlaylist, extractMediaChannels, type MediaEntry } from '../lib/clipsEngine';
+import {
+  buildClipsPlaylist,
+  extractContinueListening,
+  extractMediaChannels,
+  filterMediaEntries,
+  formatDurationLabel,
+  selectMediaDiscoverySources,
+  selectMediaStarterPacks,
+  type MediaEntry,
+  type MediaTabFilter,
+} from '../lib/clipsEngine';
+import { safeHref } from '../lib/contentIdentity';
 import { useI18n } from '../lib/i18n';
+import { getMediaCopy } from '../lib/mediaCopy';
 import type { AudioPositionEntry } from '../lib/readerExtras';
 import { shareArticle } from '../lib/shareArticle';
-import type { AIProviderConfig, NewsArticle } from '../types/news';
+import type { AIProviderConfig, NewsArticle, NewsSource } from '../types/news';
 import { ArticleImage } from './ArticleImage';
 import { ClipsFeed } from './ClipsFeed';
 import { MediaPlayer } from './MediaPlayer';
-import { formatAudioClock } from './MiniAudioPlayer';
+import { formatAudioClock, type ActiveAudioTrack } from './MiniAudioPlayer';
 import { SourceIcon } from './SourceIcon';
 import { TranscriptSummary } from './TranscriptSummary';
 import { ViewStatus } from './ViewStatus';
 
-type MediaFilter = 'all' | 'video' | 'audio' | 'clips';
-const FILTER_KEYS: MediaFilter[] = ['all', 'video', 'audio', 'clips'];
-const MEDIA_PACK_IDS = new Set(['clips-social', 'video-audio', 'podcasts-daily']);
+const FILTER_KEYS: MediaTabFilter[] = ['all', 'video', 'audio', 'clips'];
+
+function cleanSummaryPreview(article: NewsArticle): string {
+  const raw = (article.summary || '').replace(/\s+/g, ' ').trim();
+  if (!raw || raw.length < 18) return '';
+  if (raw.toLowerCase() === article.title.trim().toLowerCase()) return '';
+  return raw;
+}
 
 export function MediaView({
   aiConfig,
   articles,
+  sources = [],
   hasActiveSources,
   loading,
   background,
@@ -45,6 +66,7 @@ export function MediaView({
   onPlayAudio,
   onArticle,
   onSources,
+  onToggleSubscribe,
   onApplyStarterPack,
   onLike,
   onSave,
@@ -54,6 +76,7 @@ export function MediaView({
 }: {
   aiConfig: AIProviderConfig;
   articles: NewsArticle[];
+  sources?: NewsSource[];
   hasActiveSources?: boolean;
   loading: boolean;
   background: boolean;
@@ -61,9 +84,10 @@ export function MediaView({
   audioPositions?: Record<string, AudioPositionEntry>;
   initialClipUrl?: string;
   onClearInitialClip?: () => void;
-  onPlayAudio?: (article: NewsArticle, media: PlayableMedia) => void;
+  onPlayAudio?: (article: NewsArticle, media: PlayableMedia, queue?: ActiveAudioTrack[]) => void;
   onArticle: (article: NewsArticle) => void;
   onSources: () => void;
+  onToggleSubscribe?: (sourceId: string) => void;
   onApplyStarterPack?: (sourceIds: readonly string[]) => void;
   onLike: (article: NewsArticle) => void;
   onSave: (article: NewsArticle) => void;
@@ -71,12 +95,16 @@ export function MediaView({
   liked: string[];
   saved: string[];
 }) {
-  const { t, formatRelative } = useI18n();
-  const [filter, setFilter] = useState<MediaFilter>(initialClipUrl ? 'clips' : 'all');
+  const { lang, t, categoryLabel, formatRelative } = useI18n();
+  const copy = getMediaCopy(lang);
+  const [filter, setFilter] = useState<MediaTabFilter>(initialClipUrl ? 'clips' : 'all');
   const [selectedChannel, setSelectedChannel] = useState<string | null>(null);
+  const [mediaQuery, setMediaQuery] = useState('');
   const [playingUrl, setPlayingUrl] = useState<string>();
   const [startClipUrl, setStartClipUrl] = useState<string | undefined>(initialClipUrl);
   const [shareFeedback, setShareFeedback] = useState('');
+  const [videoLimit, setVideoLimit] = useState(12);
+  const [audioLimit, setAudioLimit] = useState(12);
   const clipsButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -88,14 +116,46 @@ export function MediaView({
   }, [initialClipUrl, onClearInitialClip]);
 
   const allEntries = useMemo(() => collectDistinctMedia(articles), [articles]);
-  const channels = useMemo(() => extractMediaChannels(allEntries), [allEntries]);
+  const searchedEntries = useMemo(
+    () => filterMediaEntries(allEntries, mediaQuery),
+    [allEntries, mediaQuery],
+  );
+
+  // Tab-aware channel strip so switching to Audio only displays podcast channels
+  const channels = useMemo(
+    () => extractMediaChannels(searchedEntries, filter),
+    [searchedEntries, filter],
+  );
+
+  // Auto-clear selected channel if it has no entries in the newly selected format tab
+  useEffect(() => {
+    if (selectedChannel && !channels.some(channel => channel.sourceId === selectedChannel)) {
+      setSelectedChannel(null);
+    }
+  }, [channels, selectedChannel]);
 
   const filteredEntries = useMemo(
-    () => (selectedChannel ? allEntries.filter(({ article }) => (article.sourceId || article.sourceName) === selectedChannel) : allEntries),
-    [allEntries, selectedChannel],
+    () => (selectedChannel
+      ? searchedEntries.filter(({ article }) => (article.sourceId || article.sourceName) === selectedChannel)
+      : searchedEntries),
+    [searchedEntries, selectedChannel],
+  );
+
+  const allClipsCount = useMemo(
+    () => buildClipsPlaylist(searchedEntries, 'shorts', false).items.length,
+    [searchedEntries],
+  );
+  const allVideoCount = useMemo(
+    () => searchedEntries.filter(({ media }) => media.type !== 'audio' && !media.portrait).length,
+    [searchedEntries],
+  );
+  const allAudioCount = useMemo(
+    () => searchedEntries.filter(({ media }) => media.type === 'audio').length,
+    [searchedEntries],
   );
 
   const clipsPreview = useMemo(() => buildClipsPlaylist(filteredEntries, 'shorts', false).items, [filteredEntries]);
+  const clipsPlaylist = useMemo(() => buildClipsPlaylist(filteredEntries, 'shorts', true).items, [filteredEntries]);
   const videoItems = useMemo(
     () => filteredEntries.filter(({ media }) => media.type !== 'audio' && !media.portrait),
     [filteredEntries],
@@ -105,16 +165,38 @@ export function MediaView({
     [filteredEntries],
   );
 
-  const mediaStarterPacks = useMemo(
-    () => STARTER_PACKS.filter(pack => MEDIA_PACK_IDS.has(pack.id)),
-    [],
+  const continueListening = useMemo(
+    () => extractContinueListening(filteredEntries, audioPositions, 6),
+    [filteredEntries, audioPositions],
   );
 
-  const filterLabels: Record<MediaFilter, string> = {
+  const subscribedIds = useMemo(
+    () => new Set(sources.filter(source => source.subscribed).map(source => source.id)),
+    [sources],
+  );
+
+  const contextualPacks = useMemo(() => {
+    const packs = selectMediaStarterPacks(STARTER_PACKS, lang, filter);
+    return packs.filter(pack => pack.sourceIds.some(id => !subscribedIds.has(id)));
+  }, [lang, filter, subscribedIds]);
+
+  const discoverChannels = useMemo(
+    () => selectMediaDiscoverySources(sources, lang, filter, 6),
+    [sources, lang, filter],
+  );
+
+  const filterLabels: Record<MediaTabFilter, string> = {
     all: t('mediaFilterAll'),
     video: t('mediaFilterVideo'),
     audio: t('mediaFilterAudio'),
     clips: t('mediaFilterClips'),
+  };
+
+  const filterCounts: Record<MediaTabFilter, number> = {
+    all: searchedEntries.length,
+    video: allVideoCount,
+    audio: allAudioCount,
+    clips: allClipsCount,
   };
 
   const handleShare = (article: NewsArticle, mediaUrl: string) => {
@@ -140,6 +222,21 @@ export function MediaView({
     setFilter('clips');
   };
 
+  const playAudioWithQueue = (article: NewsArticle, media: PlayableMedia) => {
+    if (!onPlayAudio) {
+      setPlayingUrl(playingUrl === media.url ? undefined : media.url);
+      return;
+    }
+    const idx = audioItems.findIndex(item => item.media.url === media.url);
+    const upcoming: ActiveAudioTrack[] = idx >= 0
+      ? audioItems.slice(idx + 1, idx + 10).map(item => ({ article: item.article, media: item.media }))
+      : audioItems
+          .filter(item => item.media.url !== media.url)
+          .slice(0, 8)
+          .map(item => ({ article: item.article, media: item.media }));
+    onPlayAudio(article, media, upcoming);
+  };
+
   const activeVideoEntry = useMemo(
     () => videoItems.find(({ media }) => media.url === playingUrl),
     [videoItems, playingUrl],
@@ -150,13 +247,35 @@ export function MediaView({
     const isLiked = liked.includes(article.id);
     const isSaved = saved.includes(article.id);
     const artwork = article.imageUrl;
+    const durationText = formatDurationLabel(media.durationSec ?? article.durationSec);
+    const summaryText = featured ? cleanSummaryPreview(article) : '';
 
     return (
       <li
         key={media.url}
         data-media-url={media.url}
-        className={`media-video-card group overflow-hidden ${featured ? 'sm:col-span-2 lg:col-span-3' : ''}`}
+        className={`media-video-card group flex flex-col overflow-hidden ${
+          featured ? 'sm:col-span-2 lg:col-span-3 rounded-[var(--card-radius)] border border-[var(--line)] bg-[var(--panel)] p-3 sm:p-4' : ''
+        }`}
       >
+        {featured && isPlaying && (
+          <div className="mb-2.5 flex items-center justify-between gap-2">
+            <span className="inline-flex items-center gap-2 text-xs font-semibold text-[var(--accent)]">
+              <span className="h-2 w-2 rounded-full bg-[var(--accent)]" aria-hidden="true" />
+              {t('mediaNowPlaying')}
+            </span>
+            <button
+              type="button"
+              onClick={() => setPlayingUrl(undefined)}
+              aria-label={copy.closePlayer}
+              className="inline-flex h-9 items-center gap-1 rounded-full px-3 text-xs font-semibold text-[var(--muted)] transition hover:bg-[var(--control)] hover:text-[var(--ink)]"
+            >
+              <X size={15} aria-hidden="true" />
+              <span>{t('close')}</span>
+            </button>
+          </div>
+        )}
+
         <div className="relative aspect-video overflow-hidden rounded-[var(--card-radius)] bg-black">
           {isPlaying ? (
             <MediaPlayer
@@ -172,7 +291,7 @@ export function MediaView({
               type="button"
               aria-label={article.title}
               onClick={() => setPlayingUrl(media.url)}
-              className="absolute inset-0 grid w-full place-items-center text-white"
+              className="relative block h-full w-full text-white"
             >
               {artwork ? (
                 <ArticleImage
@@ -180,89 +299,123 @@ export function MediaView({
                   alt=""
                   sourceShortCode={article.sourceShortCode}
                   sourceColor={article.sourceColor}
-                  className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]"
+                  className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]"
                 />
               ) : (
-                <Video size={40} className="text-white/60" aria-hidden="true" />
+                <span className="grid h-full w-full place-items-center bg-slate-900">
+                  <Video size={40} className="text-white/60" aria-hidden="true" />
+                </span>
               )}
               <span
                 aria-hidden="true"
                 className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent"
               />
-              <span className="relative grid size-14 place-items-center rounded-full border border-white/25 bg-black/65 backdrop-blur-md transition-transform duration-200 group-hover:scale-105 group-active:scale-95">
-                <Play size={24} fill="currentColor" className="translate-x-0.5" aria-hidden="true" />
+              <span className="pointer-events-none absolute inset-0 grid place-items-center">
+                <span className="grid size-13 place-items-center rounded-full border border-white/25 bg-black/65 backdrop-blur-md transition-transform duration-200 group-hover:scale-105 group-active:scale-95">
+                  <Play size={22} fill="currentColor" className="translate-x-0.5" aria-hidden="true" />
+                </span>
               </span>
+              {durationText && (
+                <span className="pointer-events-none absolute right-2.5 bottom-2.5 rounded-md bg-black/75 px-1.5 py-0.5 text-[11px] font-semibold tracking-tight text-white tabular-nums backdrop-blur-xs">
+                  {durationText}
+                </span>
+              )}
             </button>
           )}
         </div>
 
-        {isPlaying && <TranscriptSummary article={article} config={aiConfig} />}
-
-        <div className="mt-3 flex items-start gap-3">
-          <div className="shrink-0 pt-0.5">
-            <SourceIcon
-              source={{
-                id: article.sourceId,
-                shortCode: article.sourceShortCode,
-                accentColor: article.sourceColor,
-              }}
-              size="h-9 w-9"
-              rounded="rounded-full"
-            />
+        <div className="mt-3 flex flex-1 flex-col justify-between gap-2">
+          <div className="flex items-start gap-2.5">
+            <div className="shrink-0 pt-0.5">
+              <SourceIcon
+                source={{
+                  id: article.sourceId,
+                  shortCode: article.sourceShortCode,
+                  accentColor: article.sourceColor,
+                }}
+                size="h-8 w-8"
+                rounded="rounded-full"
+              />
+            </div>
+            <div className="min-w-0 flex-1 space-y-1">
+              <button
+                type="button"
+                onClick={() => onArticle(article)}
+                className={`block text-left font-bold leading-snug text-[var(--ink)] transition-colors hover:text-[var(--accent)] [overflow-wrap:anywhere] ${
+                  featured ? 'text-base sm:text-lg' : 'text-[15px] line-clamp-2'
+                }`}
+              >
+                {article.title}
+              </button>
+              <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-[var(--muted)]">
+                <span className="truncate font-medium text-[var(--ink)]/80">{article.sourceName}</span>
+                <span aria-hidden="true">·</span>
+                <span className="shrink-0 tabular-nums">{formatRelative(article.publishedAt)}</span>
+                {isPlaying && media.type === 'youtube' && safeHref(article.link) && (
+                  <>
+                    <span aria-hidden="true">·</span>
+                    <a
+                      href={safeHref(article.link)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 font-medium underline hover:text-[var(--ink)]"
+                    >
+                      {t('mediaWatchYoutube')}
+                      <ExternalLink className="h-3 w-3" aria-hidden="true" />
+                    </a>
+                  </>
+                )}
+              </div>
+              {summaryText && (
+                <p className="pt-1 text-sm leading-relaxed text-[var(--muted)] line-clamp-3">
+                  {summaryText}
+                </p>
+              )}
+            </div>
           </div>
-          <div className="min-w-0 flex-1 space-y-1.5">
+
+          {isPlaying && <TranscriptSummary article={article} config={aiConfig} />}
+
+          {/* Compact single-row editorial action bar (never wraps onto 2 rows) */}
+          <div className="flex items-center justify-between gap-2 border-t border-[var(--line)]/70 pt-1.5">
             <button
               type="button"
               onClick={() => onArticle(article)}
-              className="block text-left text-[15px] font-bold leading-snug text-[var(--ink)] transition-colors hover:text-[var(--accent)] line-clamp-2 [overflow-wrap:anywhere]"
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2 text-xs font-semibold text-[var(--muted)] transition hover:bg-[var(--control)] hover:text-[var(--ink)]"
             >
-              {article.title}
+              <FileText size={14} aria-hidden="true" />
+              <span>{t('mediaClipsArticle')}</span>
             </button>
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-[var(--muted)]">
-              <span className="font-medium text-[var(--ink)]/80">{article.sourceName}</span>
-              <span aria-hidden="true">·</span>
-              <span>{formatRelative(article.publishedAt)}</span>
-              {isPlaying && media.type === 'youtube' && (
-                <>
-                  <span aria-hidden="true">·</span>
-                  <a
-                    href={article.link}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 font-medium underline hover:text-[var(--ink)]"
-                  >
-                    {t('mediaWatchYoutube')}
-                    <ExternalLink className="h-3 w-3" aria-hidden="true" />
-                  </a>
-                </>
-              )}
-            </div>
-            <div className="flex flex-wrap items-center gap-1.5 pt-1">
+            <div className="flex items-center gap-0.5">
               <button
                 type="button"
-                className="choice-pill"
+                aria-label={isLiked ? t('unlike') : t('like')}
                 aria-pressed={isLiked}
                 onClick={() => onLike(article)}
+                className={`grid h-9 w-9 place-items-center rounded-full transition hover:bg-[var(--control)] ${
+                  isLiked ? 'text-[var(--accent)]' : 'text-[var(--muted)] hover:text-[var(--ink)]'
+                }`}
               >
-                <Heart size={15} fill={isLiked ? 'currentColor' : 'none'} aria-hidden="true" />
-                {t('like')}
+                <Heart size={16} fill={isLiked ? 'currentColor' : 'none'} aria-hidden="true" />
               </button>
               <button
                 type="button"
-                className="choice-pill"
+                aria-label={isSaved ? t('unbookmark') : t('bookmark')}
                 aria-pressed={isSaved}
                 onClick={() => onSave(article)}
+                className={`grid h-9 w-9 place-items-center rounded-full transition hover:bg-[var(--control)] ${
+                  isSaved ? 'text-[var(--accent)]' : 'text-[var(--muted)] hover:text-[var(--ink)]'
+                }`}
               >
-                <Bookmark size={15} fill={isSaved ? 'currentColor' : 'none'} aria-hidden="true" />
-                {t('saveShort')}
+                <Bookmark size={16} fill={isSaved ? 'currentColor' : 'none'} aria-hidden="true" />
               </button>
               <button
                 type="button"
-                className="choice-pill"
+                aria-label={t('share')}
                 onClick={() => handleShare(article, media.url)}
+                className="grid h-9 w-9 place-items-center rounded-full text-[var(--muted)] transition hover:bg-[var(--control)] hover:text-[var(--ink)]"
               >
-                <Share2 size={15} aria-hidden="true" />
-                {t('share')}
+                <Share2 size={16} aria-hidden="true" />
               </button>
             </div>
           </div>
@@ -279,26 +432,27 @@ export function MediaView({
     const isSaved = saved.includes(article.id);
     const artwork = article.imageUrl;
     const savedPos = audioPositions[media.url];
+    const totalDuration = media.durationSec ?? article.durationSec ?? (savedPos?.duration || undefined);
+    const durationText = formatDurationLabel(totalDuration);
+    const summaryText = cleanSummaryPreview(article);
+    const hasProgress = Boolean(savedPos && savedPos.seconds >= 10);
+    const progressPct = hasProgress && totalDuration && totalDuration > 0
+      ? Math.min(100, Math.round((savedPos!.seconds / totalDuration) * 100))
+      : 0;
 
     return (
       <li
         key={media.url}
         data-media-url={media.url}
-        className={`settings-group media-audio-card overflow-hidden p-3.5 transition-colors ${
-          isPlaying ? 'ring-1 ring-[var(--accent)]/40' : ''
+        className={`settings-group media-audio-card flex flex-col justify-between overflow-hidden p-3.5 transition-colors ${
+          isPlaying ? 'ring-1 ring-[var(--accent)]/45' : ''
         }`}
       >
         <div className="flex items-start gap-3.5">
           <button
             type="button"
             aria-label={article.title}
-            onClick={() => {
-              if (onPlayAudio) {
-                onPlayAudio(article, media);
-              } else {
-                setPlayingUrl(isPlayingInline ? undefined : media.url);
-              }
-            }}
+            onClick={() => playAudioWithQueue(article, media)}
             className="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-slate-900 text-white shadow-sm transition-transform active:scale-95"
           >
             {artwork ? (
@@ -311,10 +465,10 @@ export function MediaView({
               />
             ) : (
               <span className="grid h-full w-full place-items-center">
-                <Headphones size={28} aria-hidden="true" />
+                <Headphones size={26} aria-hidden="true" />
               </span>
             )}
-            <span className="absolute inset-0 grid place-items-center bg-black/35">
+            <span className="absolute inset-0 grid place-items-center bg-black/30 transition-colors hover:bg-black/40">
               {isPlaying ? (
                 <span className="media-eq" aria-hidden="true">
                   <span />
@@ -323,7 +477,7 @@ export function MediaView({
                 </span>
               ) : (
                 <span className="grid size-10 place-items-center rounded-full bg-black/70 backdrop-blur-sm">
-                  <Play size={18} fill="currentColor" className="translate-x-0.5" aria-hidden="true" />
+                  <Play size={17} fill="currentColor" className="translate-x-0.5" aria-hidden="true" />
                 </span>
               )}
             </span>
@@ -333,7 +487,13 @@ export function MediaView({
             <div className="flex items-center gap-1.5 text-xs text-[var(--muted)]">
               <span className="truncate font-semibold text-[var(--ink)]/85">{article.sourceName}</span>
               <span aria-hidden="true">·</span>
-              <span className="shrink-0">{formatRelative(article.publishedAt)}</span>
+              <span className="shrink-0 tabular-nums">{formatRelative(article.publishedAt)}</span>
+              {durationText && (
+                <>
+                  <span aria-hidden="true">·</span>
+                  <span className="shrink-0 font-semibold text-[var(--ink)]/75 tabular-nums">{durationText}</span>
+                </>
+              )}
             </div>
             <button
               type="button"
@@ -342,44 +502,82 @@ export function MediaView({
             >
               {article.title}
             </button>
-            {savedPos && savedPos.seconds >= 5 && !isPlaying && (
-              <p className="text-[11px] font-semibold text-[var(--accent)] tabular-nums">
-                {t('miniPlayerResume', { time: formatAudioClock(savedPos.seconds) })}
+            {summaryText && (
+              <p className="text-xs leading-relaxed text-[var(--muted)] line-clamp-2">
+                {summaryText}
               </p>
             )}
-            <div className="flex flex-wrap items-center gap-1.5 pt-1">
-              <button
-                type="button"
-                className="choice-pill"
-                aria-pressed={isLiked}
-                onClick={() => onLike(article)}
-              >
-                <Heart size={15} fill={isLiked ? 'currentColor' : 'none'} aria-hidden="true" />
-                {t('like')}
-              </button>
-              <button
-                type="button"
-                className="choice-pill"
-                aria-pressed={isSaved}
-                onClick={() => onSave(article)}
-              >
-                <Bookmark size={15} fill={isSaved ? 'currentColor' : 'none'} aria-hidden="true" />
-                {t('saveShort')}
-              </button>
-              <button
-                type="button"
-                className="choice-pill"
-                onClick={() => handleShare(article, media.url)}
-              >
-                <Share2 size={15} aria-hidden="true" />
-                {t('share')}
-              </button>
-            </div>
+            {hasProgress && !isPlaying && (
+              <div className="pt-1 space-y-1">
+                <p className="text-[11px] font-semibold text-[var(--accent)] tabular-nums">
+                  {t('miniPlayerResume', { time: formatAudioClock(savedPos!.seconds) })}
+                </p>
+                {progressPct > 0 && (
+                  <div className="h-1 w-full overflow-hidden rounded-full bg-[var(--control)]">
+                    <div className="h-full bg-[var(--accent)]" style={{ width: `${progressPct}%` }} />
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Single-line clean audio footer */}
+        <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-[var(--line)]/70 pt-1.5">
+          <button
+            type="button"
+            onClick={() => playAudioWithQueue(article, media)}
+            className={`inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2 text-xs font-semibold transition hover:bg-[var(--control)] ${
+              isPlaying ? 'text-[var(--accent)]' : 'text-[var(--ink)]'
+            }`}
+          >
+            <Headphones size={14} aria-hidden="true" />
+            <span>{isPlaying ? t('mediaNowPlaying') : hasProgress ? copy.resumeEpisode : t('readerListenInApp')}</span>
+          </button>
+          <div className="flex items-center gap-0.5">
+            <button
+              type="button"
+              aria-label={t('openArticle')}
+              onClick={() => onArticle(article)}
+              className="grid h-9 w-9 place-items-center rounded-full text-[var(--muted)] transition hover:bg-[var(--control)] hover:text-[var(--ink)]"
+            >
+              <FileText size={15} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              aria-label={isLiked ? t('unlike') : t('like')}
+              aria-pressed={isLiked}
+              onClick={() => onLike(article)}
+              className={`grid h-9 w-9 place-items-center rounded-full transition hover:bg-[var(--control)] ${
+                isLiked ? 'text-[var(--accent)]' : 'text-[var(--muted)] hover:text-[var(--ink)]'
+              }`}
+            >
+              <Heart size={15} fill={isLiked ? 'currentColor' : 'none'} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              aria-label={isSaved ? t('unbookmark') : t('bookmark')}
+              aria-pressed={isSaved}
+              onClick={() => onSave(article)}
+              className={`grid h-9 w-9 place-items-center rounded-full transition hover:bg-[var(--control)] ${
+                isSaved ? 'text-[var(--accent)]' : 'text-[var(--muted)] hover:text-[var(--ink)]'
+              }`}
+            >
+              <Bookmark size={15} fill={isSaved ? 'currentColor' : 'none'} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              aria-label={t('share')}
+              onClick={() => handleShare(article, media.url)}
+              className="grid h-9 w-9 place-items-center rounded-full text-[var(--muted)] transition hover:bg-[var(--control)] hover:text-[var(--ink)]"
+            >
+              <Share2 size={15} aria-hidden="true" />
+            </button>
           </div>
         </div>
 
         {isPlayingInline && (
-          <div className="mt-3.5 border-t border-[var(--line)] pt-3">
+          <div className="mt-3 border-t border-[var(--line)] pt-3">
             <MediaPlayer
               media={media}
               title={article.title}
@@ -394,11 +592,51 @@ export function MediaView({
     );
   };
 
+  const renderStarterPackGrid = (packs: readonly typeof STARTER_PACKS[number][]) => {
+    if (!onApplyStarterPack || packs.length === 0) return null;
+    return (
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {packs.map(pack => (
+          <button
+            key={pack.id}
+            type="button"
+            onClick={() => onApplyStarterPack(pack.sourceIds)}
+            className="source-pack-card flex flex-col justify-between gap-2.5 rounded-[var(--card-radius)] border border-[var(--line)] bg-[var(--panel)] p-4 text-left transition hover:border-[var(--accent)]/50"
+          >
+            <div className="space-y-1">
+              <span className="block text-sm font-bold text-[var(--ink)]">
+                {pack.label}
+              </span>
+              <span className="block text-xs leading-relaxed text-[var(--muted)]">
+                {pack.subtitle}
+              </span>
+            </div>
+            <span className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--accent)]">
+              <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+              {t('sourcesStarterApply')}
+            </span>
+          </button>
+        ))}
+      </div>
+    );
+  };
+
   const hasAnyMedia = allEntries.length > 0;
+  const hasSearchQuery = mediaQuery.trim().length > 0;
+  const showClipsDialog = filter === 'clips' && clipsPlaylist.length > 0;
+  const showEmptyClipsInline = filter === 'clips' && clipsPlaylist.length === 0;
   const showShortsShelf = (filter === 'all' || filter === 'video') && clipsPreview.length > 0;
   const showVideos = (filter === 'all' || filter === 'video') && videoItems.length > 0;
   const showAudio = (filter === 'all' || filter === 'audio') && audioItems.length > 0;
-  const showFilteredEmpty = filter !== 'clips' && hasAnyMedia && !showShortsShelf && !showVideos && !showAudio;
+  const showContinueListening = (filter === 'all' || filter === 'audio') && continueListening.length > 0;
+  const showSearchEmpty = hasAnyMedia && hasSearchQuery && filteredEntries.length === 0;
+  const showFormatEmpty =
+    !showSearchEmpty &&
+    filter !== 'clips' &&
+    hasAnyMedia &&
+    !showShortsShelf &&
+    !showVideos &&
+    !showAudio;
 
   return (
     <section aria-labelledby="media-heading" className="screen-entry space-y-6">
@@ -406,7 +644,7 @@ export function MediaView({
         {shareFeedback}
       </p>
 
-      <header className="flex items-start justify-between gap-3">
+      <header className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h1 id="media-heading" className="screen-title">
             {t('mediaTitle')}
@@ -427,37 +665,73 @@ export function MediaView({
       </header>
 
       {/* Primary Segmented Switcher: All | Video | Audio | Clips */}
-      <div
-        className="segmented-control sliding-tabs media-tabs"
-        role="group"
-        aria-label={t('mediaTitle')}
-        style={{ '--tab-count': FILTER_KEYS.length, '--tab-index': FILTER_KEYS.indexOf(filter) } as React.CSSProperties}
-      >
-        <span className="tab-track" aria-hidden="true">
-          <span className="tab-selection" />
-        </span>
-        {FILTER_KEYS.map(key => (
-          <button
-            key={key}
-            ref={key === 'clips' ? clipsButtonRef : undefined}
-            type="button"
-            className="choice-pill whitespace-nowrap"
-            aria-pressed={filter === key}
-            onClick={() => {
-              if (key === 'clips') {
-                openClipTheater(undefined);
-              } else {
-                setFilter(key);
-                setPlayingUrl(undefined);
-              }
-            }}
-          >
-            {filterLabels[key]}
-          </button>
-        ))}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div
+          className="segmented-control sliding-tabs media-tabs"
+          role="group"
+          aria-label={t('mediaTitle')}
+          style={{ '--tab-count': FILTER_KEYS.length, '--tab-index': FILTER_KEYS.indexOf(filter) } as React.CSSProperties}
+        >
+          <span className="tab-track" aria-hidden="true">
+            <span className="tab-selection" />
+          </span>
+          {FILTER_KEYS.map(key => {
+            const count = filterCounts[key];
+            return (
+              <button
+                key={key}
+                ref={key === 'clips' ? clipsButtonRef : undefined}
+                type="button"
+                className="choice-pill whitespace-nowrap"
+                aria-pressed={filter === key}
+                onClick={() => {
+                  if (key === 'clips') {
+                    openClipTheater(undefined);
+                  } else {
+                    setFilter(key);
+                    setPlayingUrl(undefined);
+                  }
+                }}
+              >
+                <span>{filterLabels[key]}</span>
+                {hasAnyMedia && key !== 'all' && count > 0 && (
+                  <span className="ml-1 text-[11px] opacity-65 tabular-nums">{count}</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Inline Media Search */}
+        {hasAnyMedia && (
+          <div className="relative w-full sm:w-64 lg:w-72">
+            <Search
+              className="pointer-events-none absolute left-4 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--muted)]"
+              aria-hidden="true"
+            />
+            <input
+              type="search"
+              value={mediaQuery}
+              onChange={(e) => setMediaQuery(e.target.value)}
+              placeholder={copy.searchPlaceholder}
+              aria-label={copy.searchPlaceholder}
+              className="preference-input discover-search-input w-full rounded-full pr-10 text-sm"
+            />
+            {mediaQuery && (
+              <button
+                type="button"
+                onClick={() => setMediaQuery('')}
+                aria-label={t('clear')}
+                className="absolute right-1 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full text-[var(--muted)] hover:text-[var(--ink)]"
+              >
+                <X className="h-4 w-4" aria-hidden="true" />
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Instagram / YouTube Subscriptions-Style Channel Stories Strip */}
+      {/* Tab-Aware Channel Strip */}
       {channels.length > 1 && filter !== 'clips' && (
         <div
           role="region"
@@ -480,7 +754,11 @@ export function MediaView({
                   : 'border-[var(--line)] bg-[var(--panel)] text-[var(--ink)]'
               }`}
             >
-              <Film className="h-5 w-5" aria-hidden="true" />
+              {filter === 'audio' ? (
+                <Headphones className="h-5 w-5" aria-hidden="true" />
+              ) : (
+                <Film className="h-5 w-5" aria-hidden="true" />
+              )}
             </span>
             <span className="w-full truncate text-[11px] font-semibold text-[var(--ink)]">
               {t('mediaChannelsAll')}
@@ -504,7 +782,7 @@ export function MediaView({
                   className={`grid h-14 w-14 place-items-center rounded-full p-0.5 transition-transform active:scale-95 ${
                     active
                       ? 'ring-2 ring-[var(--accent)] ring-offset-2 ring-offset-[var(--canvas)]'
-                      : channel.hasClips
+                      : channel.hasClips && filter !== 'audio'
                         ? 'media-story-ring'
                         : 'ring-1 ring-[var(--line)]'
                   }`}
@@ -532,8 +810,8 @@ export function MediaView({
         </div>
       )}
 
-      {/* Full-Screen TikTok / Reels / YouTube Shorts Clips Theater */}
-      {filter === 'clips' && (
+      {/* Full-Screen Clips Theater (only opens when playable video clips exist) */}
+      {showClipsDialog && (
         <ClipsFeed
           entries={filteredEntries}
           initialUrl={startClipUrl}
@@ -553,51 +831,51 @@ export function MediaView({
         />
       )}
 
-      {/* Empty State with Instant 1-Tap Media Starter Packs */}
+      {/* Friendly Inline Empty State for Clips tab when no clips exist */}
+      {showEmptyClipsInline && (
+        loading ? (
+          <ViewStatus title={t('mediaLoading')} />
+        ) : (
+          <div className="space-y-5 border-t border-[var(--line)] pt-5">
+            <div className="space-y-1.5">
+              <h2 className="text-xl font-bold tracking-tight text-[var(--ink)]">
+                {copy.emptyClipsTitle}
+              </h2>
+              <p className="max-w-xl text-sm leading-relaxed text-[var(--muted)]">
+                {copy.emptyClipsHint}
+              </p>
+            </div>
+            {renderStarterPackGrid(selectMediaStarterPacks(STARTER_PACKS, lang, 'clips'))}
+            <div className="flex flex-wrap gap-2">
+              <button type="button" className="primary-action inline-flex items-center gap-2" onClick={onSources}>
+                <Layers className="h-4 w-4 shrink-0" aria-hidden="true" />
+                {t('mediaManageSources')}
+              </button>
+              {hasAnyMedia && (
+                <button type="button" className="choice-pill" onClick={() => setFilter('all')}>
+                  {t('mediaFilterAll')}
+                </button>
+              )}
+            </div>
+          </div>
+        )
+      )}
+
+      {/* Global Empty State (no media sources subscribed yet) */}
       {!hasAnyMedia && filter !== 'clips' && (
         loading ? (
           <ViewStatus title={t('mediaLoading')} />
         ) : (
-          <div className="settings-group space-y-5 p-6 sm:p-8">
-            <div className="space-y-2">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--control)] text-[var(--ink)]">
-                <Film className="h-6 w-6" aria-hidden="true" />
-              </div>
+          <div className="space-y-5 border-t border-[var(--line)] pt-5">
+            <div className="space-y-1.5">
               <h2 className="text-xl font-extrabold tracking-tight text-[var(--ink)]">
                 {hasActiveSources === false ? t('mediaEmptyNoSources') : t('mediaEmpty')}
               </h2>
-              <p className="max-w-lg text-sm leading-relaxed text-[var(--muted)]">
+              <p className="max-w-xl text-sm leading-relaxed text-[var(--muted)]">
                 {t('mediaStarterHint')}
               </p>
             </div>
-
-            {onApplyStarterPack && mediaStarterPacks.length > 0 && (
-              <div className="grid gap-3 sm:grid-cols-3">
-                {mediaStarterPacks.map(pack => (
-                  <button
-                    key={pack.id}
-                    type="button"
-                    onClick={() => onApplyStarterPack(pack.sourceIds)}
-                    className="source-pack-card flex flex-col justify-between gap-3 rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-4 text-left"
-                  >
-                    <div className="space-y-1">
-                      <span className="flex items-center gap-1.5 text-sm font-bold text-[var(--ink)]">
-                        <Sparkles className="h-4 w-4 text-[var(--accent)]" aria-hidden="true" />
-                        {pack.label}
-                      </span>
-                      <span className="block text-xs leading-relaxed text-[var(--muted)]">
-                        {pack.subtitle}
-                      </span>
-                    </div>
-                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--accent)]">
-                      <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-                      {t('sourcesStarterApply')}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
-
+            {renderStarterPackGrid(selectMediaStarterPacks(STARTER_PACKS, lang, filter))}
             <div className="pt-1">
               <button type="button" className="primary-action inline-flex items-center gap-2" onClick={onSources}>
                 <Layers className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -608,10 +886,46 @@ export function MediaView({
         )
       )}
 
-      {showFilteredEmpty && (
+      {/* Search returned 0 matches */}
+      {showSearchEmpty && (
         <ViewStatus
-          title={t('mediaEmpty')}
+          title={copy.searchNoResults}
           action={
+            <button
+              type="button"
+              className="choice-pill"
+              onClick={() => {
+                setMediaQuery('');
+                setSelectedChannel(null);
+              }}
+            >
+              {copy.clearSearch}
+            </button>
+          }
+        />
+      )}
+
+      {/* Contextual Empty State when user switches to Audio or Videos and has 0 sources for THAT format */}
+      {showFormatEmpty && (
+        <div className="space-y-5 border-t border-[var(--line)] pt-5">
+          <div className="space-y-1.5">
+            <h2 className="text-xl font-bold tracking-tight text-[var(--ink)]">
+              {filter === 'audio' ? copy.emptyAudioTitle : copy.emptyVideoTitle}
+            </h2>
+            <p className="max-w-xl text-sm leading-relaxed text-[var(--muted)]">
+              {filter === 'audio' ? copy.emptyAudioHint : copy.emptyVideoHint}
+            </p>
+          </div>
+          {renderStarterPackGrid(selectMediaStarterPacks(STARTER_PACKS, lang, filter))}
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="primary-action inline-flex items-center gap-2"
+              onClick={onSources}
+            >
+              <Layers className="h-4 w-4 shrink-0" aria-hidden="true" />
+              {t('mediaManageSources')}
+            </button>
             <button
               type="button"
               className="choice-pill"
@@ -622,11 +936,72 @@ export function MediaView({
             >
               {t('sourcesResetFilters')}
             </button>
-          }
-        />
+          </div>
+        </div>
       )}
 
-      {/* YouTube-Shorts / Instagram-Reels 9:16 Vertical Preview Shelf */}
+      {/* Continue Listening Strip ("Weiterhören") */}
+      {showContinueListening && (
+        <section aria-labelledby="media-continue-heading" className="screen-entry space-y-3">
+          <h2 id="media-continue-heading" className="text-lg font-bold tracking-tight text-[var(--ink)]">
+            {copy.continueListening}
+          </h2>
+          <ul className="media-shorts-shelf -mx-4 flex gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
+            {continueListening.map(({ entry: { article, media }, progressPct, remainingSec, seconds }) => {
+              const isPlaying = activeAudioUrl === media.url;
+              const remainingMin = Math.max(1, Math.ceil(remainingSec / 60));
+              return (
+                <li key={media.url} className="w-[17rem] shrink-0 sm:w-[19rem]">
+                  <button
+                    type="button"
+                    onClick={() => playAudioWithQueue(article, media)}
+                    className={`settings-group article-card-interactive flex w-full items-center gap-3 p-3 text-left ${
+                      isPlaying ? 'ring-1 ring-[var(--accent)]/50' : ''
+                    }`}
+                  >
+                    <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-slate-900 text-white">
+                      {article.imageUrl ? (
+                        <ArticleImage
+                          src={article.imageUrl}
+                          alt=""
+                          sourceShortCode={article.sourceShortCode}
+                          sourceColor={article.sourceColor}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <span className="grid h-full w-full place-items-center">
+                          <Headphones size={20} aria-hidden="true" />
+                        </span>
+                      )}
+                      <span className="absolute inset-0 grid place-items-center bg-black/30">
+                        <Play size={15} fill="currentColor" className="translate-x-0.5" aria-hidden="true" />
+                      </span>
+                    </div>
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <p className="truncate text-[11px] font-semibold text-[var(--muted)]">
+                        {article.sourceName}
+                      </p>
+                      <p className="line-clamp-1 text-sm font-bold text-[var(--ink)]">
+                        {article.title}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <div className="h-1 flex-1 overflow-hidden rounded-full bg-[var(--control)]">
+                          <div className="h-full bg-[var(--accent)]" style={{ width: `${progressPct}%` }} />
+                        </div>
+                        <span className="shrink-0 text-[10.5px] font-semibold text-[var(--accent)] tabular-nums">
+                          {remainingSec > 0 ? copy.remainingMin(remainingMin) : formatAudioClock(seconds)}
+                        </span>
+                      </div>
+                    </div>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+
+      {/* 9:16 Vertical Shorts Preview Shelf */}
       {showShortsShelf && (
         <section aria-labelledby="clips-shelf-heading" className="screen-entry space-y-3">
           <div className="flex items-center justify-between gap-3">
@@ -692,14 +1067,14 @@ export function MediaView({
         </section>
       )}
 
-      {/* YouTube-Style Widescreen Video Hub */}
+      {/* Widescreen Video Hub */}
       {showVideos && (
         <section aria-labelledby="media-video-heading" className="screen-entry space-y-4">
           <div className="flex items-center justify-between gap-3">
             <h2 id="media-video-heading" className="text-xl font-bold tracking-tight text-[var(--ink)]">
               {t('mediaVideoSection')}
             </h2>
-            {filter === 'all' && videoItems.length > 3 && (
+            {filter === 'all' && videoItems.length > 6 && (
               <button
                 type="button"
                 className="choice-pill inline-flex items-center gap-1"
@@ -716,14 +1091,26 @@ export function MediaView({
 
           <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {activeVideoEntry && renderVideoCard(activeVideoEntry, true)}
-            {(filter === 'all' ? videoItems.slice(0, 6) : videoItems)
+            {(filter === 'all' ? videoItems.slice(0, 6) : videoItems.slice(0, videoLimit))
               .filter(({ media }) => media.url !== activeVideoEntry?.media.url)
               .map(entry => renderVideoCard(entry, false))}
           </ul>
+
+          {filter === 'video' && videoItems.length > videoLimit && (
+            <div className="flex justify-center pt-1">
+              <button
+                type="button"
+                className="choice-pill"
+                onClick={() => setVideoLimit(n => n + 12)}
+              >
+                {copy.showMore} ({videoItems.length - videoLimit})
+              </button>
+            </div>
+          )}
         </section>
       )}
 
-      {/* Spotify / Apple Podcasts-Style Audio Hub */}
+      {/* Audio & Podcasts Hub */}
       {showAudio && (
         <section aria-labelledby="media-audio-heading" className="screen-entry space-y-3.5">
           <div className="flex items-center justify-between gap-3">
@@ -746,8 +1133,79 @@ export function MediaView({
           </div>
 
           <ul className="grid gap-3.5 md:grid-cols-2">
-            {(filter === 'all' ? audioItems.slice(0, 4) : audioItems).map(entry => renderAudioCard(entry))}
+            {(filter === 'all' ? audioItems.slice(0, 4) : audioItems.slice(0, audioLimit)).map(entry => renderAudioCard(entry))}
           </ul>
+
+          {filter === 'audio' && audioItems.length > audioLimit && (
+            <div className="flex justify-center pt-1">
+              <button
+                type="button"
+                className="choice-pill"
+                onClick={() => setAudioLimit(n => n + 12)}
+              >
+                {copy.showMore} ({audioItems.length - audioLimit})
+              </button>
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* Persistent Media Channel & Pack Discovery Shelf (zero dead-ends!) */}
+      {hasAnyMedia && filter !== 'clips' && !hasSearchQuery && (discoverChannels.length > 0 || contextualPacks.length > 0) && (
+        <section aria-labelledby="media-discover-channels-heading" className="space-y-4 border-t border-[var(--line)] pt-6">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 id="media-discover-channels-heading" className="text-lg font-bold tracking-tight text-[var(--ink)]">
+                {copy.discoverChannels}
+              </h2>
+              <p className="mt-0.5 text-xs text-[var(--muted)]">{copy.discoverChannelsHint}</p>
+            </div>
+            <button
+              type="button"
+              onClick={onSources}
+              className="inline-flex min-h-[44px] shrink-0 items-center gap-0.5 text-xs font-semibold text-[var(--muted)] transition-colors hover:text-[var(--ink)]"
+            >
+              {t('discoverAllSources')}
+              <ChevronRight className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </div>
+
+          {renderStarterPackGrid(contextualPacks)}
+
+          {onToggleSubscribe && discoverChannels.length > 0 && (
+            <div className="no-scrollbar flex gap-2.5 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 lg:grid-cols-3">
+              {discoverChannels.map(src => (
+                <div
+                  key={src.id}
+                  className="source-card flex w-[230px] shrink-0 sm:w-auto items-center justify-between gap-3 rounded-[var(--card-radius)] border p-3"
+                >
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <SourceIcon source={src} size="h-9 w-9" rounded="rounded-full" />
+                    <div className="min-w-0">
+                      <h3 className="truncate text-sm font-bold text-[var(--ink)]">{src.name}</h3>
+                      <p className="truncate text-[11px] font-medium text-[var(--muted)]">
+                        {src.region ? `${src.region} · ` : ''}{categoryLabel(src.category)}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onToggleSubscribe(src.id)}
+                    aria-label={src.subscribed ? `${src.name}: ${t('discoverFollowing')}` : `${src.name}: ${t('discoverFollow')}`}
+                    aria-pressed={src.subscribed}
+                    data-active={src.subscribed || undefined}
+                    className="source-toggle-btn reaction-btn flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
+                  >
+                    {src.subscribed ? (
+                      <Check className="h-4 w-4" strokeWidth={2.5} aria-hidden="true" />
+                    ) : (
+                      <Plus className="h-4 w-4" aria-hidden="true" />
+                    )}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
       )}
     </section>

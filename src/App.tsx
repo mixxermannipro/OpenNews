@@ -1,9 +1,7 @@
 import type { WidgetLaunch } from './lib/newsWidget';
-import { DailyBriefing, type DailyBriefingSettings } from './lib/dailyBriefing';
+import type { DailyBriefingSettings } from './lib/dailyBriefing';
 import { clusterStories } from './lib/storyClusters';
-import { clearAIResults, pruneAIResults } from './lib/aiCache';
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { NewsPush } from './lib/newsPush';
 import { Capacitor, SystemBars, SystemBarsStyle } from '@capacitor/core';
 import { Bell, Compass, Home, Clapperboard, User } from 'lucide-react';
 import { AnimatePresence, MotionConfig, motion } from 'motion/react';
@@ -22,7 +20,7 @@ import type {
   ThemeMode,
   TTSProviderConfig,
 } from './types/news';
-import { DEFAULT_AI_CONFIG, migrateAIConfig } from './lib/aiClient';
+import { DEFAULT_AI_CONFIG, migrateAIConfig } from './lib/aiConfig';
 import { clipSourceIds, DEFAULT_SOURCES, legacyCatalogUrls, pushSources } from './lib/catalog';
 import {
   createDefaultProfile,
@@ -46,14 +44,21 @@ import { ViewStatus } from './components/ViewStatus';
 import { HomeView } from './components/HomeView';
 import type { SettingsSectionTab } from './components/SettingsView';
 
-import { recordDiagnostic } from './lib/diagnostics';
 import { OfflineIndicator } from './components/PWAInstallButton';
 
 import { DEFAULT_PREFERENCES, applyEditionSources, resolveHomeTab, resolveRetention, type AppPreferences, type HomeTab } from './lib/preferences';
 import { I18nProvider, resolveLanguage, translate } from './lib/i18n';
 import type { ProfilePage } from './components/Preferences';
 import { createMuteRule, filterMutedArticles, pruneExpiredMutes, type MuteDuration, type MutedKeywordRule } from './lib/keywordFilter';
-import { upsertAudioPosition, type ArticleHighlight, type AudioPositionEntry, type ReaderSurfaceTheme } from './lib/readerExtras';
+import {
+  resolveNeighborArticles,
+  upsertAudioPosition,
+  upsertReadingProgress,
+  type ArticleHighlight,
+  type AudioPositionEntry,
+  type ReaderSurfaceTheme,
+  type ReadingProgressEntry,
+} from './lib/readerExtras';
 import type { ActiveAudioTrack } from './components/MiniAudioPlayer';
 import type { PlayableMedia } from './lib/articleMedia';
 
@@ -97,7 +102,17 @@ export default function App() {
   const { tab: activeTab, settings: settingsSection, profile: profilePage, saved: savedPage, article: activeArticle } = location;
   const navigate = (next: Partial<AppLocation>) => {
     const destination = { ...location, article: null, summary: false, briefing: false, ...next };
-    if (JSON.stringify(destination) === JSON.stringify(location)) return;
+    if (
+      destination.tab === location.tab
+      && destination.profile === location.profile
+      && destination.settings === location.settings
+      && destination.saved === location.saved
+      && destination.article?.id === location.article?.id
+      && Boolean(destination.summary) === Boolean(location.summary)
+      && Boolean(destination.briefing) === Boolean(location.briefing)
+    ) {
+      return;
+    }
     window.history.pushState({ openNews: destination }, '');
     setLocation(destination);
   };
@@ -134,7 +149,7 @@ export default function App() {
   const [homeCategory, setHomeCategory] = useState<HomeTab>(() => resolveHomeTab(preferences.home));
   const retention = resolveRetention(preferences.retention);
   useEffect(() => {
-    const prune = () => void pruneAIResults(retention).catch(() => {});
+    const prune = () => void import('./lib/aiCache').then(({ pruneAIResults }) => pruneAIResults(retention)).catch(() => {});
     prune();
     const timer = window.setInterval(prune, 60 * 60 * 1000);
     return () => window.clearInterval(timer);
@@ -245,8 +260,13 @@ export default function App() {
   const [trackedKeywords, setTrackedKeywords] = useLocalStorage<string[]>('opennews_tracked_keywords', []);
   const [highlights, setHighlights] = useLocalStorage<ArticleHighlight[]>('opennews_highlights', []);
   const [readingQueueIds, setReadingQueueIds] = useLocalStorage<string[]>('opennews_reading_queue', []);
+  const [readingProgress, setReadingProgress] = useLocalStorage<Record<string, ReadingProgressEntry>>('opennews_reading_progress', {});
   const [audioPositions, setAudioPositions] = useLocalStorage<Record<string, AudioPositionEntry>>('opennews_audio_positions', {});
   const [activeAudio, setActiveAudio] = useState<ActiveAudioTrack | null>(null);
+  const [audioQueue, setAudioQueue] = useState<ActiveAudioTrack[]>([]);
+  const [briefingActive, setBriefingActive] = useState(false);
+  const [briefingStopSignal, setBriefingStopSignal] = useState(0);
+  const [readerContextList, setReaderContextList] = useState<NewsArticle[]>([]);
   const [pendingClipUrl, setPendingClipUrl] = useState<string | undefined>(undefined);
 
   const [cachedLiveArticles, setCachedLiveArticles, cachedStorageFailed, cachedStorageReady] = useArticleStorage<NewsArticle[]>(
@@ -277,7 +297,9 @@ export default function App() {
   const [isLoadingFeeds, setIsLoadingFeeds] = useState(false);
   const [readArticles, setReadArticles, historyStorageFailed] = useArticleStorage<NewsArticle[]>('opennews_read_articles', []);
   useEffect(() => {
-    if (cachedStorageFailed || savedStorageFailed || historyStorageFailed) recordDiagnostic('storage-failed');
+    if (cachedStorageFailed || savedStorageFailed || historyStorageFailed) {
+      void import('./lib/diagnostics').then(({ recordDiagnostic }) => recordDiagnostic('storage-failed')).catch(() => {});
+    }
   }, [cachedStorageFailed, savedStorageFailed, historyStorageFailed]);
   const [alertBanner, setAlertBanner] = useState<{ title: string; source: string } | null>(null);
   const [osReducedMotion, setOsReducedMotion] = useState(() =>
@@ -358,6 +380,7 @@ export default function App() {
     if (Capacitor.getPlatform() !== 'android') return;
     const version = ++pushSyncVersion.current;
     try {
+      const { NewsPush } = await import('./lib/newsPush');
       const { status } = await NewsPush.configure({ ...settings, sources: pushSourceIds });
       if (!settings.enabled || version !== pushSyncVersion.current) return;
       setPushPermissionDenied(status === 'denied');
@@ -491,7 +514,9 @@ export default function App() {
 
     const recordResults = (results: FeedResult[]) => {
       if (controller.signal.aborted || !results.length) return;
-      if (results.some(result => !result.ok)) recordDiagnostic('feed-failed');
+      if (results.some(result => !result.ok)) {
+        void import('./lib/diagnostics').then(({ recordDiagnostic }) => recordDiagnostic('feed-failed')).catch(() => {});
+      }
       const checkedAt = Date.now();
       setFeedHealth(previous => {
         const next = { ...previous };
@@ -637,7 +662,7 @@ export default function App() {
     [activeArticles, normalizedProfile, sources, preferences.topics, feedClock]
   );
   const todayLeadArticles = useMemo(
-    () => homeSections.Heute.map(story => story.lead),
+    () => homeSections.Heute.slice(0, 14).flatMap(story => story.reports),
     [homeSections.Heute]
   );
   useLayoutEffect(() => {
@@ -651,12 +676,17 @@ export default function App() {
   useEffect(() => {
     if (Capacitor.getPlatform() !== 'android' || !briefingSettings.enabled) return;
     const headline = homeSections.Heute[0]?.lead.title;
-    if (headline) void DailyBriefing.updateHeadline({ headline: headline.slice(0, 240) }).catch(() => {});
+    if (headline) {
+      void import('./lib/dailyBriefing')
+        .then(({ DailyBriefing }) => DailyBriefing.updateHeadline({ headline: headline.slice(0, 240) }))
+        .catch(() => {});
+    }
   }, [homeSections, briefingSettings.enabled]);
 
   useEffect(() => {
     if (Capacitor.getPlatform() !== 'android' || !onboarded) return;
     let active = true;
+    let dispose: (() => void) | undefined;
     const show = () => {
       if (!active) return;
       const destination = { ...HOME_LOCATION, briefing: true };
@@ -665,11 +695,20 @@ export default function App() {
       setHomeCategory('Heute');
       setLocation(destination);
     };
-    const listener = DailyBriefing.addListener('open', show);
-    void DailyBriefing.getLaunch().then(result => { if (result.open) show(); }).catch(() => {});
+    void import('./lib/dailyBriefing').then(async ({ DailyBriefing }) => {
+      if (!active) return;
+      const handle = await DailyBriefing.addListener('open', show);
+      if (!active) {
+        await handle.remove();
+        return;
+      }
+      dispose = () => { void handle.remove(); };
+      const result = await DailyBriefing.getLaunch();
+      if (result.open) show();
+    }).catch(() => {});
     return () => {
       active = false;
-      void listener.then(handle => handle.remove()).catch(() => {});
+      dispose?.();
     };
   }, [onboarded]);
 
@@ -737,9 +776,18 @@ export default function App() {
     navigate({ tab: 'settings', settings: sec });
   };
 
-  const handleOpenArticle = (article: NewsArticle) => {
+  const handleOpenArticle = (article: NewsArticle, contextList?: readonly NewsArticle[]) => {
     if (activeTab === 'home') {
       setReaderFeedSnapshot(previous => previous ?? homeSections[homeCategory]);
+    }
+    if (contextList && contextList.length > 0) {
+      setReaderContextList([...contextList]);
+    } else {
+      setReaderContextList(previous => (
+        previous.some(item => item.id === article.id)
+          ? previous
+          : homeSections[homeCategory].map(story => story.lead)
+      ));
     }
     navigate({ article });
     const historyEntry = {
@@ -751,6 +799,10 @@ export default function App() {
     setReadArticles(previous => [historyEntry, ...previous.filter(item => articleIdentity(item) !== articleIdentity(article))].slice(0, 60));
     setProfile((prev) => recordArticleRead(normalizeProfile(prev), article));
   };
+
+  const handleSaveReadingProgress = useCallback((articleId: string, ratio: number) => {
+    setReadingProgress(prev => upsertReadingProgress(prev, articleId, ratio));
+  }, [setReadingProgress]);
 
   const handleWidgetLaunch = useRef<(event: WidgetLaunch) => void>(() => {});
   useLayoutEffect(() => {
@@ -881,9 +933,32 @@ export default function App() {
     setTrackedKeywords(prev => prev.filter(k => k !== keyword));
   };
 
-  const handlePlayPersistentAudio = (article: NewsArticle, media: PlayableMedia) => {
-    setActiveAudio(current => (current?.media.url === media.url ? null : { article, media }));
+  const handlePlayPersistentAudio = (
+    article: NewsArticle,
+    media: PlayableMedia,
+    queue?: ActiveAudioTrack[],
+  ) => {
+    if (activeAudio?.media.url !== media.url) {
+      setBriefingStopSignal(n => n + 1);
+    }
+    setActiveAudio(current => {
+      if (current?.media.url === media.url) {
+        setAudioQueue([]);
+        return null;
+      }
+      setAudioQueue(queue ?? []);
+      return { article, media };
+    });
   };
+
+  const handleNextAudioTrack = useCallback(() => {
+    setAudioQueue(previous => {
+      if (previous.length === 0) return previous;
+      const [next, ...rest] = previous;
+      setActiveAudio(next);
+      return rest;
+    });
+  }, []);
 
   const handleSaveAudioPosition = useCallback((url: string, seconds: number, duration: number) => {
     setAudioPositions(prev => upsertAudioPosition(prev, url, seconds, duration));
@@ -902,6 +977,11 @@ export default function App() {
     if (idx >= 0) return queueArticles[idx + 1];
     return queueArticles[0];
   }, [activeArticle, queueArticles]);
+
+  const readerNeighbors = useMemo(
+    () => (activeArticle ? resolveNeighborArticles(activeArticle.id, readerContextList) : { index: -1, total: 0 }),
+    [activeArticle, readerContextList],
+  );
 
   const handleRecordReadingDuration = useCallback(
     (article: NewsArticle, seconds: number) => {
@@ -961,6 +1041,7 @@ export default function App() {
       setRequestingPushPermission(true);
       setPushStatus('');
       try {
+        const { NewsPush } = await import('./lib/newsPush');
         const { allowed } = await NewsPush.requestAccess();
         setPushPermissionDenied(!allowed);
         if (!allowed) {
@@ -984,8 +1065,9 @@ export default function App() {
 
   const handleSendTestNotification = () => {
     if (Capacitor.getPlatform() === 'android') {
-      void NewsPush.test().catch(() =>
-        showAlert('Android hat Benachrichtigungen gesperrt.', 'OpenNews · Test'));
+      void import('./lib/newsPush')
+        .then(({ NewsPush }) => NewsPush.test())
+        .catch(() => showAlert('Android hat Benachrichtigungen gesperrt.', 'OpenNews · Test'));
     } else {
       showAlert('Benachrichtigungen sind aktiv.', 'OpenNews · Test');
     }
@@ -1077,10 +1159,12 @@ export default function App() {
     read: readArticles.length,
   }), [activeSources.length, savedArticles, readArticles.length]);
 
+  const hasFloatingPlayer = Boolean(activeAudio) || (briefingActive && !location.briefing && !activeArticle);
+
   return (
     <I18nProvider lang={activeLanguage}>
     <MotionConfig reducedMotion={preferences.motion === 'reduced' ? 'always' : 'user'}>
-    <div className={`opennews-canvas ${activeAudio ? 'has-mini-player' : ''}`} data-glass={preferences.glass} data-accent={preferences.accent}
+    <div className={`opennews-canvas ${hasFloatingPlayer ? 'has-mini-player' : ''}`} data-glass={preferences.glass} data-accent={preferences.accent}
       data-corners={preferences.corners} data-cards={preferences.cards} data-scale={preferences.textScale}
       data-feed-images={preferences.images} data-nav-hidden={navigationHidden || undefined}>
       {!onboarded ? <Suspense fallback={<ViewStatus title={t('loadingView')} />}><Onboarding
@@ -1168,24 +1252,14 @@ export default function App() {
           <HomeView
             stories={readerFeedSnapshot ?? homeSections[homeCategory]}
             hasActiveSources={activeSources.length > 0}
-            briefing={(
-              <Suspense fallback={null}>
-                <AudioBriefing
-                  articles={todayLeadArticles}
-                  config={aiConfig}
-                  ttsConfig={ttsConfig}
-                  open={Boolean(location.briefing)}
-                  onOpen={() => navigate({ briefing: true })}
-                  onClose={goBack}
-                  onOpenArticle={handleOpenArticle}
-                  onBeforeSpeak={() => setActiveAudio(null)}
-                />
-              </Suspense>
-            )}
+            onOpenBriefing={() => navigate({ briefing: true })}
+            briefingPlaying={briefingActive}
             showHero={preferences.hero}
             selectedCategory={homeCategory}
             onSelectCategory={setHomeCategory}
             profile={normalizedProfile}
+            readingQueueIds={readingQueueIds}
+            readingProgress={readingProgress}
             isLoading={isLoadingFeeds}
             lastUpdatedAt={lastUpdatedAt}
             pendingNewCount={pendingNewCount}
@@ -1197,6 +1271,7 @@ export default function App() {
             onOpenArticle={handleOpenArticle}
             onToggleBookmark={handleToggleBookmark}
             onToggleLike={handleToggleLike}
+            onToggleQueue={handleToggleQueue}
             onDismissLessLikeThis={handleDismissLessLikeThis}
           />
         )}
@@ -1207,6 +1282,8 @@ export default function App() {
             articles={allArticles}
             sources={sources}
             profile={normalizedProfile}
+            readingQueueIds={readingQueueIds}
+            readingProgress={readingProgress}
             mutedKeywords={activeMutedRules}
             trackedKeywords={trackedKeywords}
             onAddMuteKeyword={handleAddMuteKeyword}
@@ -1214,9 +1291,11 @@ export default function App() {
             onAddTrackedKeyword={handleAddTrackedKeyword}
             onRemoveTrackedKeyword={handleRemoveTrackedKeyword}
             onToggleSubscribe={handleToggleSubscribe}
+            onApplyStarterPack={ids => handleSetSourceSubscriptions(ids, true)}
             onOpenArticle={handleOpenArticle}
             onToggleBookmark={handleToggleBookmark}
             onToggleLike={handleToggleLike}
+            onToggleQueue={handleToggleQueue}
             onOpenSourcesSettings={() => openSettings('feeds')}
           />
         )}
@@ -1229,15 +1308,19 @@ export default function App() {
             history={distinctArticles([...readArticles, ...allArticles.filter(article => normalizedProfile.readIds.includes(article.id))])}
             articles={Object.values(savedArticles)}
             queueArticles={queueArticles}
+            readingQueueIds={readingQueueIds}
+            readingProgress={readingProgress}
             highlights={highlights}
             sources={sources}
             profile={normalizedProfile}
             onOpenArticle={handleOpenArticle}
             onToggleBookmark={handleToggleBookmark}
             onToggleLike={handleToggleLike}
+            onToggleQueue={handleToggleQueue}
             onRemoveFromQueue={id => setReadingQueueIds(prev => prev.filter(item => item !== id))}
             onRemoveHighlight={id => setHighlights(prev => prev.filter(item => item.id !== id))}
             onClearHistory={async () => {
+              const { clearAIResults } = await import('./lib/aiCache');
               await clearAIResults();
               setReadArticles([]);
               setProfile(previous => ({ ...normalizeProfile(previous), readIds: [] }));
@@ -1250,6 +1333,7 @@ export default function App() {
           <MediaView
             aiConfig={aiConfig}
             articles={mediaArticles}
+            sources={sources}
             hasActiveSources={activeSources.length > 0}
             loading={isLoadingFeeds}
             background={backgroundPlayback}
@@ -1262,6 +1346,7 @@ export default function App() {
             saved={normalizedProfile.bookmarkedIds}
             onLike={handleToggleLike}
             onSave={handleToggleBookmark}
+            onToggleSubscribe={handleToggleSubscribe}
             onApplyStarterPack={ids => handleSetSourceSubscriptions(ids, true)}
             onEngaged={(article, seconds) => setProfile(previous => {
               const profile = normalizeProfile(previous);
@@ -1295,7 +1380,9 @@ export default function App() {
           }
           autoTranslate={autoTranslate} onAutoTranslate={setAutoTranslate}
           backgroundPlayback={backgroundPlayback} onBackgroundPlayback={setBackgroundPlayback}
-          fontSize={fontSize} fontFamily={fontFamily} onFontSize={setFontSize} onFontFamily={setFontFamily} />}
+          fontSize={fontSize} fontFamily={fontFamily} onFontSize={setFontSize} onFontFamily={setFontFamily}
+          readerTheme={readerTheme} onReaderTheme={setReaderTheme}
+          newspaperMode={newspaperMode} onNewspaperMode={setNewspaperMode} />}
 
         {activeTab === 'settings' && (
           <SettingsView
@@ -1359,6 +1446,27 @@ export default function App() {
         </div>
       </nav>
 
+      {/* Persistent Daily Briefing Dialog + Cross-Tab Mini-Player */}
+      {(Boolean(location.briefing) || briefingActive) && (
+        <Suspense fallback={null}>
+          <AudioBriefing
+            articles={todayLeadArticles}
+            config={aiConfig}
+            ttsConfig={ttsConfig}
+            open={Boolean(location.briefing)}
+            stopSignal={briefingStopSignal}
+            onOpen={() => navigate({ briefing: true })}
+            onClose={goBack}
+            onOpenArticle={handleOpenArticle}
+            onBeforeSpeak={() => {
+              setActiveAudio(null);
+              setAudioQueue([]);
+            }}
+            onPlaybackChange={setBriefingActive}
+          />
+        </Suspense>
+      )}
+
       {/* Persistent Mini-Audio-Player across tabs */}
       {activeAudio && (
         <Suspense fallback={null}>
@@ -1366,10 +1474,15 @@ export default function App() {
             track={activeAudio}
             initialSeconds={audioPositions[activeAudio.media.url]?.seconds ?? 0}
             background={backgroundPlayback}
+            nextTrack={audioQueue[0]}
+            onNextTrack={audioQueue.length > 0 ? handleNextAudioTrack : undefined}
             onSavePosition={handleSaveAudioPosition}
             onEngaged={handleRecordReadingDuration}
             onOpenArticle={handleOpenArticle}
-            onClose={() => setActiveAudio(null)}
+            onClose={() => {
+              setActiveAudio(null);
+              setAudioQueue([]);
+            }}
           />
         </Suspense>
       )}
@@ -1447,17 +1560,30 @@ export default function App() {
             onToggleQueue={handleToggleQueue}
             onAddHighlight={handleAddHighlight}
             onOpenArticle={handleOpenArticle}
-            onPlayRelatedAudio={link => setActiveAudio({ article: link.article, media: link.media })}
+            onPlayRelatedAudio={link => {
+              setBriefingStopSignal(n => n + 1);
+              setActiveAudio({ article: link.article, media: link.media });
+            }}
             onOpenRelatedClip={link => {
               setPendingClipUrl(link.media.url);
               navigate({ tab: 'media' });
             }}
             onRecordReadingDuration={handleRecordReadingDuration}
             onOpenAISettings={() => openSettings('ai')}
-            onBeforeSpeak={() => setActiveAudio(null)}
+            onBeforeSpeak={() => {
+              setActiveAudio(null);
+              setAudioQueue([]);
+              setBriefingStopSignal(n => n + 1);
+            }}
             showSummary={Boolean(location.summary)}
             onOpenSummary={() => navigate({ article: activeArticle, summary: true })}
             onClose={goBack}
+            initialReadingRatio={readingProgress[activeArticle.id]?.ratio}
+            onSaveReadingProgress={handleSaveReadingProgress}
+            previousArticle={readerNeighbors.previous}
+            nextArticle={readerNeighbors.next}
+            articlePosition={readerNeighbors.index >= 0 ? { current: readerNeighbors.index + 1, total: readerNeighbors.total } : undefined}
+            onSearchTopic={() => navigate({ tab: 'discover' })}
           />
         )}
       </AnimatePresence>

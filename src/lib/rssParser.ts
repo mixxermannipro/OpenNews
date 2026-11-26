@@ -1,6 +1,6 @@
 import { transcriptFormat } from './transcript';
 import { XMLParser } from 'fast-xml-parser';
-import { deduplicateAttachments } from './articleMedia';
+import { deduplicateAttachments, isTrackingPixelUrl } from './articleMedia';
 import { extractYouTubeId } from './contentIdentity';
 import type { MediaAttachment, NewsArticle, NewsCategory, NewsSource } from '../types/news';
 
@@ -30,7 +30,27 @@ export function decodeHtmlEntities(input: string): string {
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
     .replace(/&#39;|&apos;/g, "'")
-    .replace(/&nbsp;/g, ' ')
+    .replace(/&nbsp;|&thinsp;|&ensp;|&emsp;/g, ' ')
+    .replace(/&shy;|&zwj;|&zwnj;/g, '')
+    .replace(/&ndash;/g, '–')
+    .replace(/&mdash;/g, '—')
+    .replace(/&hellip;/g, '…')
+    .replace(/&bdquo;/g, '„')
+    .replace(/&ldquo;/g, '“')
+    .replace(/&rdquo;/g, '”')
+    .replace(/&lsquo;/g, '‘')
+    .replace(/&rsquo;/g, '’')
+    .replace(/&sbquo;/g, '‚')
+    .replace(/&laquo;/g, '«')
+    .replace(/&raquo;/g, '»')
+    .replace(/&euro;/g, '€')
+    .replace(/&sect;/g, '§')
+    .replace(/&copy;/g, '©')
+    .replace(/&reg;/g, '®')
+    .replace(/&trade;/g, '™')
+    .replace(/&times;/g, '×')
+    .replace(/&middot;/g, '·')
+    .replace(/&bull;/g, '•')
     .replace(/&auml;/g, 'ä')
     .replace(/&ouml;/g, 'ö')
     .replace(/&uuml;/g, 'ü')
@@ -60,22 +80,39 @@ export function stripHtml(html: string): string {
     .trim();
 }
 
+const RSS_FEED_BOILERPLATE =
+  /^(?:The post .+ appeared first on .+|Der Beitrag .+ erschien zuerst auf .+|(?:Weiterlesen|Read more|Mehr lesen)(?:\s*[.…»›→]*)?)$/i;
+
 export function extractParagraphs(htmlOrText: string, fallbackSummary: string): string[] {
   const clean = stripHtml(htmlOrText);
   const parts = clean
     .split(/\n{2,}/)
     .map((p) => p.trim())
-    .filter((p) => p.length > 24);
+    .filter((p) => p.length > 24 && !RSS_FEED_BOILERPLATE.test(p));
   if (parts.length > 0) return parts.slice(0, 24);
   if (fallbackSummary.trim().length > 0) return [fallbackSummary.trim()];
   return [];
 }
 
+function isTinyImageAttributes(attrs: string): boolean {
+  const widthMatch = attrs.match(/\bwidth\s*=\s*["']?(\d+)/i);
+  const heightMatch = attrs.match(/\bheight\s*=\s*["']?(\d+)/i);
+  const w = widthMatch ? Number(widthMatch[1]) : undefined;
+  const h = heightMatch ? Number(heightMatch[1]) : undefined;
+  return (w !== undefined && w > 0 && w <= 24) || (h !== undefined && h > 0 && h <= 24);
+}
+
 export function extractFirstImageFromHtml(html: string): string | undefined {
   if (!html) return undefined;
-  const match = html.match(/<img[^>]+src=["']([^"']+)["']/i);
-  if (match?.[1] && /^https?:\/\//i.test(match[1])) {
-    return decodeHtmlEntities(match[1]);
+  for (const match of html.matchAll(/<img\b([^>]+)>/gi)) {
+    const attrs = match[1];
+    if (isTinyImageAttributes(attrs)) continue;
+    const srcMatch = attrs.match(/\bsrc\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s"'=<>`]+))/i);
+    const rawSrc = srcMatch?.[1] ?? srcMatch?.[2] ?? srcMatch?.[3];
+    if (rawSrc && /^https?:\/\//i.test(rawSrc)) {
+      const candidate = decodeHtmlEntities(rawSrc);
+      if (!isTrackingPixelUrl(candidate)) return candidate;
+    }
   }
   return undefined;
 }
@@ -100,11 +137,54 @@ export function extractKeywords(title: string, summary: string): string[] {
 
 const feedSections = new Map<string, NewsSource['category']>([
   ['politik', 'Politik'], ['inland', 'Politik'], ['ausland', 'Politik'],
-  ['wirtschaft', 'Wirtschaft'], ['technologie', 'Technologie'], ['digital', 'Technologie'],
-  ['wissenschaft', 'Wissenschaft'], ['wissen', 'Wissenschaft'], ['europa', 'Europa'],
-  ['gesellschaft', 'Gesellschaft'], ['panorama', 'Gesellschaft'],
-  ['kultur', 'Kultur'], ['sport', 'Sport'],
+  ['wirtschaft', 'Wirtschaft'], ['finanzen', 'Wirtschaft'],
+  ['technologie', 'Technologie'], ['digital', 'Technologie'], ['netzwelt', 'Technologie'], ['tech', 'Technologie'],
+  ['wissenschaft', 'Wissenschaft'], ['wissen', 'Wissenschaft'], ['science', 'Wissenschaft'],
+  ['europa', 'Europa'],
+  ['gesellschaft', 'Gesellschaft'], ['panorama', 'Gesellschaft'], ['gesundheit', 'Gesellschaft'],
+  ['kultur', 'Kultur'], ['feuilleton', 'Kultur'], ['medien', 'Kultur'],
+  ['sport', 'Sport'], ['fußball', 'Sport'], ['football', 'Sport'],
 ]);
+
+function matchCategoryText(hay: string): Exclude<NewsCategory, 'Alle' | 'Für dich'> | undefined {
+  if (/\b(sport|bundesliga|fußball|fussball|champions league|europa league|conference league|wm-star|wm-qualifikation|olympia|formel 1|tennis|handball|eishockey|biathlon|ski-weltcup|weltcup|fc bayern|bvb|borussia|dfb|bundestrainer|torwart|spieltag|transfermarkt|abstiegskampf|meisterschale|nba|nfl|nhl|tour de france|grand slam|champions)\b/u.test(hay)) {
+    return 'Sport';
+  }
+  if (/\b(eu-kommission|eu-parlament|europaparlament|europäische union|europapolitik|eu-gipfel|eu-staaten|brüssel|ezb|eurozone|strasbourg|schengen|eu-)\b/u.test(hay)) {
+    return 'Europa';
+  }
+  if (/(?:^|[\s\-:„"‚'(/])(?:[\p{L}]*politik|bundestag|bundesrat|bundesregierung|regierung|kanzler(?:amt|in)?|wahl(?:kampf|en)?|partei(?:en)?|koalition|diplomatie|nato|ukraine|gaza|minister(?:ium|in|präsident[\p{L}]*)?|renten(?:streit|paket|reform|alter|kasse|politik)|rente mit 63|respekt-rente|sozialstaat|bundeswehr|sanktion(?:en)?|parlament|senat|kongress|waffenruhe|asyl[\p{L}]*|migration)\b/u.test(hay)) {
+    return 'Politik';
+  }
+  if (/\b(europa|europäisch[\p{L}]*)\b/u.test(hay)) {
+    return 'Europa';
+  }
+  if (/(?:^|[\s\-:„"‚'(/])(?:[\p{L}]*wirtschaft|wirtschafts[\p{L}]*|börse|dax|inflation|aktien|konjunktur|unternehmen|handel(?:sstreit|skrieg)?|zinsen|leitzins|bank(?:en)?|euro|zölle|us-zölle|strafzölle|zollkonflikt|tarifvertr[\p{L}]*|arbeitsmarkt|gewerkschaft|insolvenz|stellenabbau|quartalszahlen|milliarden|autoindustrie|energiepreis|strompreis|gaspreis)\b/u.test(hay)) {
+    return 'Wirtschaft';
+  }
+  if (/\b(ki|künstliche intelligenz|ai|software|chip|chips|halbleiter|hardware|apple|google|microsoft|openai|nvidia|linux|android|iphone|smartphone|cyber[\p{L}]*|hacker|ransomware|tech|digital[\p{L}]*|robot(?:er|axi)?|quantencomputer|rechenzentrum|cloud|open source)\b/u.test(hay)) {
+    return 'Technologie';
+  }
+  if (/\b(wissenschaft|forschung|forscher[\p{L}]*|studie|nasa|esa|weltraum|raumfahrt|asteroid[\p{L}]*|krater|einschlagkrater|planet|mars|satellit[\p{L}]*|teleskop|klima(?:wandel|krise|schutz)?|energie|physik|chemie|biologie|medizin|biotech|evolution|neandertaler|homo sapiens|archäolog[\p{L}]*|fossil|genetik|impfstoff|viren|masern[\p{L}]*|gesundheitsbehörde)\b/u.test(hay)) {
+    return 'Wissenschaft';
+  }
+  if (/\b(gesellschaft|sturmwarnung|unwetter|hochwasser|erdbeben|waldbrand|großbrand|polizei|ermittlungen|gericht|urteil|prozess|schule|bildung|kita|pflege|krankenhaus|bahnstreik|verbraucher|rückruf|warnung)\b/u.test(hay)) {
+    return 'Gesellschaft';
+  }
+  if (/\b(kultur|film|kino|serie|musik|album|konzert|buch|roman|literatur|kunst|theater|oper|museum|ausstellung|feuilleton|oscar|berlinale|parade|supermodel|schauspieler(?:in)?|sänger(?:in)?|regisseur(?:in)?|mode)\b/u.test(hay)) {
+    return 'Kultur';
+  }
+  return undefined;
+}
+
+export function cleanAuthor(raw: string): string | undefined {
+  const cleaned = stripHtml(raw)
+    .replace(/^[\s\-–—,:|•/]+/, '')
+    .replace(/[\s\-–—,:|•/]+$/, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return cleaned.length >= 2 ? cleaned : undefined;
+}
 
 export function inferCategory(
   rawCategory: unknown,
@@ -125,29 +205,10 @@ export function inferCategory(
   }
   if (/\b(?:bundespräsiden[\p{L}]*|steinmeier|afd)\b/iu.test(title)) return 'Politik';
   const raw = labels.join(' ');
-  const hay = `${raw} ${title} ${summary}`.toLowerCase();
-
-  if (/\b(politik|bundestag|regierung|kanzler|wahl|partei|diplomatie|nato|ukraine|gaza|minister)\b/.test(hay)) {
-    return 'Politik';
-  }
-  if (/\b(europa|eu-|europäisch|brüssel|ezb|eurozone|strasbourg)\b/.test(hay)) {
-    return 'Europa';
-  }
-  if (/\b(wirtschaft|börse|dax|inflation|aktien|konjunktur|unternehmen|handel|zinsen|bank|euro)\b/.test(hay)) {
-    return 'Wirtschaft';
-  }
-  if (/\b(ki|künstliche intelligenz|ai|software|chip|hardware|apple|google|linux|cyber|tech|digital|robot)\b/.test(hay)) {
-    return 'Technologie';
-  }
-  if (/\b(wissenschaft|forschung|studie|nasa|weltraum|planet|klima|energie|physik|medizin|biotech)\b/.test(hay)) {
-    return 'Wissenschaft';
-  }
-  if (/\b(kultur|film|musik|buch|kunst|theater|museum)\b/.test(hay)) {
-    return 'Kultur';
-  }
-  if (/\b(sport|bundesliga|fußball|olympia|champions|formel 1|tennis)\b/.test(hay)) {
-    return 'Sport';
-  }
+  const fromTitle = matchCategoryText(`${raw} ${title}`.toLowerCase());
+  if (fromTitle) return fromTitle;
+  const fromSummary = matchCategoryText(summary.toLowerCase());
+  if (fromSummary) return fromSummary;
   return fallback;
 }
 
@@ -178,29 +239,104 @@ function records(value: unknown): Record<string, unknown>[] {
   );
 }
 
-function pickImageUrl(item: Record<string, unknown>, rawHtml: string): string | undefined {
+function pickImageUrl(item: Record<string, unknown>, rawHtml: string, channelImage?: string): string | undefined {
   for (const media of asArray(item['media:content'] as Record<string, unknown> | Record<string, unknown>[])) {
     const url = media?.['@_url'];
     const medium = media?.['@_medium'];
     const mime = String(media?.['@_type'] || '').toLowerCase();
-    if (typeof url === 'string' && (medium === 'image' || mime.startsWith('image/'))) return url;
+    if (typeof url === 'string' && (medium === 'image' || mime.startsWith('image/')) && !isTrackingPixelUrl(url)) {
+      return url;
+    }
   }
   const group = item['media:group'] as Record<string, unknown> | undefined;
   const mediaThumbs = [...records(item['media:thumbnail']), ...records(group?.['media:thumbnail'])];
   for (const t of mediaThumbs) {
     const url = t?.['@_url'] as string | undefined;
-    if (url) return url;
+    if (url && !isTrackingPixelUrl(url)) return url;
   }
   const enclosures = asArray(item['enclosure'] as Record<string, unknown> | Record<string, unknown>[]);
   for (const enc of enclosures) {
     const url = enc?.['@_url'] as string | undefined;
     const type = String(enc?.['@_type'] || '');
-    if (url && type.startsWith('image/')) return url;
+    if (url && type.startsWith('image/') && !isTrackingPixelUrl(url)) return url;
   }
   const itunesImage = item['itunes:image'] as Record<string, unknown> | undefined;
-  if (itunesImage?.['@_href']) return String(itunesImage['@_href']);
+  if (itunesImage?.['@_href'] && !isTrackingPixelUrl(String(itunesImage['@_href']))) {
+    return String(itunesImage['@_href']);
+  }
 
-  return extractFirstImageFromHtml(rawHtml);
+  return extractFirstImageFromHtml(rawHtml) || channelImage;
+}
+
+function pickChannelImageUrl(channel: Record<string, unknown> | undefined, baseUrl: string): string | undefined {
+  if (!channel) return undefined;
+  const candidates: unknown[] = [];
+  const itunesImage = channel['itunes:image'] as Record<string, unknown> | string | undefined;
+  if (typeof itunesImage === 'string') candidates.push(itunesImage);
+  else if (itunesImage && typeof itunesImage === 'object') candidates.push(itunesImage['@_href'], itunesImage['#text']);
+  const rssImage = channel.image as Record<string, unknown> | string | undefined;
+  if (typeof rssImage === 'string') candidates.push(rssImage);
+  else if (rssImage && typeof rssImage === 'object') candidates.push(rssImage.url, rssImage['@_href']);
+  candidates.push(getText(channel.logo), getText(channel.icon));
+  for (const thumb of records(channel['media:thumbnail'])) candidates.push(thumb['@_url']);
+
+  for (const raw of candidates) {
+    const resolved = mediaUrl(raw, baseUrl)?.href;
+    if (resolved && !isTrackingPixelUrl(resolved)) return resolved;
+  }
+  return undefined;
+}
+
+export function parseDurationSeconds(raw: unknown): number | undefined {
+  const text = getText(raw).trim();
+  if (!text) return undefined;
+  if (/^\d+(?:\.\d+)?$/.test(text)) {
+    const secs = Math.round(Number(text));
+    return secs > 0 && secs < 24 * 3600 ? secs : undefined;
+  }
+  const parts = text.split(':').map(part => Number(part.trim()));
+  if (parts.length >= 2 && parts.length <= 3 && parts.every(n => Number.isFinite(n) && n >= 0)) {
+    const secs = parts.length === 3
+      ? parts[0] * 3600 + parts[1] * 60 + parts[2]
+      : parts[0] * 60 + parts[1];
+    return secs > 0 && secs < 24 * 3600 ? Math.round(secs) : undefined;
+  }
+  return undefined;
+}
+
+function extractItemDurationSec(item: Record<string, unknown>): number | undefined {
+  const fromItunes = parseDurationSeconds(item['itunes:duration']);
+  if (fromItunes) return fromItunes;
+  for (const group of [item, ...records(item['media:group'])]) {
+    for (const entry of records(group['media:content'])) {
+      const fromMedia = parseDurationSeconds(entry['@_duration']);
+      if (fromMedia) return fromMedia;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Cleanly terminates an oversized RSS/Atom XML prefix (e.g. a 9 MB podcast archive)
+ * at the last complete </item> or </entry> tag so fast-xml-parser extracts all newest episodes.
+ */
+export function repairTruncatedFeedXml(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed || trimmed.startsWith('{')) return raw;
+
+  const lastItemEnd = trimmed.lastIndexOf('</item>');
+  if (lastItemEnd !== -1 && !/<\/rss>\s*$/i.test(trimmed) && !/<\/rdf:RDF>\s*$/i.test(trimmed)) {
+    const head = trimmed.slice(0, lastItemEnd + '</item>'.length);
+    if (/<rdf:RDF\b/i.test(head)) return `${head}\n</rdf:RDF>`;
+    return `${head}\n</channel>\n</rss>`;
+  }
+
+  const lastEntryEnd = trimmed.lastIndexOf('</entry>');
+  if (lastEntryEnd !== -1 && !/<\/feed>\s*$/i.test(trimmed)) {
+    return `${trimmed.slice(0, lastEntryEnd + '</entry>'.length)}\n</feed>`;
+  }
+
+  return raw;
 }
 
 function mediaUrl(value: unknown, base?: string): URL | undefined {
@@ -246,6 +382,7 @@ function collectMedia(
     else if (/\.(mp4|m4v|webm|ogv|mov|m3u8)$/i.test(url.pathname) || mimeType === 'application/vnd.apple.mpegurl') type = 'video';
     else if (/\.(jpe?g|png|gif|webp|avif)$/i.test(url.pathname)) type = 'image';
 
+    if (type === 'image' && isTrackingPixelUrl(url.href)) return;
     if (type && (!media.has(url.href) || (type === 'video' && portrait))) {
       media.set(url.href, { type, url: url.href, mimeType, ...(type === 'video' && portrait && { portrait: true }) });
     }
@@ -277,6 +414,7 @@ function collectMedia(
       const name = tag[2].toLowerCase();
       if (name === 'audio' || name === 'video') parent = tag[1] ? undefined : name;
       if (tag[1]) continue;
+      if (name === 'img' && isTinyImageAttributes(tag[3])) continue;
       const attributes = new Map(
         [...tag[3].matchAll(/([^\s=/"'<>]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))/g)]
           .map((attribute) => [attribute[1].toLowerCase(), attribute[2] ?? attribute[3] ?? attribute[4]]),
@@ -295,12 +433,19 @@ function collectMedia(
       return format ? [{ url: url.href, format }] : [];
     })[0];
 
-  const entries = deduplicateAttachments([...media.values()]);
+  const durationSec = extractItemDurationSec(item);
+  const rawEntries = deduplicateAttachments([...media.values()]);
+  const entries = durationSec
+    ? rawEntries.map(entry => (entry.type === 'audio' || entry.type === 'video' ? { ...entry, durationSec } : entry))
+    : rawEntries;
   const first = (type: MediaAttachment['type']) => entries.find(entry => entry.type === type)?.url;
+  const resolvedImage = mediaUrl(imageUrl, base)?.href;
+  const safeImage = resolvedImage && !isTrackingPixelUrl(resolvedImage) ? resolvedImage : undefined;
   return {
     media: entries.length ? entries : undefined,
     ...(transcript && { transcript }),
-    imageUrl: mediaUrl(imageUrl, base)?.href || first('image'),
+    ...(durationSec && { durationSec }),
+    imageUrl: first('image') || safeImage,
     videoUrl: first('video'),
     audioUrl: first('audio'),
     youtubeId: extractYouTubeId(first('youtube') || ''),
@@ -342,7 +487,8 @@ export function parseFeedPayload(rawText: string, source: NewsSource): NewsArtic
           const title = decodeHtmlEntities(String(item.title || 'Ohne Titel')).trim();
           const html = String(item.content_html || item.summary || item.content_text || '');
           const summary = stripHtml(String(item.summary || item.content_text || html)).slice(0, 280);
-          const link = String(item.url || item.external_url || '');
+          const rawLink = String(item.url || item.external_url || '');
+          const link = mediaUrl(rawLink, source.url)?.href || '';
           const paragraphs = extractParagraphs(html, summary);
           const imageUrl =
             typeof item.image === 'string'
@@ -357,7 +503,7 @@ export function parseFeedPayload(rawText: string, source: NewsSource): NewsArtic
           const authorObj = Array.isArray(item.authors) ? item.authors[0] : item.author;
           const authorName =
             typeof authorObj === 'object' && authorObj !== null
-              ? String((authorObj as Record<string, unknown>).name || '')
+              ? cleanAuthor(String((authorObj as Record<string, unknown>).name || ''))
               : undefined;
 
           return {
@@ -371,7 +517,7 @@ export function parseFeedPayload(rawText: string, source: NewsSource): NewsArtic
             paragraphs,
             link: link || source.url,
             linkIsFeed: !link || link === source.url,
-            author: authorName || undefined,
+            author: authorName,
             category: inferCategory(item.tags, title, summary, source.category),
             publishedAt: safeIsoDate(item.date_published || item.date_modified),
             readingTimeMin: estimateReadingTime(`${title} ${paragraphs.join(' ')}`),
@@ -403,6 +549,7 @@ export function parseFeedPayload(rawText: string, source: NewsSource): NewsArtic
       : [];
 
   if (rssItems.length > 0) {
+    const channelImage = pickChannelImageUrl(rssChannel, source.url);
     return rssItems
       .slice(0, 25)
       .map((item) => {
@@ -412,11 +559,12 @@ export function parseFeedPayload(rawText: string, source: NewsSource): NewsArtic
           getText(item.description) ||
           getText(item['itunes:summary']);
         const summary = stripHtml(getText(item.description) || rawHtml).slice(0, 280);
-        const link = getText(item.link) || getText(item.guid);
+        const rawLink = getText(item.link) || getText(item.guid);
+        const link = mediaUrl(rawLink, source.url)?.href || '';
         const paragraphs = extractParagraphs(rawHtml, summary);
-        const imageUrl = pickImageUrl(item, rawHtml);
+        const imageUrl = pickImageUrl(item, rawHtml, channelImage);
         const media = collectMedia(item, link, source.url, rawHtml, getText(item.description), imageUrl);
-        const author = stripHtml(getText(item['dc:creator'] || item.author)) || undefined;
+        const author = cleanAuthor(getText(item['dc:creator'] || item.author));
 
         return {
           id: makeStableId(source.id, getText(item.guid) || link, title),
@@ -445,6 +593,7 @@ export function parseFeedPayload(rawText: string, source: NewsSource): NewsArtic
 
   // Atom 1.0
   const atomFeed = parsed.feed as Record<string, unknown> | undefined;
+  const atomChannelImage = pickChannelImageUrl(atomFeed, source.url);
   const atomEntries = atomFeed
     ? asArray(atomFeed.entry as Record<string, unknown> | Record<string, unknown>[])
     : [];
@@ -459,12 +608,13 @@ export function parseFeedPayload(rawText: string, source: NewsSource): NewsArtic
 
       const links = asArray(entry.link as Record<string, unknown> | Record<string, unknown>[]);
       const altLink = links.find((l) => !l['@_rel'] || l['@_rel'] === 'alternate');
-      const link = String(altLink?.['@_href'] || getText(entry.id));
+      const rawLink = String(altLink?.['@_href'] || getText(entry.id));
+      const link = mediaUrl(rawLink, source.url)?.href || '';
 
       const paragraphs = extractParagraphs(rawHtml, summary);
-      const media = collectMedia(entry, link, source.url, rawHtml, getText(entry.summary), pickImageUrl(entry, rawHtml));
+      const media = collectMedia(entry, link, source.url, rawHtml, getText(entry.summary), pickImageUrl(entry, rawHtml, atomChannelImage));
       const authorObj = entry.author as Record<string, unknown> | undefined;
-      const author = authorObj ? stripHtml(getText(authorObj.name)) : undefined;
+      const author = authorObj ? cleanAuthor(getText(authorObj.name)) : undefined;
 
       return {
         id: makeStableId(source.id, getText(entry.id) || link, title),

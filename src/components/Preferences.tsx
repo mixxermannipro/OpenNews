@@ -24,8 +24,6 @@ import { PWAInstallButton } from './PWAInstallButton';
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   DEFAULT_PREFERENCES,
-  EDITIONS,
-  RETENTION_OPTIONS,
   TOPICS,
   resolveHomeTab,
   resolveRetention,
@@ -35,6 +33,8 @@ import {
 } from '../lib/preferences';
 import { APP_LANGUAGES, useI18n, type LanguageSetting } from '../lib/i18n';
 import { STARTER_PACKS } from '../lib/catalog';
+import { getSettingsCopy } from '../lib/settingsCopy';
+import type { ReaderSurfaceTheme } from '../lib/readerExtras';
 import { SourceIcon } from './SourceIcon';
 import type { NewsCategory, NewsSource, ReaderFontFamily, ReaderFontSize, ThemeMode } from '../types/news';
 
@@ -136,7 +136,8 @@ export function TopicChoices({ topics, onChange }: { topics: NewsCategory[]; onC
 }
 
 export function Appearance({ theme, onTheme, preferences, onPreferences }: AppearanceProps) {
-  const { t } = useI18n();
+  const { lang, t } = useI18n();
+  const copy = getSettingsCopy(lang);
   const languageOptions: Record<LanguageSetting, string> = {
     system: t('settingsLanguageAuto'),
     de: 'Deutsch',
@@ -156,10 +157,10 @@ export function Appearance({ theme, onTheme, preferences, onPreferences }: Appea
           options={languageOptions}
           onChange={language => onPreferences({ ...preferences, language })}
         />
-        <PreferenceSelect label={t('settingsAccent')} value={preferences.accent} options={{ system: 'Neutral', blue: 'Blau', green: 'Grün', violet: 'Violett' }} onChange={accent => onPreferences({ ...preferences, accent })} />
-        <PreferenceSelect label={t('settingsCards')} value={preferences.cards} options={{ balanced: 'Balanced', compact: 'Compact' }} onChange={cards => onPreferences({ ...preferences, cards })} />
+        <PreferenceSelect label={t('settingsAccent')} value={preferences.accent} options={copy.accentOptions} onChange={accent => onPreferences({ ...preferences, accent })} />
+        <PreferenceSelect label={t('settingsCards')} value={preferences.cards} options={copy.cardOptions} onChange={cards => onPreferences({ ...preferences, cards })} />
         <PreferenceSelect label={t('settingsTextScale')} value={preferences.textScale} options={{ small: 'S', normal: 'M', large: 'L' }} onChange={textScale => onPreferences({ ...preferences, textScale })} />
-        <PreferenceSelect label={t('settingsAnimations')} value={preferences.motion} options={{ system: t('system'), reduced: 'Reduced' }} onChange={motion => onPreferences({ ...preferences, motion })} />
+        <PreferenceSelect label={t('settingsAnimations')} value={preferences.motion} options={copy.motionOptions} onChange={motion => onPreferences({ ...preferences, motion })} />
       </div>
     </div>
   );
@@ -167,7 +168,7 @@ export function Appearance({ theme, onTheme, preferences, onPreferences }: Appea
 
 export type ProfilePage = 'profile' | 'preferences' | 'appearance' | 'feed' | 'reader' | 'motion' | 'playback' | 'privacy' | 'topics' | 'language';
 
-export function ProfileView({ page, onPage, onBack, onSaved, onHistory, onSources, onAI, onNotifications, backupControls, autoTranslate, onAutoTranslate, backgroundPlayback, onBackgroundPlayback, fontSize, fontFamily, onFontSize, onFontFamily, stats, ...appearance }: AppearanceProps & {
+export function ProfileView({ page, onPage, onBack, onSaved, onHistory, onSources, onAI, onNotifications, backupControls, autoTranslate, onAutoTranslate, backgroundPlayback, onBackgroundPlayback, fontSize, fontFamily, onFontSize, onFontFamily, readerTheme, onReaderTheme, newspaperMode, onNewspaperMode, stats, ...appearance }: AppearanceProps & {
   page: ProfilePage;
   onPage: (page: ProfilePage) => void;
   onBack: () => void;
@@ -185,11 +186,17 @@ export function ProfileView({ page, onPage, onBack, onSaved, onHistory, onSource
   fontFamily: ReaderFontFamily;
   onFontSize: (value: ReaderFontSize) => void;
   onFontFamily: (value: ReaderFontFamily) => void;
+  readerTheme?: ReaderSurfaceTheme;
+  onReaderTheme?: (value: ReaderSurfaceTheme) => void;
+  newspaperMode?: boolean;
+  onNewspaperMode?: (value: boolean) => void;
   stats?: { sources: number; saved: number; read: number };
 }) {
   const { lang, t, homeTabLabel } = useI18n();
+  const copy = getSettingsCopy(lang);
   const { preferences, onPreferences } = appearance;
   const activeLanguageLabel = APP_LANGUAGES.find(item => item.code === lang)?.label ?? 'Deutsch';
+  const [recommendedStatus, setRecommendedStatus] = useState('');
   const labels: Record<ProfilePage, string> = {
     profile: t('profileTitle'),
     preferences: t('profileSettings'),
@@ -203,7 +210,10 @@ export function ProfileView({ page, onPage, onBack, onSaved, onHistory, onSource
     language: t('profileLanguage'),
   };
   const title = useRef<HTMLHeadingElement>(null);
-  useEffect(() => { title.current?.focus({ preventScroll: true }); }, [page]);
+  useEffect(() => {
+    title.current?.focus({ preventScroll: true });
+    setRecommendedStatus('');
+  }, [page]);
 
   const link = (label: string, icon: ReactNode, action: () => void, meta?: string) => (
     <button type="button" className="preference-row settings-link" onClick={action}>
@@ -276,12 +286,22 @@ export function ProfileView({ page, onPage, onBack, onSaved, onHistory, onSource
         </div>
       )}
       {page === 'preferences' && <>
-        <button type="button" className="choice-pill" onClick={() => {
-          onPreferences({ ...DEFAULT_PREFERENCES, language: preferences.language, topics: preferences.topics });
-          appearance.onTheme('system');
-          onFontSize('normal');
-          onFontFamily('sans');
-        }}>{t('settingsApplyRecommended')}</button>
+        <div className="space-y-2">
+          <button type="button" className="choice-pill" onClick={() => {
+            onPreferences({ ...DEFAULT_PREFERENCES, language: preferences.language, topics: preferences.topics });
+            appearance.onTheme('system');
+            onFontSize('normal');
+            onFontFamily('sans');
+            onReaderTheme?.('paper');
+            onNewspaperMode?.(false);
+            setRecommendedStatus(copy.recommendedApplied);
+          }}>{t('settingsApplyRecommended')}</button>
+          {recommendedStatus && (
+            <p role="status" className="text-xs font-medium text-[var(--accent)]">
+              {recommendedStatus}
+            </p>
+          )}
+        </div>
         <div className="settings-group">
           {link(labels.language, <Globe aria-hidden="true" />, () => onPage('language'), activeLanguageLabel)}
           {link(labels.appearance, <Palette aria-hidden="true" />, () => onPage('appearance'))}
@@ -311,11 +331,11 @@ export function ProfileView({ page, onPage, onBack, onSaved, onHistory, onSource
       {page === 'appearance' && <Appearance {...appearance} />}
       {page === 'feed' && <>
         <div className="settings-group">
-          <PreferenceSelect label="Journalistische Voreinstellung" value={preferences.edition ?? 'balanced'}
-            options={Object.fromEntries(Object.entries(EDITIONS).map(([key, value]) => [key, value.label])) as Record<Edition, string>}
+          <PreferenceSelect label={copy.editionLabel} value={preferences.edition ?? 'balanced'}
+            options={Object.fromEntries(Object.entries(copy.editions).map(([key, value]) => [key, value.label])) as Record<Edition, string>}
             onChange={edition => onPreferences({ ...preferences, edition })} />
           <p className="px-4 pb-3 text-sm text-[var(--muted)]">
-            {(EDITIONS[preferences.edition] ?? EDITIONS.balanced).description}
+            {(copy.editions[preferences.edition] ?? copy.editions.balanced).description}
           </p>
         </div>
         <div className="settings-group">
@@ -326,14 +346,44 @@ export function ProfileView({ page, onPage, onBack, onSaved, onHistory, onSource
         </div>
         <div className="settings-group">
           <PreferenceSelect label={t('settingsRetention')} value={resolveRetention(preferences.retention)}
-            options={RETENTION_OPTIONS}
+            options={copy.retentionOptions}
             onChange={retention => onPreferences({ ...preferences, retention })} />
         </div>
       </>}
       {page === 'reader' && <div className="space-y-4">
         <div className="settings-group">
-          <PreferenceSelect label={t('settingsArticleFontSize')} value={fontSize} options={{ normal: 'Standard', large: 'L', xlarge: 'XL' }} onChange={onFontSize} />
+          <PreferenceSelect label={t('settingsArticleFontSize')} value={fontSize} options={{ normal: 'M', large: 'L', xlarge: 'XL' }} onChange={onFontSize} />
           <PreferenceSelect label={t('settingsArticleFont')} value={fontFamily} options={{ sans: 'Sans', serif: 'Serif' }} onChange={onFontFamily} />
+          {onReaderTheme && (
+            <PreferenceSelect
+              label={copy.readerThemeLabel}
+              value={readerTheme ?? 'paper'}
+              options={{
+                paper: t('readerThemePaper'),
+                sepia: t('readerThemeSepia'),
+                night: t('readerThemeNight'),
+                default: t('readerThemeDefault'),
+              }}
+              onChange={onReaderTheme}
+            />
+          )}
+          {onNewspaperMode && (
+            <>
+              <label className="preference-row justify-between">
+                <span>{copy.readerNewspaperLabel}</span>
+                <input
+                  type="checkbox"
+                  role="switch"
+                  checked={Boolean(newspaperMode)}
+                  aria-describedby="newspaper-mode-help"
+                  onChange={event => onNewspaperMode(event.target.checked)}
+                />
+              </label>
+              <p id="newspaper-mode-help" className="px-4 pb-3 text-sm text-[var(--muted)]">
+                {copy.readerNewspaperHelp}
+              </p>
+            </>
+          )}
           <label className="preference-row justify-between">
             <span>{t('settingsBgPlayback')}</span>
             <input type="checkbox" role="switch" checked={backgroundPlayback}
@@ -345,7 +395,7 @@ export function ProfileView({ page, onPage, onBack, onSaved, onHistory, onSource
           </p>
           {Capacitor.getPlatform() === 'android' && <>
             <label className="preference-row justify-between">
-              Artikel automatisch auf Deutsch lesen
+              {copy.autoTranslateAndroid}
               <input type="checkbox" checked={autoTranslate} onChange={event => onAutoTranslate(event.target.checked)} />
             </label>
           </>}
@@ -355,7 +405,7 @@ export function ProfileView({ page, onPage, onBack, onSaved, onHistory, onSource
         </div>
       </div>}
       {page === 'motion' && <div className="settings-group">
-        <PreferenceSelect label={t('settingsAnimations')} value={preferences.motion} options={{ system: t('system'), reduced: 'Reduced' }} onChange={motion => onPreferences({ ...preferences, motion })} />
+        <PreferenceSelect label={t('settingsAnimations')} value={preferences.motion} options={copy.motionOptions} onChange={motion => onPreferences({ ...preferences, motion })} />
       </div>}
       {page === 'privacy' && <div className="settings-group p-5 space-y-3 leading-relaxed">
         <p>{t('settingsPrivacyNote1')}</p>

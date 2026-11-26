@@ -66,3 +66,32 @@ test('deduplicates matching Shorts links and well-described reposts across media
   const other = makeArticle('d', 'https://www.youtube.com/shorts/abcdef12345', 'Neue Erkenntnisse über ferne Planeten');
   assert.deepEqual(collectDistinctMedia([first, alternate, repost, other]).map(({ article }) => article.id), ['a', 'd']);
 });
+
+test('deduplicates ZEIT ONLINE, BBC, Tagesschau and SPIEGEL crop variants and prefers higher resolution', () => {
+  const zeitHero = 'https://img.zeit.de/digital/2026-11/ki-chip-bild/original__640x360';
+  const zeitThumb = 'https://img.zeit.de/digital/2026-11/ki-chip-bild/wide__148x84';
+  assert.deepEqual(
+    getReaderAttachments([
+      { type: 'image', url: zeitThumb },
+      { type: 'image', url: zeitHero },
+    ], zeitHero),
+    [],
+  );
+
+  const bbcSmall: MediaAttachment = { type: 'image', url: 'https://ichef.bbci.co.uk/ace/standard/240/cpsprodpb/abc/live/test.jpg' };
+  const bbcLarge: MediaAttachment = { type: 'image', url: 'https://ichef.bbci.co.uk/ace/standard/1024/cpsprodpb/abc/live/test.jpg.webp' };
+  assert.deepEqual(getReaderAttachments([bbcSmall, bbcLarge]), [bbcLarge]);
+
+  const tsHero = 'https://images.tagesschau.de/image/12345-abcd/AAABm/AAABm/16x9-1280/bild.jpg';
+  const tsSquare: MediaAttachment = { type: 'image', url: 'https://images.tagesschau.de/image/12345-abcd/AAABm/AAABm/1x1-840/bild.jpg' };
+  assert.deepEqual(getReaderAttachments([tsSquare], tsHero), []);
+});
+
+test('strips NPR, VG-Wort and generic 1x1 tracking pixels from attachments', () => {
+  const realPhoto: MediaAttachment = { type: 'image', url: 'https://media.npr.org/assets/img/2026/11/25/photo_wide.jpg' };
+  const nprPixel: MediaAttachment = { type: 'image', url: 'https://media.npr.org/include/images/tracking/npr-rss-pixel.png?story=12345' };
+  const vgWort: MediaAttachment = { type: 'image', url: 'https://vg08.met.vgwort.de/na/abcdef123456' };
+  const feedburner: MediaAttachment = { type: 'image', url: 'https://feeds.feedburner.com/~r/example/~4/xyz' };
+
+  assert.deepEqual(getReaderAttachments([realPhoto, nprPixel, vgWort, feedburner]), [realPhoto]);
+});

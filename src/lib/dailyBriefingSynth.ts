@@ -1,4 +1,5 @@
 import type { AppLanguage, NewsArticle } from '../types/news';
+import { isPromotionalNoise } from './newsFeed';
 import { clusterStories } from './storyClusters';
 
 export interface BriefingBullet {
@@ -119,7 +120,9 @@ export function synthesizeLocalBriefing(
     };
   }
 
-  const clusters = clusterStories(articles.slice(0, 36));
+  const editorialArticles = articles.filter(article => !isPromotionalNoise(article));
+  const pool = editorialArticles.length ? editorialArticles : articles;
+  const clusters = clusterStories(pool.slice(0, 40));
   const usedIds = new Set<string>();
   const bullets: BriefingBullet[] = [];
   const usedCategories = new Map<string, number>();
@@ -156,7 +159,7 @@ export function synthesizeLocalBriefing(
     });
   }
 
-  const quickNotes = articles
+  const quickNotes = pool
     .filter(article => !usedIds.has(article.id))
     .slice(0, 3)
     .map(article => ({

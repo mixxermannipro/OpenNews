@@ -168,3 +168,79 @@ test('attenuates multilingual clickbait teasers in Heute while preserving chrono
   assert.equal(sections.Heute[0].lead.id, 'solid');
   assert.equal(sections.Neueste[0].lead.id, 'cb-en');
 });
+
+test('excludes advertorials from Heute, demotes shopping deals, deduplicates same-source clusters and picks best illustrated lead', () => {
+  const now = new Date(2026, 10, 25, 14).getTime();
+  const ad = {
+    ...article, id: 'ad-1', sourceId: 'golem', title: 'Anzeige: Akku-Handstaubsauger jetzt günstig sichern',
+    link: 'https://www.golem.de/news/anzeige-staubsauger.html',
+    publishedAt: new Date(now - 5 * 60_000).toISOString(),
+  };
+  const deal = {
+    ...article, id: 'deal-1', sourceId: 'heise', title: 'Black-Friday-Deals bei Amazon: Die besten Schnäppchen',
+    link: 'https://www.heise.de/news/black-friday-deals.html',
+    publishedAt: new Date(now - 10 * 60_000).toISOString(),
+  };
+  const noImgLead = {
+    ...article, id: 'dart-noimg', sourceId: 'spiegel', category: 'Wissenschaft' as const,
+    title: 'NASA-Sonde Dart hinterließ riesigen Krater auf Asteroid Dimorphos',
+    summary: '',
+    link: 'https://www.spiegel.de/wissenschaft/dart-1.html',
+    publishedAt: new Date(now - 20 * 60_000).toISOString(),
+  };
+  const imgReport = {
+    ...article, id: 'dart-img', sourceId: 'heise', category: 'Wissenschaft' as const,
+    title: 'Asteroid Dimorphos: Neue Bilder zeigen Einschlagkrater der Dart-Mission',
+    summary: 'Neue Aufnahmen aus dem All zeigen erstmals den genauen Einschlagkrater der NASA-Mission auf dem kleinen Asteroiden.',
+    imageUrl: 'https://heise.example.org/dimorphos.jpg',
+    link: 'https://www.heise.de/news/dart-2.html',
+    publishedAt: new Date(now - 25 * 60_000).toISOString(),
+  };
+  const sameSourceDup = {
+    ...article, id: 'hb-1', sourceId: 'handelsblatt', category: 'Wirtschaft' as const,
+    title: 'Europäische Zentralbank hält Leitzins stabil im November',
+    link: 'https://www.handelsblatt.com/ezb-1.html',
+    publishedAt: new Date(now - 30 * 60_000).toISOString(),
+  };
+  const sameSourceDup2 = {
+    ...sameSourceDup, id: 'hb-2',
+    title: 'Leitzins im November: Europäische Zentralbank hält Kurs stabil',
+    link: 'https://www.handelsblatt.com/ezb-2.html',
+    publishedAt: new Date(now - 35 * 60_000).toISOString(),
+  };
+
+  const sections = buildHomeSections(
+    [ad, deal, noImgLead, imgReport, sameSourceDup, sameSourceDup2],
+    createDefaultProfile(),
+    [],
+    now,
+  );
+
+  // Advertorial excluded from Heute, preserved chronologically in Neueste
+  assert.equal(sections.Heute.some(s => s.lead.id === 'ad-1'), false);
+  assert.equal(sections.Neueste[0].lead.id, 'ad-1');
+
+  // Illustrated multi-source cluster wins top slot and selects the illustrated report as lead
+  assert.equal(sections.Heute[0].lead.id, 'dart-img');
+  assert.equal(sections.Heute[0].reports.length, 2);
+
+  // Deal sinks below real journalism
+  assert.equal(sections.Heute[sections.Heute.length - 1].lead.id, 'deal-1');
+
+  // Same-source duplicate reports are collapsed cleanly to 1 entry
+  const hbCluster = sections.Heute.find(s => s.lead.sourceId === 'handelsblatt');
+  assert.ok(hbCluster);
+  assert.equal(hbCluster.reports.length, 1);
+});
+
+test('backfills Heute with recent overnight stories right after midnight when fewer than 8 today items exist', () => {
+  const afterMidnight = new Date(2026, 10, 25, 1, 15).getTime();
+  const lateEvening = {
+    ...article, id: 'evening', title: 'Bundestag beschließt neues Energiepaket am späten Abend',
+    link: 'https://example.org/evening',
+    publishedAt: new Date(afterMidnight - 4 * 3_600_000).toISOString(),
+  };
+  const sections = buildHomeSections([lateEvening], createDefaultProfile(), [], afterMidnight);
+  assert.equal(sections.Heute.length, 1);
+  assert.equal(sections.Heute[0].lead.id, 'evening');
+});

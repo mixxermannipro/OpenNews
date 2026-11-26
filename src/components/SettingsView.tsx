@@ -43,6 +43,7 @@ import { TopicChoices } from './Preferences';
 import { NewsPush } from '../lib/newsPush';
 import { SourcesManager } from './SourcesManager';
 import { useI18n } from '../lib/i18n';
+import { getSettingsCopy } from '../lib/settingsCopy';
 
 export type SettingsSectionTab = 'overview' | 'feeds' | 'ai' | 'app';
 
@@ -158,13 +159,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   };
 
   const handleTestTTS = async () => {
+    const copy = getSettingsCopy(lang);
     setTestingTTS(true);
     setTtsTestStatus(null);
     const sample = getTTSSampleText(lang, ttsScenario);
     try {
       if (normalizedTTS.provider === 'system') {
         if (!('speechSynthesis' in window)) {
-          setTtsTestStatus({ ok: false, message: 'Systemstimme wird in diesem Browser nicht unterstützt.' });
+          setTtsTestStatus({ ok: false, message: copy.ttsSystemUnsupported });
           return;
         }
         window.speechSynthesis.cancel();
@@ -172,7 +174,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         u.lang = locale;
         u.rate = normalizedTTS.scenarios[ttsScenario]?.speed ?? 1;
         window.speechSynthesis.speak(u);
-        setTtsTestStatus({ ok: true, message: 'Systemstimme spielt Beispiel ab.' });
+        setTtsTestStatus({ ok: true, message: copy.ttsSystemPlaying });
         return;
       }
       const blob = await synthesizeSpeechBlob(sample, ttsScenario, normalizedTTS, aiConfig, lang);
@@ -181,11 +183,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       audio.onended = () => URL.revokeObjectURL(url);
       audio.onerror = () => URL.revokeObjectURL(url);
       await audio.play();
-      setTtsTestStatus({ ok: true, message: `${activeTTSMeta.name} spielt Beispiel ab.` });
+      setTtsTestStatus({ ok: true, message: copy.ttsProviderPlaying(activeTTSMeta.name) });
     } catch (err) {
       setTtsTestStatus({
         ok: false,
-        message: err instanceof Error ? err.message : 'Stimm-Test fehlgeschlagen.',
+        message: err instanceof Error ? err.message : copy.ttsTestFailed,
       });
     } finally {
       setTestingTTS(false);

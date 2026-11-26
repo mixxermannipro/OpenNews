@@ -245,7 +245,7 @@ export const SourcesManager: React.FC<SourcesManagerProps> = ({
   const formatHealthText = (source: NewsSource): string | null => {
     const health = feedHealth[source.id];
     if (!health || health.url !== source.url) {
-      return source.subscribed ? null : null;
+      return null;
     }
     if (!source.subscribed && health.consecutiveFailures >= 5) {
       return t('sourcesHealthPaused');

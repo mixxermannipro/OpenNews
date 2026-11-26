@@ -46,6 +46,7 @@ export interface MediaAttachment {
   url: string;
   mimeType?: string;
   portrait?: boolean;
+  durationSec?: number;
 }
 
 export interface NewsArticle {
@@ -64,6 +65,7 @@ export interface NewsArticle {
   category: Exclude<NewsCategory, 'Alle' | 'Für dich'>;
   publishedAt: string; // ISO string
   readingTimeMin: number;
+  durationSec?: number;
   imageUrl?: string;
   media?: MediaAttachment[];
   transcript?: { url: string; format: string };

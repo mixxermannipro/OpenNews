@@ -5,7 +5,7 @@ import { MediaPlayer } from './MediaPlayer';
 
 export function ArticleMedia({ article, heroImage, background }: { article: NewsArticle; heroImage?: string; background: boolean }) {
   const media = article.media ?? getArticleMedia(article);
-  const attachments = getReaderAttachments(media, heroImage);
+  const attachments = getReaderAttachments(media, heroImage, [article.imageUrl]);
   if (!attachments.length) return null;
 
   return (
@@ -17,6 +17,7 @@ export function ArticleMedia({ article, heroImage, background }: { article: News
           alt=""
           sourceShortCode={article.sourceShortCode}
           sourceColor={article.sourceColor}
+          hideOnError
           className="aspect-video w-full overflow-hidden rounded-2xl"
         />
       ) : (

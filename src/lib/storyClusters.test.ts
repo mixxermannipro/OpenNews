@@ -54,3 +54,28 @@ test('handles large article sets with indexed lookup and merges matching reports
   assert.deepEqual(ecbCluster.reports.map(r => r.id), ['lead-story', 'followup-story']);
   assert.equal(groups.length, 301);
 });
+
+test('clusters cross-category German stories with compound nouns and thousand-dot numbers', () => {
+  const t0 = '2026-11-25T10:00:00Z';
+  const t1 = '2026-11-25T11:30:00Z';
+  const reports = [
+    { id: 'masern-zeit', title: 'US-Gesundheitsbehörde meldet mehr als 6.000 Masernfälle', category: 'Gesellschaft', sourceId: 'zeit', publishedAt: t0 },
+    { id: 'masern-dlf', title: 'USA: Mehr als 6.000 Maserninfektionen in diesem Jahr', category: 'Politik', sourceId: 'dlf', publishedAt: t1 },
+    { id: 'rente-ts', title: 'Streit über Rente mit 63 und Respekt-Rente', category: 'Politik', sourceId: 'tagesschau', publishedAt: t0 },
+    { id: 'rente-ntv', title: 'Debatte um Rente mit 63: SPD pocht auf Respekt-Rente', category: 'Politik', sourceId: 'ntv', publishedAt: t1 },
+    { id: 'dart-sp', title: 'NASA-Sonde Dart hinterließ riesigen Krater auf Asteroid Dimorphos', category: 'Wissenschaft', sourceId: 'spiegel', publishedAt: t0 },
+    { id: 'dart-heise', title: 'Asteroid Dimorphos: Neue Bilder zeigen Einschlagkrater der Dart-Mission', category: 'Technologie', sourceId: 'heise', publishedAt: t1 },
+    { id: 'unrelated', title: 'Deutsche Bahn startet neuen Winterfahrplan im Fernverkehr', category: 'Wirtschaft', sourceId: 'faz', publishedAt: t1 },
+  ] as NewsArticle[];
+
+  const groups = clusterStories(reports);
+  assert.deepEqual(
+    groups.map(group => group.reports.map(r => r.id)),
+    [
+      ['masern-zeit', 'masern-dlf'],
+      ['rente-ts', 'rente-ntv'],
+      ['dart-sp', 'dart-heise'],
+      ['unrelated'],
+    ],
+  );
+});

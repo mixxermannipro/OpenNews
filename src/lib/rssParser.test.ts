@@ -1,6 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { inferCategory, parseFeedPayload, stripHtml, estimateReadingTime } from './rssParser';
+import {
+  inferCategory,
+  parseDurationSeconds,
+  parseFeedPayload,
+  repairTruncatedFeedXml,
+  stripHtml,
+  estimateReadingTime,
+} from './rssParser';
 import type { NewsSource } from '../types/news';
 
 const mockSource: NewsSource = {
@@ -178,4 +185,90 @@ test('prefers a known publisher section and recognizes political titles about at
   assert.equal(inferCategory([{ '#text': 'Sport' }], 'Verein bittet Minister um Unterstützung', '', 'Gesellschaft'), 'Sport');
   assert.equal(inferCategory(undefined, 'Steinmeier-Nachfolge: AfD nominiert Fußballer', 'Der ehemalige Spieler war in der Bundesliga.', 'Gesellschaft'), 'Politik');
   assert.equal(inferCategory('International', 'Tanker kollidiert bei New Orleans', '', 'Europa'), 'Europa');
+});
+
+test('strips tracking pixels, 1x1 images, unsafe links and decodes editorial HTML entities', () => {
+  const xml = `<rss><channel><item>
+    <title>Analyse &mdash; &bdquo;Europa&ldquo; &hellip; 10&euro;</title>
+    <link>javascript:alert(1)</link>
+    <description><![CDATA[
+      <p>Ein wichtiger Beitrag zur europäischen Industriepolitik und neuen Investitionen.</p>
+      <img src="https://media.npr.org/include/images/tracking/npr-rss-pixel.png?story=1" width="1" height="1" />
+      <img src="https://example.org/hero.jpg" width="1200" height="675" />
+    ]]></description>
+  </item></channel></rss>`;
+  const [article] = parseFeedPayload(xml, mockSource);
+  assert.equal(article.title, 'Analyse — „Europa“ … 10€');
+  assert.equal(article.link, mockSource.url);
+  assert.equal(article.linkIsFeed, true);
+  assert.equal(article.imageUrl, 'https://example.org/hero.jpg');
+  assert.equal(article.media?.some(item => item.url.includes('npr-rss-pixel')), false);
+});
+
+test('prioritizes headline topic over summary mentions and handles German compounds and Sport vs Europa', () => {
+  assert.equal(
+    inferCategory(undefined, 'In Zagreb dabei - WM-Star Doué vorm Comeback', 'In der Europa League spielt der Klub wieder groß auf.', 'Gesellschaft'),
+    'Sport',
+  );
+  assert.equal(
+    inferCategory(undefined, 'Arbeitsmarktpolitik: Warum der Weg zu mehr Tarifverträgen so schwierig ist', 'Eine neue Studie untersucht Löhne.', 'Wirtschaft'),
+    'Politik',
+  );
+  assert.equal(
+    inferCategory(undefined, 'Ohne den modernen Homo sapiens wären Neandertaler wohl nicht ausgestorben', 'Vor 40.000 Jahren lebten sie in Europa.', 'Gesellschaft'),
+    'Wissenschaft',
+  );
+  assert.equal(
+    inferCategory(undefined, 'Sturmwarnung: Muss die Thanksgiving-Parade in New York auf ihre Riesenballons verzichten?', '', 'Wirtschaft'),
+    'Gesellschaft',
+  );
+});
+
+test('trims trailing punctuation and separators from RSS author names', () => {
+  const xml = `<rss xmlns:dc="http://purl.org/dc/elements/1.1/"><channel><item>
+    <title>Testmeldung</title>
+    <dc:creator>DIE ZEIT: Gesundheit -</dc:creator>
+  </item><item>
+    <title>Zweite Meldung</title>
+    <dc:creator> - </dc:creator>
+  </item></channel></rss>`;
+  const [first, second] = parseFeedPayload(xml, mockSource);
+  assert.equal(first.author, 'DIE ZEIT: Gesundheit');
+  assert.equal(second.author, undefined);
+});
+
+test('inherits channel itunes:image artwork and parses podcast durations onto articles and enclosures', () => {
+  assert.equal(parseDurationSeconds('15:30'), 930);
+  assert.equal(parseDurationSeconds('01:02:05'), 3725);
+  assert.equal(parseDurationSeconds('842'), 842);
+  assert.equal(parseDurationSeconds('invalid'), undefined);
+
+  const xml = `<rss xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"><channel>
+    <title>NPR Up First</title>
+    <itunes:image href="https://media.npr.org/assets/img/upfirst-cover.jpg" />
+    <item>
+      <title>Morning Briefing</title>
+      <link>https://npr.org/episodes/1</link>
+      <enclosure url="https://play.npr.org/ep1.mp3" type="audio/mpeg" />
+      <itunes:duration>14:25</itunes:duration>
+    </item>
+  </channel></rss>`;
+
+  const [episode] = parseFeedPayload(xml, { ...mockSource, id: 'npr-up-first', format: 'podcast' });
+  assert.equal(episode.imageUrl, 'https://media.npr.org/assets/img/upfirst-cover.jpg');
+  assert.equal(episode.durationSec, 865);
+  assert.equal(episode.media?.find(m => m.type === 'audio')?.durationSec, 865);
+});
+
+test('repairTruncatedFeedXml cleanly closes oversized truncated RSS feeds at the last complete item', () => {
+  const truncated = `<?xml version="1.0"?><rss version="2.0"><channel><title>Big Podcast</title>
+    <item><title>Episode 1</title><enclosure url="https://cdn.example/1.mp3" type="audio/mpeg" /><itunes:duration>1800</itunes:duration></item>
+    <item><title>Episode 2</title><description>Cut off mid-way`;
+
+  const repaired = repairTruncatedFeedXml(truncated);
+  assert.ok(repaired.includes('</channel>') && repaired.endsWith('</rss>'));
+  const parsed = parseFeedPayload(repaired, { ...mockSource, id: 'big-pod', format: 'podcast' });
+  assert.equal(parsed.length, 1);
+  assert.equal(parsed[0].title, 'Episode 1');
+  assert.equal(parsed[0].durationSec, 1800);
 });

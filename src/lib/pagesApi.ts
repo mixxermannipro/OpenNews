@@ -1,6 +1,6 @@
 import { isDiagnostic } from './diagnosticEvents.ts';
 import { isSafeHttpUrl } from './publicHttpUrl.ts';
-import { parseFeedPayload } from './rssParser.ts';
+import { parseFeedPayload, repairTruncatedFeedXml } from './rssParser.ts';
 import type { NewsSource } from '../types/news.ts';
 
 export interface PagesApiEnv {
@@ -12,11 +12,13 @@ export interface ExtractedArticlePayload {
   paragraphs: string[];
   headingIndexes: number[];
   ogImage?: string;
+  unavailable?: boolean;
+  blockedWall?: boolean;
 }
 
 export interface PagesApiDeps {
   fetchImpl?: typeof fetch;
-  extractArticle?: (response: Response, finalUrl: string) => Promise<ExtractedArticlePayload>;
+  extractArticle?: (response: Response, finalUrl: string, articleTitle?: string) => Promise<ExtractedArticlePayload>;
 }
 
 const MAX_RESPONSE_BYTES = 4 * 1024 * 1024;
@@ -53,23 +55,63 @@ async function fetchPublic(
   throw new Error('Too many redirects');
 }
 
-async function readPublicText(response: Response, maxBytes = MAX_RESPONSE_BYTES): Promise<string> {
+function detectCharset(bytes: Uint8Array, contentType?: string | null): string {
+  const headerMatch = contentType?.match(/charset\s*=\s*["']?([^"'\s;]+)/i);
+  if (headerMatch?.[1]) return headerMatch[1].trim().toLowerCase();
+  const head = new TextDecoder('latin1').decode(bytes.subarray(0, 1024));
+  const xmlMatch = head.match(/<\?xml[^>]+encoding\s*=\s*["']([^"']+)["']/i);
+  if (xmlMatch?.[1]) return xmlMatch[1].trim().toLowerCase();
+  const metaCharset = head.match(/<meta[^>]+charset\s*=\s*["']?([^"'\s/>;]+)/i);
+  if (metaCharset?.[1]) return metaCharset[1].trim().toLowerCase();
+  return 'utf-8';
+}
+
+async function readPublicText(
+  response: Response,
+  maxBytes = MAX_RESPONSE_BYTES,
+  options: { truncateOnLimit?: boolean } = {},
+): Promise<string> {
   const reader = response.body?.getReader();
   if (!reader) return '';
-  const decoder = new TextDecoder();
+  const chunks: Uint8Array[] = [];
   let bytes = 0;
-  let text = '';
   try {
     for (;;) {
       const { done, value } = await reader.read();
-      if (done) return text + decoder.decode();
+      if (done) break;
+      if (!value) continue;
+      if (bytes + value.byteLength > maxBytes) {
+        if (options.truncateOnLimit) {
+          const remaining = maxBytes - bytes;
+          if (remaining > 0) {
+            chunks.push(value.subarray(0, remaining));
+            bytes += remaining;
+          }
+          break;
+        }
+        throw new Error('Response exceeds size limit');
+      }
       bytes += value.byteLength;
-      if (bytes > maxBytes) throw new Error('Response exceeds size limit');
-      text += decoder.decode(value, { stream: true });
+      chunks.push(value);
     }
   } finally {
     await reader.cancel().catch(() => {});
   }
+  const combined = new Uint8Array(bytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    combined.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  const charset = detectCharset(combined, response.headers.get('content-type'));
+  if (charset && charset !== 'utf-8' && charset !== 'utf8') {
+    try {
+      return new TextDecoder(charset).decode(combined);
+    } catch {
+      // Fallback to UTF-8
+    }
+  }
+  return new TextDecoder('utf-8').decode(combined);
 }
 
 async function readJsonBody(request: Request, maxBytes = 128 * 1024): Promise<Record<string, unknown> | null> {
@@ -162,7 +204,9 @@ export async function handlePagesApiRequest(
             await response.body?.cancel();
             return { sourceId: source.id, ok: false, count: 0, status: response.status, articles: [] };
           }
-          const rawText = await readPublicText(response);
+          const rawText = repairTruncatedFeedXml(
+            await readPublicText(response, 1_800_000, { truncateOnLimit: true }),
+          );
           const articles = parseFeedPayload(rawText, source);
           return { sourceId: source.id, ok: true, count: articles.length, articles };
         } catch {
@@ -228,7 +272,13 @@ export async function handlePagesApiRequest(
           const type = typeMatch?.[1] || '';
           const href = hrefMatch?.[1] || '';
           if (!href || !/(rss|atom|xml|feed\+json)/i.test(type)) continue;
-          const absUrl = href.startsWith('http') ? href : new URL(href, baseOrigin).toString();
+          let absUrl: string;
+          try {
+            absUrl = href.startsWith('http') ? href : new URL(href, baseOrigin).toString();
+          } catch {
+            continue;
+          }
+          if (!isSafeHttpUrl(absUrl)) continue;
           const format = type.includes('json') ? 'json' : type.includes('atom') ? 'atom' : 'rss';
           discovered.push({
             name: titleMatch?.[1]?.trim() || hostLabel,
@@ -285,42 +335,38 @@ export async function handlePagesApiRequest(
     if (!isSafeHttpUrl(targetUrl)) {
       return jsonResponse({ error: 'Ungültige Artikel-URL' }, 400);
     }
-    const isPreload = url.searchParams.get('preload') === '1';
+    const articleTitle = String(url.searchParams.get('title') || '').trim().slice(0, 300) || undefined;
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 6000);
+    const timeout = setTimeout(() => controller.abort(), 7000);
     try {
       const resp = await fetchPublic(
         targetUrl,
         {
           signal: controller.signal,
           headers: {
-            'User-Agent': 'Mozilla/5.0 (compatible; OpenNewsReader/1.0)',
-            Accept: 'text/html,application/xhtml+xml',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+            Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7',
           },
         },
         fetchImpl,
       );
-      if (!resp.ok) {
+      const contentType = resp.headers.get('content-type') || '';
+      if (!resp.ok || (contentType && !/^(?:text\/(?:html|plain)|application\/xhtml\+xml)\b/i.test(contentType))) {
         await resp.body?.cancel();
-        if (isPreload) {
-          return jsonResponse({ paragraphs: [], headingIndexes: [], unavailable: true }, 200, {
-            'Cache-Control': 'no-store',
-          });
-        }
-        return jsonResponse({ error: 'Artikel konnte nicht geladen werden' }, 502);
-      }
-      const finalUrl = resp.url || targetUrl;
-      const extracted = deps.extractArticle
-        ? await deps.extractArticle(resp, finalUrl)
-        : { paragraphs: [], headingIndexes: [] };
-      return jsonResponse(extracted, 200, { 'Cache-Control': 'no-store' });
-    } catch {
-      if (isPreload) {
         return jsonResponse({ paragraphs: [], headingIndexes: [], unavailable: true }, 200, {
           'Cache-Control': 'no-store',
         });
       }
-      return jsonResponse({ error: 'Zeitüberschreitung beim Laden des Artikels' }, 504);
+      const finalUrl = resp.url || targetUrl;
+      const extracted = deps.extractArticle
+        ? await deps.extractArticle(resp, finalUrl, articleTitle)
+        : { paragraphs: [], headingIndexes: [] };
+      return jsonResponse(extracted, 200, { 'Cache-Control': 'no-store' });
+    } catch {
+      return jsonResponse({ paragraphs: [], headingIndexes: [], unavailable: true }, 200, {
+        'Cache-Control': 'no-store',
+      });
     } finally {
       clearTimeout(timeout);
     }

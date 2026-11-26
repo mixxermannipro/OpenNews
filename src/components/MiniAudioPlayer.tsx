@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { Headphones, Pause, Play, RotateCcw, RotateCw, X } from 'lucide-react';
+import { ExternalLink, Headphones, Pause, Play, RotateCcw, RotateCw, SkipForward, X } from 'lucide-react';
 import type { PlayableMedia } from '../lib/articleMedia';
+import { safeHref } from '../lib/contentIdentity';
 import { useI18n } from '../lib/i18n';
+import { getMediaCopy } from '../lib/mediaCopy';
 import type { NewsArticle } from '../types/news';
 import { ArticleImage } from './ArticleImage';
 
@@ -15,8 +17,12 @@ const SPEEDS = [1, 1.25, 1.5, 2] as const;
 export function formatAudioClock(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 0) return '0:00';
   const total = Math.floor(seconds);
-  const mins = Math.floor(total / 60);
+  const hrs = Math.floor(total / 3600);
+  const mins = Math.floor((total % 3600) / 60);
   const secs = total % 60;
+  if (hrs > 0) {
+    return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  }
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
@@ -24,6 +30,8 @@ export function MiniAudioPlayer({
   track,
   initialSeconds = 0,
   background,
+  nextTrack,
+  onNextTrack,
   onSavePosition,
   onEngaged,
   onOpenArticle,
@@ -32,20 +40,26 @@ export function MiniAudioPlayer({
   track: ActiveAudioTrack;
   initialSeconds?: number;
   background: boolean;
+  nextTrack?: ActiveAudioTrack;
+  onNextTrack?: () => void;
   onSavePosition: (url: string, seconds: number, duration: number) => void;
   onEngaged: (article: NewsArticle, seconds: number) => void;
   onOpenArticle: (article: NewsArticle) => void;
   onClose: () => void;
 }) {
-  const { t } = useI18n();
+  const { lang, t } = useI18n();
+  const copy = getMediaCopy(lang);
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
+  const [audioError, setAudioError] = useState(false);
   const [currentTime, setCurrentTime] = useState(initialSeconds);
-  const [duration, setDuration] = useState(0);
+  const [duration, setDuration] = useState(track.media.durationSec || track.article.durationSec || 0);
   const [speedIndex, setSpeedIndex] = useState(0);
   const lastSavedRef = useRef(0);
   const engagedRef = useRef(false);
   const playStartRef = useRef<number | null>(null);
+  const onNextTrackRef = useRef(onNextTrack);
+  onNextTrackRef.current = onNextTrack;
 
   const speed = SPEEDS[speedIndex];
   const progress = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
@@ -53,14 +67,20 @@ export function MiniAudioPlayer({
   useEffect(() => {
     engagedRef.current = false;
     lastSavedRef.current = 0;
-    setCurrentTime(initialSeconds);
-    setDuration(0);
+    setAudioError(false);
+    const initialDur = track.media.durationSec || track.article.durationSec || 0;
+    const safeInitial = initialDur > 0 && initialSeconds >= initialDur - 5 ? 0 : initialSeconds;
+    setCurrentTime(safeInitial);
+    setDuration(initialDur);
     setPlaying(false);
     const el = audioRef.current;
     if (!el) return;
 
     const handleLoaded = () => {
-      const dur = Number.isFinite(el.duration) ? el.duration : 0;
+      setAudioError(false);
+      const dur = Number.isFinite(el.duration) && el.duration > 0
+        ? el.duration
+        : (track.media.durationSec || track.article.durationSec || 0);
       setDuration(dur);
       if (initialSeconds > 3 && (!dur || initialSeconds < dur - 5)) {
         try {
@@ -69,12 +89,15 @@ export function MiniAudioPlayer({
         } catch {
           // Ignore seek errors on unbuffered streams
         }
+      } else if (dur > 0 && initialSeconds >= dur - 5) {
+        setCurrentTime(0);
       }
       el.playbackRate = speed;
       void el.play().catch(() => {});
     };
 
     const handlePlay = () => {
+      setAudioError(false);
       setPlaying(true);
       playStartRef.current = Date.now();
     };
@@ -102,6 +125,13 @@ export function MiniAudioPlayer({
     const handleEnded = () => {
       setPlaying(false);
       onSavePosition(track.media.url, el.duration || currentTime, el.duration || currentTime);
+      if (onNextTrackRef.current) {
+        onNextTrackRef.current();
+      }
+    };
+    const handleError = () => {
+      setPlaying(false);
+      setAudioError(true);
     };
 
     el.addEventListener('loadedmetadata', handleLoaded);
@@ -109,6 +139,7 @@ export function MiniAudioPlayer({
     el.addEventListener('pause', handlePause);
     el.addEventListener('timeupdate', handleTime);
     el.addEventListener('ended', handleEnded);
+    el.addEventListener('error', handleError);
 
     return () => {
       onSavePosition(track.media.url, el.currentTime, el.duration || 0);
@@ -118,6 +149,7 @@ export function MiniAudioPlayer({
       el.removeEventListener('pause', handlePause);
       el.removeEventListener('timeupdate', handleTime);
       el.removeEventListener('ended', handleEnded);
+      el.removeEventListener('error', handleError);
     };
   }, [track.media.url]);
 
@@ -150,27 +182,43 @@ export function MiniAudioPlayer({
     navigator.mediaSession.setActionHandler('pause', () => audioRef.current?.pause());
     navigator.mediaSession.setActionHandler('seekbackward', () => seekBy(-15));
     navigator.mediaSession.setActionHandler('seekforward', () => seekBy(30));
+    navigator.mediaSession.setActionHandler('nexttrack', nextTrack && onNextTrack ? () => onNextTrack() : null);
     return () => {
       navigator.mediaSession.setActionHandler('play', null);
       navigator.mediaSession.setActionHandler('pause', null);
       navigator.mediaSession.setActionHandler('seekbackward', null);
       navigator.mediaSession.setActionHandler('seekforward', null);
+      navigator.mediaSession.setActionHandler('nexttrack', null);
     };
-  }, [track]);
+  }, [track, nextTrack, onNextTrack]);
 
   const togglePlay = () => {
     const el = audioRef.current;
     if (!el) return;
-    if (el.paused) void el.play().catch(() => {});
+    if (el.paused) void el.play().catch(() => setAudioError(true));
     else el.pause();
   };
 
   const seekBy = (delta: number) => {
     const el = audioRef.current;
     if (!el) return;
-    el.currentTime = Math.max(0, Math.min(el.duration || Infinity, el.currentTime + delta));
+    el.currentTime = Math.max(0, Math.min(el.duration || duration || Infinity, el.currentTime + delta));
     setCurrentTime(el.currentTime);
   };
+
+  const seekTo = (nextSeconds: number) => {
+    const el = audioRef.current;
+    if (!el) return;
+    const clamped = Math.max(0, Math.min(el.duration || duration || nextSeconds, nextSeconds));
+    try {
+      el.currentTime = clamped;
+      setCurrentTime(clamped);
+    } catch {
+      // Ignore seek errors on unbuffered streams
+    }
+  };
+
+  const externalHref = safeHref(track.article.linkIsFeed ? track.media.url : track.article.link) ?? safeHref(track.media.url);
 
   return (
     <aside
@@ -184,99 +232,140 @@ export function MiniAudioPlayer({
         playsInline
       />
 
-      {/* Top hairline progress */}
-      <div className="h-[3px] w-full bg-[var(--control)]">
-        <div
-          className="h-full bg-[var(--accent)] transition-[width] duration-200"
-          style={{ width: `${progress}%` }}
-        />
-      </div>
-
-      <div className="flex items-center gap-2.5 px-3 py-2.5">
-        <button
-          type="button"
-          onClick={() => onOpenArticle(track.article)}
-          className="relative h-11 w-11 shrink-0 overflow-hidden rounded-xl bg-slate-900 text-white"
-          aria-label={`${t('openArticle')}: ${track.article.title}`}
-        >
-          {track.article.imageUrl ? (
-            <ArticleImage
-              src={track.article.imageUrl}
-              alt=""
-              sourceShortCode={track.article.sourceShortCode}
-              sourceColor={track.article.sourceColor}
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            <span className="grid h-full w-full place-items-center">
-              <Headphones size={18} aria-hidden="true" />
-            </span>
-          )}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => onOpenArticle(track.article)}
-          className="min-w-0 flex-1 text-left"
-        >
-          <p className="truncate text-[13px] font-bold leading-tight text-[var(--ink)]">
-            {track.article.title}
-          </p>
-          <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-[var(--muted)] tabular-nums">
-            <span className="truncate font-medium">{track.article.sourceName}</span>
-            <span aria-hidden="true">·</span>
-            <span className="shrink-0">
-              {formatAudioClock(currentTime)}{duration > 0 ? ` / ${formatAudioClock(duration)}` : ''}
-            </span>
-          </p>
-        </button>
-
-        <div className="flex shrink-0 items-center gap-0.5">
+      <div className="px-3.5 pt-3 pb-2.5 space-y-2">
+        {/* Main Track Info + Transport Row */}
+        <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={() => seekBy(-15)}
-            aria-label={t('mediaAudioBack15')}
-            className="hidden sm:grid h-10 w-10 place-items-center rounded-full text-[var(--muted)] transition hover:bg-[var(--control)] hover:text-[var(--ink)]"
+            onClick={() => onOpenArticle(track.article)}
+            className="relative h-11 w-11 shrink-0 overflow-hidden rounded-xl bg-slate-900 text-white"
+            aria-label={`${t('openArticle')}: ${track.article.title}`}
           >
-            <RotateCcw size={16} aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            onClick={togglePlay}
-            aria-label={playing ? t('mediaClipsPause') : t('mediaClipsPlay')}
-            className="grid h-11 w-11 place-items-center rounded-full bg-[var(--accent)] text-[var(--accent-ink)] shadow-sm transition active:scale-95"
-          >
-            {playing ? (
-              <Pause size={17} fill="currentColor" aria-hidden="true" />
+            {track.article.imageUrl ? (
+              <ArticleImage
+                src={track.article.imageUrl}
+                alt=""
+                sourceShortCode={track.article.sourceShortCode}
+                sourceColor={track.article.sourceColor}
+                className="h-full w-full object-cover"
+              />
             ) : (
-              <Play size={17} fill="currentColor" className="translate-x-0.5" aria-hidden="true" />
+              <span className="grid h-full w-full place-items-center">
+                <Headphones size={18} aria-hidden="true" />
+              </span>
             )}
           </button>
+
           <button
             type="button"
-            onClick={() => seekBy(30)}
-            aria-label={t('mediaAudioForward30')}
-            className="hidden sm:grid h-10 w-10 place-items-center rounded-full text-[var(--muted)] transition hover:bg-[var(--control)] hover:text-[var(--ink)]"
+            onClick={() => onOpenArticle(track.article)}
+            className="min-w-0 flex-1 text-left"
           >
-            <RotateCw size={16} aria-hidden="true" />
+            <p className="truncate text-[13.5px] font-bold leading-snug text-[var(--ink)]">
+              {track.article.title}
+            </p>
+            <p className="mt-0.5 truncate text-[11.5px] font-medium text-[var(--muted)]">
+              {track.article.sourceName}
+            </p>
           </button>
-          <button
-            type="button"
-            onClick={() => setSpeedIndex(i => (i + 1) % SPEEDS.length)}
-            aria-label={t('mediaAudioSpeed')}
-            className="grid h-10 min-w-[2.5rem] place-items-center rounded-full px-1.5 text-[11px] font-bold tabular-nums text-[var(--ink)] transition hover:bg-[var(--control)]"
-          >
-            {speed}×
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label={t('miniPlayerClose')}
-            className="grid h-10 w-10 place-items-center rounded-full text-[var(--muted)] transition hover:bg-[var(--control)] hover:text-[var(--ink)]"
-          >
-            <X size={17} aria-hidden="true" />
-          </button>
+
+          <div className="flex shrink-0 items-center gap-0.5">
+            <button
+              type="button"
+              onClick={() => seekBy(-15)}
+              aria-label={t('mediaAudioBack15')}
+              className="hidden sm:grid h-9 w-9 place-items-center rounded-full text-[var(--muted)] transition hover:bg-[var(--control)] hover:text-[var(--ink)]"
+            >
+              <RotateCcw size={15} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              onClick={togglePlay}
+              aria-label={playing ? t('mediaClipsPause') : t('mediaClipsPlay')}
+              className="grid h-10 w-10 place-items-center rounded-full bg-[var(--accent)] text-[var(--accent-ink)] shadow-sm transition active:scale-95"
+            >
+              {playing ? (
+                <Pause size={16} fill="currentColor" aria-hidden="true" />
+              ) : (
+                <Play size={16} fill="currentColor" className="translate-x-0.5" aria-hidden="true" />
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => seekBy(30)}
+              aria-label={t('mediaAudioForward30')}
+              className="hidden sm:grid h-9 w-9 place-items-center rounded-full text-[var(--muted)] transition hover:bg-[var(--control)] hover:text-[var(--ink)]"
+            >
+              <RotateCw size={15} aria-hidden="true" />
+            </button>
+            {nextTrack && onNextTrack && (
+              <button
+                type="button"
+                onClick={onNextTrack}
+                title={`${copy.nextEpisode}: ${nextTrack.article.title}`}
+                aria-label={`${copy.nextEpisode}: ${nextTrack.article.title}`}
+                className="grid h-9 w-9 place-items-center rounded-full text-[var(--muted)] transition hover:bg-[var(--control)] hover:text-[var(--ink)]"
+              >
+                <SkipForward size={15} aria-hidden="true" />
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setSpeedIndex(i => (i + 1) % SPEEDS.length)}
+              aria-label={t('mediaAudioSpeed')}
+              className="grid h-9 min-w-[2.25rem] place-items-center rounded-full px-1.5 text-[11px] font-bold tabular-nums text-[var(--ink)] transition hover:bg-[var(--control)]"
+            >
+              {speed}×
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label={t('miniPlayerClose')}
+              className="grid h-9 w-9 place-items-center rounded-full text-[var(--muted)] transition hover:bg-[var(--control)] hover:text-[var(--ink)]"
+            >
+              <X size={16} aria-hidden="true" />
+            </button>
+          </div>
         </div>
+
+        {/* Interactive Scrubber or Graceful Error Fallback */}
+        {audioError ? (
+          <div className="flex items-center justify-between gap-2 text-xs text-[var(--muted)]">
+            <span className="truncate">{copy.audioLoadError}</span>
+            {externalHref && (
+              <a
+                href={externalHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex shrink-0 items-center gap-1 font-semibold text-[var(--accent)] hover:underline"
+              >
+                {copy.openOriginal}
+                <ExternalLink size={12} aria-hidden="true" />
+              </a>
+            )}
+          </div>
+        ) : (
+          <div className="flex items-center gap-2.5">
+            <span className="w-10 shrink-0 text-right text-[11px] font-medium text-[var(--muted)] tabular-nums">
+              {formatAudioClock(currentTime)}
+            </span>
+            <input
+              type="range"
+              min={0}
+              max={duration > 0 ? Math.floor(duration) : 100}
+              step={1}
+              value={duration > 0 ? Math.min(Math.floor(currentTime), Math.floor(duration)) : 0}
+              disabled={duration <= 0}
+              aria-label={copy.seekLabel}
+              onChange={(e) => seekTo(Number(e.target.value))}
+              className="audio-scrubber min-w-0 flex-1"
+              style={{ '--audio-progress': `${progress}%` } as React.CSSProperties}
+            />
+            <span className="w-10 shrink-0 text-[11px] font-medium text-[var(--muted)] tabular-nums">
+              {duration > 0 ? formatAudioClock(duration) : '—'}
+            </span>
+          </div>
+        )}
       </div>
     </aside>
   );
