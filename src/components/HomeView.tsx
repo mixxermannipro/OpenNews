@@ -5,6 +5,7 @@ import type { HomeStory } from '../lib/newsFeed';
 import { HOME_TABS, type HomeTab } from '../lib/preferences';
 import { featuredStoryIds } from '../lib/featuredStories';
 import { computePullState, PULL_REFRESH_THRESHOLD } from '../lib/pullPhysics';
+import { selectHomeStarterPacks } from '../lib/feedRefresh';
 import { filterUnreadStories, type ReadingProgressEntry } from '../lib/readerExtras';
 import { STARTER_PACKS } from '../lib/catalog';
 import { useI18n } from '../lib/i18n';
@@ -154,11 +155,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
     }
   };
 
-  const quickPacks = useMemo(() => {
-    return [...STARTER_PACKS]
-      .sort((a, b) => (a.language === lang ? -1 : b.language === lang ? 1 : 0))
-      .slice(0, 4);
-  }, [lang]);
+  const quickPacks = useMemo(
+    () => selectHomeStarterPacks(STARTER_PACKS, lang, 4),
+    [lang],
+  );
 
   const isToday = selectedCategory === 'Heute';
   const isLatest = selectedCategory === 'Neueste';
@@ -193,11 +193,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
   );
 
   const batchKey = `${selectedCategory}:${activeTopic}:${unreadOnly ? 'unread' : 'all'}`;
-  const [batch, setBatch] = useState({ key: batchKey, limit: 30 });
-  const visibleLimit = batch.key === batchKey ? batch.limit : 30;
+  const [batch, setBatch] = useState({ key: batchKey, limit: 20 });
+  const visibleLimit = batch.key === batchKey ? batch.limit : 20;
   const visibleArticles = filteredStories.slice(0, visibleLimit);
   const readerContextList = useMemo(
-    () => filteredStories.slice(0, Math.max(visibleLimit, 40)).map(story => story.lead),
+    () => filteredStories.slice(0, Math.max(visibleLimit, 36)).map(story => story.lead),
     [filteredStories, visibleLimit],
   );
 
@@ -209,8 +209,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const lead = isToday && showHero ? visibleArticles[0] : undefined;
   const headlines = visibleArticles.slice(lead ? 1 : 0);
   const hasFocusColumn = Boolean(isToday && lead && headlines.length >= 3);
-  const focusStories = hasFocusColumn ? headlines.slice(0, 4) : [];
-  const streamStories = hasFocusColumn ? headlines.slice(4) : headlines;
+  const focusCount = headlines.length >= 5 ? 5 : 4;
+  const focusStories = hasFocusColumn ? headlines.slice(0, focusCount) : [];
+  const streamStories = hasFocusColumn ? headlines.slice(focusCount) : headlines;
 
   const featured = useMemo(() => {
     if (!showHero || isLatest) return new Set<string>();
@@ -413,8 +414,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
           {gestureRefresh ? <LoaderCircle size={17} className="animate-spin" /> : <ArrowDown size={17} />}
         </div>
 
-        <div ref={feedBody} className="pull-content space-y-5">
-          <div className="screen-heading items-start">
+        <div ref={feedBody} className="pull-content space-y-4 sm:space-y-5">
+          <div className="screen-heading items-end gap-y-2.5">
             <div className="min-w-0">
               <h1>{t('homeTitle')}</h1>
               <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 tabular-nums">
@@ -427,35 +428,59 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 )}
               </p>
             </div>
-            <div className="flex shrink-0 items-center gap-1">
-              {hasActiveSources && onOpenBriefing && (
-                <button
-                  className="briefing-trigger"
-                  type="button"
-                  aria-haspopup="dialog"
-                  onClick={onOpenBriefing}
+            {hasActiveSources && (
+              <div className="home-header-actions">
+                <div
+                  role="group"
+                  aria-label={t('homeTabsAria')}
+                  className="segmented-control sliding-tabs home-segmented"
+                  style={{ '--tab-count': HOME_TABS.length, '--tab-index': HOME_TABS.indexOf(selectedCategory) } as React.CSSProperties}
                 >
-                  <Headphones size={16} className={briefingPlaying ? 'text-[var(--accent)]' : undefined} aria-hidden="true" />
-                  {t('briefingTrigger')}
-                </button>
-              )}
-              {hasActiveSources && (
-                <button
-                  type="button"
-                  className="briefing-trigger rounded-full px-2.5"
-                  disabled={isLoading}
-                  onClick={() => void onRefresh(true)}
-                  aria-label={t('refresh')}
-                  title={t('refresh')}
-                >
-                  <RefreshCw
-                    size={16}
-                    className={isLoading ? 'animate-spin text-[var(--accent)]' : undefined}
-                    aria-hidden="true"
-                  />
-                </button>
-              )}
-            </div>
+                  <span className="tab-track" aria-hidden="true"><span className="tab-selection" /></span>
+                  {HOME_TABS.map(cat => (
+                    <button
+                      key={cat}
+                      type="button"
+                      aria-pressed={selectedCategory === cat}
+                      onClick={() => {
+                        onSelectCategory(cat);
+                        if (cat !== 'Heute') setTopicFilter('Alle');
+                      }}
+                      className="choice-pill whitespace-nowrap"
+                    >
+                      {homeTabLabel(cat)}
+                    </button>
+                  ))}
+                </div>
+                <div className="home-action-buttons flex shrink-0 items-center gap-1">
+                  {onOpenBriefing && (
+                    <button
+                      className="briefing-trigger rounded-full px-2.5"
+                      type="button"
+                      aria-haspopup="dialog"
+                      onClick={onOpenBriefing}
+                    >
+                      <Headphones size={16} className={briefingPlaying ? 'text-[var(--accent)]' : undefined} aria-hidden="true" />
+                      <span>{t('briefingTrigger')}</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="briefing-trigger rounded-full px-2.5"
+                    disabled={isLoading}
+                    onClick={() => void onRefresh(true)}
+                    aria-label={t('refresh')}
+                    title={t('refresh')}
+                  >
+                    <RefreshCw
+                      size={16}
+                      className={isLoading ? 'animate-spin text-[var(--accent)]' : undefined}
+                      aria-hidden="true"
+                    />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {!hasActiveSources ? (
@@ -506,36 +531,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
             </div>
           ) : (
             <>
-              <div
-                role="group"
-                aria-label={t('homeTabsAria')}
-                className="segmented-control sliding-tabs"
-                style={{ '--tab-count': HOME_TABS.length, '--tab-index': HOME_TABS.indexOf(selectedCategory) } as React.CSSProperties}
-              >
-                <span className="tab-track" aria-hidden="true"><span className="tab-selection" /></span>
-                {HOME_TABS.map(cat => (
-                  <button
-                    key={cat}
-                    type="button"
-                    aria-pressed={selectedCategory === cat}
-                    onClick={() => {
-                      onSelectCategory(cat);
-                      if (cat !== 'Heute') setTopicFilter('Alle');
-                    }}
-                    className="choice-pill whitespace-nowrap"
-                  >
-                    {homeTabLabel(cat)}
-                  </button>
-                ))}
-              </div>
-
               <div className="space-y-2.5">
                 {isToday && availableTopics.length >= 2 ? (
                   <div className="flex items-center justify-between gap-2 border-b border-[var(--line)]">
                     <div
                       role="group"
                       aria-label={t('sourcesCatAll')}
-                      className="no-scrollbar -mx-1 flex min-w-0 flex-1 items-center gap-1 overflow-x-auto px-1"
+                      className="no-scrollbar topic-rail-fade -mx-1 flex min-w-0 flex-1 items-center gap-1 overflow-x-auto px-1 pr-6"
                     >
                       {(['Alle', ...availableTopics] as const).map(topic => {
                         const active = activeTopic === topic;
@@ -567,7 +569,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         type="button"
                         aria-pressed={unreadOnly}
                         onClick={() => setUnreadOnly(prev => !prev)}
-                        className={`inline-flex min-h-11 shrink-0 items-center gap-1.5 whitespace-nowrap px-2.5 text-xs font-semibold tabular-nums transition-colors ${
+                        className={`inline-flex min-h-11 shrink-0 items-center gap-1.5 whitespace-nowrap px-2 text-xs font-semibold tabular-nums transition-colors ${
                           unreadOnly
                             ? 'text-[var(--accent)]'
                             : 'text-[var(--muted)] hover:text-[var(--ink)]'
@@ -794,7 +796,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       <button
                         type="button"
                         className="choice-pill px-6"
-                        onClick={() => setBatch({ key: batchKey, limit: visibleLimit + 30 })}
+                        onClick={() => setBatch({ key: batchKey, limit: visibleLimit + 24 })}
                       >
                         {t('homeShowMore')}
                       </button>

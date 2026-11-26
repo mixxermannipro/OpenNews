@@ -1,4 +1,5 @@
 import { isDiagnostic } from './diagnosticEvents.ts';
+import { slimFeedArticle } from './feedRefresh.ts';
 import { isSafeHttpUrl } from './publicHttpUrl.ts';
 import { parseFeedPayload, repairTruncatedFeedXml } from './rssParser.ts';
 import { ensureWavBytes } from './ttsClient.ts';
@@ -272,7 +273,7 @@ export async function handlePagesApiRequest(
           const rawText = repairTruncatedFeedXml(
             await readPublicText(response, 1_800_000, { truncateOnLimit: true }),
           );
-          const articles = parseFeedPayload(rawText, source);
+          const articles = parseFeedPayload(rawText, source).map(slimFeedArticle);
           return { sourceId: source.id, ok: true, count: articles.length, articles };
         } catch {
           return { sourceId: source.id, ok: false, count: 0, articles: [] };

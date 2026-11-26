@@ -82,21 +82,45 @@ export function useArticleStorage<T>(key: string, initialValue: T) {
     return () => { cancelled = true; };
   }, [key]);
 
+  const dirtyRef = useRef(false);
+  const latestValueRef = useRef<T>(snapshot.value);
+  latestValueRef.current = snapshot.value;
+
   useEffect(() => {
     if (!snapshot.ready) return;
     let cancelled = false;
-    void write(key, snapshot.value).then(() => {
-      if (cancelled) return;
-      try {
-        localStorage.removeItem(key);
-      } catch {
-        // Ignore storage restrictions
-      }
-      setFailed(false);
-    }).catch(() => {
-      if (!cancelled) setFailed(true);
-    });
-    return () => { cancelled = true; };
+    dirtyRef.current = true;
+
+    const persist = () => {
+      if (!dirtyRef.current) return;
+      dirtyRef.current = false;
+      void write(key, latestValueRef.current).then(() => {
+        if (cancelled) return;
+        try {
+          localStorage.removeItem(key);
+        } catch {
+          // Ignore storage restrictions
+        }
+        setFailed(false);
+      }).catch(() => {
+        if (!cancelled) setFailed(true);
+      });
+    };
+
+    const timer = window.setTimeout(persist, 350);
+    const flushOnHide = () => {
+      if (document.visibilityState === 'hidden') persist();
+    };
+    window.addEventListener('pagehide', persist);
+    document.addEventListener('visibilitychange', flushOnHide);
+
+    return () => {
+      if (dirtyRef.current) persist();
+      cancelled = true;
+      window.clearTimeout(timer);
+      window.removeEventListener('pagehide', persist);
+      document.removeEventListener('visibilitychange', flushOnHide);
+    };
   }, [key, snapshot]);
 
   const update = useCallback((next: Update<T>) => {
