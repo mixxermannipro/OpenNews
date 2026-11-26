@@ -19,6 +19,7 @@ export interface WidgetSnapshot {
   language?: string;
   theme?: 'system' | 'light' | 'dark';
   feeds?: WidgetFeedSource[];
+  mutedKeywords?: string[];
 }
 
 export interface WidgetLaunch {

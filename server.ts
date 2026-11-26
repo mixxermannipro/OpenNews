@@ -74,8 +74,17 @@ app.use('/api/tts/proxy', rateLimit({
   message: { error: 'Zu viele Vorlese-Anfragen. Bitte versuche es gleich erneut.' },
 }));
 app.use(express.json({ limit: '128kb' }));
+app.use((err: unknown, _req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (err && typeof err === 'object' && 'type' in err && (err as { type?: string }).type === 'entity.parse.failed') {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.status(400).json({ error: 'Ungültige JSON-Anfrage.' });
+    return;
+  }
+  next(err);
+});
 
 function sendJson(req: express.Request, res: express.Response, payload: unknown, cacheControl?: string) {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
   if (cacheControl) res.setHeader('Cache-Control', cacheControl);
   const body = JSON.stringify(payload);
   const acceptEncoding = req.get('accept-encoding') || '';
@@ -432,16 +441,40 @@ app.get('/api/article/extract', async (req, res) => {
   sendJson(req, res, extracted, 'no-store');
 });
 
+const MAX_AI_PROMPT_CHARS = 60_000;
+const MAX_AI_MODEL_CHARS = 120;
+const SAFE_MODEL_RE = /^[A-Za-z0-9._:/-]+$/;
+
+async function safeParseJson<T extends Record<string, unknown>>(response: Awaited<ReturnType<typeof fetchPublic>>): Promise<T> {
+  const raw = await readPublicText(response);
+  if (!raw.trim()) return {} as T;
+  try {
+    const parsed = JSON.parse(raw);
+    return (parsed && typeof parsed === 'object' ? parsed : {}) as T;
+  } catch {
+    return { error: { message: raw.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 200) } } as unknown as T;
+  }
+}
+
 app.post('/api/ai/proxy', async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
   const provider = String(req.body?.provider || 'google');
   const apiKey = String(req.body?.apiKey || '').trim();
-  const model = String(req.body?.model || '').trim();
-  const prompt = String(req.body?.prompt || '').trim();
+  const model = typeof req.body?.model === 'string' ? req.body.model.trim() : '';
+  const prompt = typeof req.body?.prompt === 'string' ? req.body.prompt.trim() : '';
   const customEndpoint = String(req.body?.customEndpoint || '').trim();
 
   if (!prompt || !model) {
     res.status(400).json({ error: 'Modell oder Prompt fehlt.' });
+    return;
+  }
+  if (prompt.length > MAX_AI_PROMPT_CHARS) {
+    res.status(400).json({ error: 'Der Prompt überschreitet die maximal erlaubte Länge.' });
+    return;
+  }
+  if (model.length > MAX_AI_MODEL_CHARS || !SAFE_MODEL_RE.test(model)) {
+    res.status(400).json({ error: 'Ungültiger Modellname.' });
     return;
   }
   if (!apiKey) {
@@ -458,21 +491,25 @@ app.post('/api/ai/proxy', async (req, res) => {
     return;
   }
 
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 25_000);
+
   try {
     if (provider === 'google') {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
       const resp = await fetchPublic(url, {
         method: 'POST',
+        signal: controller.signal,
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: { temperature: 0.3 },
         }),
       });
-      const json = (JSON.parse(await readPublicText(resp))) as {
+      const json = await safeParseJson<{
         error?: { message?: string };
         candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
-      };
+      }>(resp);
       if (!resp.ok) {
         res.status(resp.status).json({ error: json.error?.message || 'Google AI Studio Fehler' });
         return;
@@ -485,6 +522,7 @@ app.post('/api/ai/proxy', async (req, res) => {
     if (provider === 'anthropic') {
       const resp = await fetchPublic('https://api.anthropic.com/v1/messages', {
         method: 'POST',
+        signal: controller.signal,
         headers: {
           'Content-Type': 'application/json',
           'x-api-key': apiKey,
@@ -496,10 +534,10 @@ app.post('/api/ai/proxy', async (req, res) => {
           messages: [{ role: 'user', content: prompt }],
         }),
       });
-      const json = (JSON.parse(await readPublicText(resp))) as {
+      const json = await safeParseJson<{
         error?: { message?: string };
         content?: Array<{ text?: string }>;
-      };
+      }>(resp);
       if (!resp.ok) {
         res.status(resp.status).json({ error: json.error?.message || 'Anthropic Fehler' });
         return;
@@ -518,6 +556,7 @@ app.post('/api/ai/proxy', async (req, res) => {
 
     const resp = await fetchPublic(endpoint, {
       method: 'POST',
+      signal: controller.signal,
       headers: {
         'Content-Type': 'application/json',
         ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
@@ -528,10 +567,10 @@ app.post('/api/ai/proxy', async (req, res) => {
         temperature: 0.3,
       }),
     });
-    const json = (JSON.parse(await readPublicText(resp))) as {
+    const json = await safeParseJson<{
       error?: { message?: string };
       choices?: Array<{ message?: { content?: string } }>;
-    };
+    }>(resp);
     if (!resp.ok) {
       res.status(resp.status).json({ error: json.error?.message || 'KI-Provider Fehler' });
       return;
@@ -542,6 +581,8 @@ app.post('/api/ai/proxy', async (req, res) => {
     res.status(502).json({
       error: 'Verbindung zum KI-Anbieter fehlgeschlagen',
     });
+  } finally {
+    clearTimeout(timeout);
   }
 });
 
@@ -567,6 +608,8 @@ async function readAudioBufferLimited(resp: Awaited<ReturnType<typeof fetchPubli
 }
 
 app.post('/api/tts/proxy', async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
   const provider = String(req.body?.provider || 'google');
   const apiKey = String(req.body?.apiKey || '').trim();
   const model = String(req.body?.model || '').trim();

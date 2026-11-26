@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { ArrowDown, ArrowUp, CheckCircle2, ChevronDown, Headphones, Layers, LoaderCircle, Plus, RefreshCw, Sparkles } from 'lucide-react';
 import type { NewsArticle, PersonalizationProfile } from '../types/news';
 import type { HomeStory } from '../lib/newsFeed';
@@ -201,7 +201,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
     [filteredStories, visibleLimit],
   );
 
-  const openFromFeed = (article: NewsArticle) => onOpenArticle(article, readerContextList);
+  const openFromFeed = useCallback(
+    (article: NewsArticle) => onOpenArticle(article, readerContextList),
+    [onOpenArticle, readerContextList],
+  );
 
   const lead = isToday && showHero ? visibleArticles[0] : undefined;
   const headlines = visibleArticles.slice(lead ? 1 : 0);

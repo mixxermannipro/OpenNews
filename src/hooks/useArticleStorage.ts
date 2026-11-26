@@ -5,6 +5,9 @@ const storeName = 'articles';
 let database: Promise<IDBDatabase> | undefined;
 
 function openDatabase() {
+  if (typeof indexedDB === 'undefined') {
+    return Promise.reject(new Error('IndexedDB unavailable'));
+  }
   database ??= new Promise<IDBDatabase>((resolve, reject) => {
     const request = indexedDB.open('opennews', 1);
     request.onupgradeneeded = () => request.result.createObjectStore(storeName);
@@ -31,6 +34,7 @@ async function write<T>(key: string, value: T) {
   return new Promise<void>((resolve, reject) => {
     const transaction = db.transaction(storeName, 'readwrite');
     transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error);
     transaction.onabort = () => reject(transaction.error);
     transaction.objectStore(storeName).put(value, key);
   });
@@ -83,7 +87,11 @@ export function useArticleStorage<T>(key: string, initialValue: T) {
     let cancelled = false;
     void write(key, snapshot.value).then(() => {
       if (cancelled) return;
-      localStorage.removeItem(key);
+      try {
+        localStorage.removeItem(key);
+      } catch {
+        // Ignore storage restrictions
+      }
       setFailed(false);
     }).catch(() => {
       if (!cancelled) setFailed(true);

@@ -302,17 +302,17 @@ final class AutoAudioCatalog {
 
         if (now.get(Calendar.YEAR) == pub.get(Calendar.YEAR)
             && now.get(Calendar.DAY_OF_YEAR) == pub.get(Calendar.DAY_OF_YEAR)) {
-            return label(lang, "today") + ", " + timeStr;
+            return label(lang, "today") + " · " + timeStr;
         }
 
         Calendar yesterday = (Calendar) now.clone();
         yesterday.add(Calendar.DAY_OF_YEAR, -1);
         if (yesterday.get(Calendar.YEAR) == pub.get(Calendar.YEAR)
             && yesterday.get(Calendar.DAY_OF_YEAR) == pub.get(Calendar.DAY_OF_YEAR)) {
-            return label(lang, "yesterday") + ", " + timeStr;
+            return label(lang, "yesterday") + " · " + timeStr;
         }
 
-        SimpleDateFormat dateFmt = new SimpleDateFormat("dd.MM., HH:mm", Locale.getDefault());
+        SimpleDateFormat dateFmt = new SimpleDateFormat("dd.MM. · HH:mm", Locale.getDefault());
         return dateFmt.format(new Date(publishedMs));
     }
 }

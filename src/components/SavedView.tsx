@@ -4,7 +4,7 @@ import { selectWeeklyArticles, reviewWeek } from '../lib/weeklyReview';
 import { ViewStatus } from './ViewStatus';
 import { distinctArticles } from '../lib/newsFeed';
 import { estimateQueueMinutes, exportHighlightsMarkdown, type ArticleHighlight, type ReadingProgressEntry } from '../lib/readerExtras';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Copy, Sparkles, Trash2 } from 'lucide-react';
 import type { AIProviderConfig, NewsArticle, NewsSource, PersonalizationProfile } from '../types/news';
 import { useI18n } from '../lib/i18n';
@@ -56,12 +56,16 @@ export const SavedView: React.FC<SavedViewProps> = ({
   onBack,
 }) => {
   const { t, categoryLabel } = useI18n();
+  const bookmarkedSet = useMemo(() => new Set(profile.bookmarkedIds), [profile.bookmarkedIds]);
+  const likedSet = useMemo(() => new Set(profile.likedIds), [profile.likedIds]);
   const queueSet = useMemo(() => new Set(readingQueueIds), [readingQueueIds]);
   const readSet = useMemo(() => new Set(profile.readIds), [profile.readIds]);
   const [subTab, setSubTab] = useState<SavedSubTab>(initialPage);
   const [confirmClear, setConfirmClear] = useState(false);
   const [clearStatus, setClearStatus] = useState('');
   const [copiedQuotes, setCopiedQuotes] = useState(false);
+  const copyTimerRef = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(copyTimerRef.current), []);
 
   const tabs = [
     { id: 'bookmarks' as const, label: t('savedTabBookmarks') },
@@ -88,24 +92,29 @@ export const SavedView: React.FC<SavedViewProps> = ({
     try {
       await navigator.clipboard.writeText(exportHighlightsMarkdown(highlights));
       setCopiedQuotes(true);
-      window.setTimeout(() => setCopiedQuotes(false), 2200);
+      window.clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = window.setTimeout(() => setCopiedQuotes(false), 2200);
     } catch {
       // Clipboard unavailable
     }
   };
 
-  const now = new Date();
-  const week = reviewWeek(now);
-  const weeklyArticles = selectWeeklyArticles(articles, profile, now.getTime());
+  const { week, weeklyArticles } = useMemo(() => {
+    const current = new Date();
+    return {
+      week: reviewWeek(current),
+      weeklyArticles: selectWeeklyArticles(articles, profile, current.getTime()),
+    };
+  }, [articles, profile]);
 
   const bookmarkedArticles = useMemo(
-    () => distinctArticles(articles.filter((a) => profile.bookmarkedIds.includes(a.id))),
-    [articles, profile.bookmarkedIds]
+    () => distinctArticles(articles.filter((a) => bookmarkedSet.has(a.id))),
+    [articles, bookmarkedSet]
   );
 
   const likedArticles = useMemo(
-    () => distinctArticles(articles.filter((a) => profile.likedIds.includes(a.id))),
-    [articles, profile.likedIds]
+    () => distinctArticles(articles.filter((a) => likedSet.has(a.id))),
+    [articles, likedSet]
   );
 
   const topTopics = useMemo(
@@ -232,8 +241,8 @@ export const SavedView: React.FC<SavedViewProps> = ({
                   <div key={article.id} className="space-y-1.5">
                     <CompactArticleCard
                       article={article}
-                      isBookmarked={profile.bookmarkedIds.includes(article.id)}
-                      isLiked={profile.likedIds.includes(article.id)}
+                      isBookmarked={bookmarkedSet.has(article.id)}
+                      isLiked={likedSet.has(article.id)}
                       inQueue={queueSet.has(article.id)}
                       isRead={readSet.has(article.id)}
                       readingProgress={readingProgress[article.id]?.ratio}

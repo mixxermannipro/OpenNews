@@ -41,7 +41,9 @@ import { trackNavigationScroll } from './lib/scrollNavigation';
 import { useArticleStorage } from './hooks/useArticleStorage';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { ViewStatus } from './components/ViewStatus';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { HomeView } from './components/HomeView';
+import { recordDiagnostic } from './lib/diagnostics';
 import type { SettingsSectionTab } from './components/SettingsView';
 
 import { OfflineIndicator } from './components/PWAInstallButton';
@@ -310,7 +312,7 @@ export default function App() {
   const [readArticles, setReadArticles, historyStorageFailed] = useArticleStorage<NewsArticle[]>('opennews_read_articles', []);
   useEffect(() => {
     if (cachedStorageFailed || savedStorageFailed || historyStorageFailed) {
-      void import('./lib/diagnostics').then(({ recordDiagnostic }) => recordDiagnostic('storage-failed')).catch(() => {});
+      recordDiagnostic('storage-failed');
     }
   }, [cachedStorageFailed, savedStorageFailed, historyStorageFailed]);
   const [alertBanner, setAlertBanner] = useState<{ title: string; source: string } | null>(null);
@@ -527,7 +529,7 @@ export default function App() {
     const recordResults = (results: FeedResult[]) => {
       if (controller.signal.aborted || !results.length) return;
       if (results.some(result => !result.ok)) {
-        void import('./lib/diagnostics').then(({ recordDiagnostic }) => recordDiagnostic('feed-failed')).catch(() => {});
+        recordDiagnostic('feed-failed');
       }
       const checkedAt = Date.now();
       setFeedHealth(previous => {
@@ -761,9 +763,10 @@ export default function App() {
   useEffect(() => {
     const platform = Capacitor.getPlatform();
     if (!cachedStorageReady || isLoadingFeeds || (platform !== 'android' && platform !== 'ios')) return;
+    const bookmarkedSet = new Set(normalizedProfile.bookmarkedIds);
     const snapshot = (tab: HomeTab) => homeSections[tab].slice(0, platform === 'ios' ? 3 : 24).map(({ lead }) => ({
       ...lead, contentHtml: undefined, paragraphs: [], summary: lead.summary.slice(0, 400),
-      ...(platform === 'android' && { widgetSaved: normalizedProfile.bookmarkedIds.includes(lead.id) }),
+      ...(platform === 'android' && { widgetSaved: bookmarkedSet.has(lead.id) }),
     }));
     const feeds = platform === 'android'
       ? activeSources
@@ -778,11 +781,14 @@ export default function App() {
           shortCode: source.shortCode,
         }))
       : undefined;
+    const mutedList = platform === 'android'
+      ? activeMutedRules.map(rule => rule.keyword)
+      : undefined;
     void import('./lib/newsWidget').then(({ NewsWidget }) => NewsWidget.update({
       today: snapshot('Heute'), personal: snapshot('Für dich'), latest: snapshot('Neueste'),
-      ...(platform === 'android' && { language: activeLanguage, theme, feeds }),
+      ...(platform === 'android' && { language: activeLanguage, theme, feeds, mutedKeywords: mutedList }),
     })).catch(() => {});
-  }, [activeLanguage, activeSources, cachedStorageReady, homeSections, isLoadingFeeds, normalizedProfile.bookmarkedIds, theme]);
+  }, [activeLanguage, activeMutedRules, activeSources, cachedStorageReady, homeSections, isLoadingFeeds, normalizedProfile.bookmarkedIds, theme]);
 
   useEffect(() => {
     if (Capacitor.getPlatform() !== 'android' || !cachedStorageReady) return;
@@ -845,7 +851,10 @@ export default function App() {
       }
       if (discover) navigate({ tab: 'discover' });
       if (article) {
-        if (save && !normalizedProfile.bookmarkedIds.includes(article.id)) handleToggleBookmark(article);
+        if (typeof save === 'boolean') {
+          const isSaved = normalizedProfile.bookmarkedIds.includes(article.id);
+          if (save !== isSaved) handleToggleBookmark(article);
+        }
         handleOpenArticle(article);
       }
       if (refresh) void fetchLatest.current();
@@ -870,24 +879,20 @@ export default function App() {
     return () => { active = false; dispose?.(); };
   }, [onboarded]);
 
-  const handleToggleBookmark = (article: NewsArticle) => {
-    if (!normalizedProfile.bookmarkedIds.includes(article.id)) {
-      setSavedArticles(previous => ({ ...previous, [article.id]: article }));
-    }
+  const handleToggleBookmark = useCallback((article: NewsArticle) => {
+    setSavedArticles(previous => (previous[article.id] ? previous : { ...previous, [article.id]: article }));
     setProfile((prev) => toggleArticleBookmark(normalizeProfile(prev), article));
-  };
+  }, [setProfile, setSavedArticles]);
 
-  const handleToggleLike = (article: NewsArticle) => {
-    if (!normalizedProfile.likedIds.includes(article.id)) {
-      setSavedArticles(previous => ({ ...previous, [article.id]: article }));
-    }
+  const handleToggleLike = useCallback((article: NewsArticle) => {
+    setSavedArticles(previous => (previous[article.id] ? previous : { ...previous, [article.id]: article }));
     setProfile((prev) => toggleArticleLike(normalizeProfile(prev), article));
-  };
+  }, [setProfile, setSavedArticles]);
 
-  const handleToggleDislike = (article: NewsArticle) => {
+  const handleToggleDislike = useCallback((article: NewsArticle) => {
     setProfile((prev) => toggleArticleDislike(normalizeProfile(prev), article));
     goBack();
-  };
+  }, [setProfile, goBack]);
 
   const [undoDismiss, setUndoDismiss] = useState<{
     article: NewsArticle;
@@ -914,13 +919,10 @@ export default function App() {
     setUndoDismiss(null);
   }, [undoDismiss, setProfile]);
 
-  const handleToggleQueue = (article: NewsArticle) => {
-    const alreadyQueued = readingQueueIds.includes(article.id);
-    if (!alreadyQueued) {
-      setSavedArticles(saved => (saved[article.id] ? saved : { ...saved, [article.id]: article }));
-    }
+  const handleToggleQueue = useCallback((article: NewsArticle) => {
+    setSavedArticles(saved => (saved[article.id] ? saved : { ...saved, [article.id]: article }));
     setReadingQueueIds(prev => (prev.includes(article.id) ? prev.filter(id => id !== article.id) : [...prev, article.id]));
-  };
+  }, [setReadingQueueIds, setSavedArticles]);
 
   const handleAddHighlight = (article: NewsArticle, quote: string) => {
     const trimmed = quote.trim();
@@ -1314,6 +1316,7 @@ export default function App() {
           />
         )}
 
+        <ErrorBoundary inline resetKey={activeTab}>
         <Suspense fallback={<ViewStatus title={t('loadingView')} />}>
         {activeTab === 'discover' && (
           <DiscoverView
@@ -1483,6 +1486,7 @@ export default function App() {
           />
         )}
         </Suspense>
+        </ErrorBoundary>
       </main>
 
       <nav aria-label={t('navMobileAria')} className="mobile-navigation"
@@ -1570,14 +1574,15 @@ export default function App() {
       </div>
 
       {/* Article Reader Sheet */}
-      <Suspense fallback={activeArticle ? (
+      {activeArticle && (
+      <ErrorBoundary inline resetKey={activeArticle.id}>
+      <Suspense fallback={(
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-[2px]" onClick={goBack}>
           <div className="reader-surface flex h-[100dvh] sm:h-[92vh] w-full max-w-3xl items-center justify-center sm:rounded-[30px] shadow-2xl">
             <p className="text-sm font-medium text-[var(--muted)]">{t('loadingView')}</p>
           </div>
         </div>
-      ) : null}>
-      {activeArticle && (
+      )}>
           <ArticleReaderModal
             key={activeArticle.id}
             article={activeArticle}
@@ -1634,8 +1639,9 @@ export default function App() {
             articlePosition={readerNeighbors.index >= 0 ? { current: readerNeighbors.index + 1, total: readerNeighbors.total } : undefined}
             onSearchTopic={() => navigate({ tab: 'discover' })}
           />
-      )}
       </Suspense>
+      </ErrorBoundary>
+      )}
       </>}
     </div>
     </I18nProvider>

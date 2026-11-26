@@ -3,6 +3,7 @@ import { getArticleMedia } from './articleMedia';
 import type { StarterPack } from './catalog';
 import { isAdvertorial, isPromotionalNoise } from './newsFeed';
 import { clusterStories } from './storyClusters';
+import { foldSearchText } from './textSearch';
 
 export type DiscoverSort = 'relevance' | 'newest';
 export type DiscoverSourceTab = 'discover' | 'international' | 'media';
@@ -44,14 +45,7 @@ const FALLBACK_SUGGESTIONS: Record<AppLanguage, readonly string[]> = {
 };
 
 export function normalizeDiscoverText(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/ä/g, 'ae')
-    .replace(/ö/g, 'oe')
-    .replace(/ü/g, 'ue')
-    .replace(/ß/g, 'ss')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+  return foldSearchText(value)
     .replace(/[^a-z0-9]+/g, ' ')
     .trim();
 }

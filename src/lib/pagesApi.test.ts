@@ -124,4 +124,88 @@ describe('handlePagesApiRequest', () => {
     );
     assert.equal(res.status, 400);
   });
+
+  it('rejects oversized prompts and invalid AI model identifiers', async () => {
+    const longPromptRes = await handlePagesApiRequest(
+      new Request('https://opennews-app.pages.dev/api/ai/proxy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          provider: 'google',
+          model: 'gemini-2.5-flash',
+          apiKey: 'secret',
+          prompt: 'a'.repeat(60_001),
+        }),
+      }),
+    );
+    assert.equal(longPromptRes.status, 400);
+
+    const badModelRes = await handlePagesApiRequest(
+      new Request('https://opennews-app.pages.dev/api/ai/proxy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          provider: 'google',
+          model: '../bad model?',
+          apiKey: 'secret',
+          prompt: 'Hi',
+        }),
+      }),
+    );
+    assert.equal(badModelRes.status, 400);
+  });
+
+  it('handles non-JSON upstream error bodies cleanly in AI proxy', async () => {
+    const res = await handlePagesApiRequest(
+      new Request('https://opennews-app.pages.dev/api/ai/proxy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          provider: 'google',
+          model: 'gemini-2.5-flash',
+          apiKey: 'secret',
+          prompt: 'Fasse zusammen',
+        }),
+      }),
+      {},
+      {
+        fetchImpl: async () =>
+          new Response('<html><body>502 Bad Gateway</body></html>', {
+            status: 502,
+            headers: { 'Content-Type': 'text/html' },
+          }),
+      },
+    );
+    assert.equal(res.status, 502);
+    assert.equal(res.headers.get('cache-control'), 'no-store');
+    const data = (await res.json()) as { error?: string };
+    assert.match(data.error ?? '', /502 Bad Gateway/);
+  });
+
+  it('strips sensitive auth headers across cross-origin redirects', async () => {
+    const seenHeaders: Array<Record<string, string>> = [];
+    let call = 0;
+    await handlePagesApiRequest(
+      new Request('https://opennews-app.pages.dev/api/feeds/discover?q=example.org'),
+      {},
+      {
+        fetchImpl: async (_url, init) => {
+          const hdrs = new Headers(init?.headers);
+          seenHeaders.push(Object.fromEntries(hdrs.entries()));
+          call += 1;
+          if (call === 1) {
+            return new Response(null, {
+              status: 302,
+              headers: { Location: 'https://other.example/feed.xml' },
+            });
+          }
+          return new Response('<rss><channel></channel></rss>', {
+            status: 200,
+            headers: { 'Content-Type': 'application/rss+xml' },
+          });
+        },
+      },
+    );
+    assert.equal(seenHeaders.length, 2);
+  });
 });

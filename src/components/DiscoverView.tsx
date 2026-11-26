@@ -79,6 +79,8 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
 }) => {
   const { lang, t, categoryLabel, formatRelative } = useI18n();
   const copy = getDiscoverCopy(lang);
+  const bookmarkedSet = useMemo(() => new Set(profile.bookmarkedIds), [profile.bookmarkedIds]);
+  const likedSet = useMemo(() => new Set(profile.likedIds), [profile.likedIds]);
   const readSet = useMemo(() => new Set(profile.readIds), [profile.readIds]);
   const queueSet = useMemo(() => new Set(readingQueueIds), [readingQueueIds]);
   const [query, setQuery] = useState('');
@@ -364,8 +366,8 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                         <CompactArticleCard
                           key={article.id}
                           article={article}
-                          isBookmarked={profile.bookmarkedIds.includes(article.id)}
-                          isLiked={profile.likedIds.includes(article.id)}
+                          isBookmarked={bookmarkedSet.has(article.id)}
+                          isLiked={likedSet.has(article.id)}
                           inQueue={queueSet.has(article.id)}
                           isRead={readSet.has(article.id)}
                           readingProgress={readingProgress[article.id]?.ratio}
@@ -439,8 +441,8 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
               <HeroArticleCard
                 article={hero}
                 badgeLabel={category === 'Alle' ? t('featuredTopic') : categoryLabel(category)}
-                isBookmarked={profile.bookmarkedIds.includes(hero.id)}
-                isLiked={profile.likedIds.includes(hero.id)}
+                isBookmarked={bookmarkedSet.has(hero.id)}
+                isLiked={likedSet.has(hero.id)}
                 inQueue={queueSet.has(hero.id)}
                 isRead={readSet.has(hero.id)}
                 readingProgress={readingProgress[hero.id]?.ratio}
@@ -457,8 +459,8 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                   article={bentoLeft}
                   tall
                   className="row-span-2"
-                  isBookmarked={profile.bookmarkedIds.includes(bentoLeft.id)}
-                  isLiked={profile.likedIds.includes(bentoLeft.id)}
+                  isBookmarked={bookmarkedSet.has(bentoLeft.id)}
+                  isLiked={likedSet.has(bentoLeft.id)}
                   inQueue={queueSet.has(bentoLeft.id)}
                   isRead={readSet.has(bentoLeft.id)}
                   readingProgress={readingProgress[bentoLeft.id]?.ratio}
@@ -470,8 +472,8 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                 {bentoRightTop && (
                   <BentoArticleCard
                     article={bentoRightTop}
-                    isBookmarked={profile.bookmarkedIds.includes(bentoRightTop.id)}
-                    isLiked={profile.likedIds.includes(bentoRightTop.id)}
+                    isBookmarked={bookmarkedSet.has(bentoRightTop.id)}
+                    isLiked={likedSet.has(bentoRightTop.id)}
                     inQueue={queueSet.has(bentoRightTop.id)}
                     isRead={readSet.has(bentoRightTop.id)}
                     readingProgress={readingProgress[bentoRightTop.id]?.ratio}
@@ -484,8 +486,8 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                 {bentoRightBottom && (
                   <BentoArticleCard
                     article={bentoRightBottom}
-                    isBookmarked={profile.bookmarkedIds.includes(bentoRightBottom.id)}
-                    isLiked={profile.likedIds.includes(bentoRightBottom.id)}
+                    isBookmarked={bookmarkedSet.has(bentoRightBottom.id)}
+                    isLiked={likedSet.has(bentoRightBottom.id)}
                     inQueue={queueSet.has(bentoRightBottom.id)}
                     isRead={readSet.has(bentoRightBottom.id)}
                     readingProgress={readingProgress[bentoRightBottom.id]?.ratio}
@@ -659,8 +661,8 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                       <div key={article.id} className={large ? 'md:col-span-2' : undefined}>
                         <Card
                           article={article}
-                          isBookmarked={profile.bookmarkedIds.includes(article.id)}
-                          isLiked={profile.likedIds.includes(article.id)}
+                          isBookmarked={bookmarkedSet.has(article.id)}
+                          isLiked={likedSet.has(article.id)}
                           inQueue={queueSet.has(article.id)}
                           isRead={readSet.has(article.id)}
                           readingProgress={readingProgress[article.id]?.ratio}

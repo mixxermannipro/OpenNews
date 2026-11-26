@@ -65,7 +65,7 @@ OpenNews bündelt Nachrichten aus frei zugänglichen Feeds in einer ruhigen Ober
 | **Darstellung & Profil** | Vollständig in 6 Sprachen lokalisierte Einstellungen: System/Hell/Dunkel, Akzentfarbe, Kartendichte, Textgröße, Bilder im Feed, reduzierte Bewegung, Lesethema & Zeitungsmodus direkt unter **Profil → Lesen** |
 | **Sicherung** | Export und Import von Abos, Reaktionen und Lesezeichen als JSON-Datei bis 5 MB; bleibt auf dem Gerät |
 | **Diagnose** | Freiwillige lokale Fehleraufzeichnung ohne Fehlertexte, Adressen oder Gerätekennungen; Export als JSON, optionales Senden der Fehlerart an den eigenen Server |
-| **Widget** | Scrollbarer Android-Feed mit Größenanpassung, Filter, Erscheinungsbild und konfigurierbarer Hintergrund-Aktualisierung (Aus, 15/30 Min., 1/2/4 Std.) je Widget; iOS-WidgetKit für drei Größen mit Reitern, benötigt Xcode |
+| **Widget** | Scrollbarer Android-Feed mit Größenanpassung, Filter, Erscheinungsbild, direkter Hintergrund-Aktualisierung per Tipp, Zeitstempel, Stummschalt- & Werbefilter und konfigurierbarer Automatik (Aus, 15/30 Min., 1/2/4 Std.) je Widget; iOS-WidgetKit für drei Größen mit Reitern, benötigt Xcode |
 | **PWA** | Installierbar, Service Worker mit Auto-Update, Offline-Hinweis, maskierbares Icon |
 | **Android** | Capacitor-WebView, direkte HTTP-Aufrufe, nativer Zurück-Knopf, Share-Dialog, Systemstimme und lokale Übersetzung |
 | **Android Auto** | Vollständige Media3-/ExoPlayer-Integration (`OpenNewsAutoMediaService`) mit 4 Fahrzeug-Tabs (**Nachrichten-Updates** inkl. „Alle aktuellen Updates abspielen“ und Tagesschau 20 Uhr auch vom Vortag, **Podcasts**, **Live-Radio** mit 24 Sendern, **Warteschlange**), eigenständigem HTTPS-Feed-Abruf im Auto, ±15-Sekunden-Sprüngen, Lenkrad- & Sprachsuche, Playback Resumption und App-Sync/Einstellungen unter **Profil → Lesen** |
@@ -244,6 +244,7 @@ OpenNews/
 │   │   ├── DiagnosticsSettings.tsx     # Freiwillige Diagnose
 │   │   ├── DiscoverSearch.tsx          # Suche, Vorschläge, letzte Suchen
 │   │   ├── DiscoverView.tsx            # Themen- und Quellenübersicht
+│   │   ├── ErrorBoundary.tsx           # 6-sprachige Fehler-Grenze mit Wiederherstellung
 │   │   ├── HomeView.tsx                # Heute / Für dich / Neueste
 │   │   ├── MediaPlayer.tsx             # Podcast-Audio-Deck, Video- und YouTube-Player
 │   │   ├── MediaView.tsx               # Medien-Hub (Kanal-Stories, Shorts-Reihe, Videos, Audio, Live-Radio)
@@ -302,8 +303,9 @@ OpenNews/
 │   │   ├── sourceSearch.ts             # Gewichtete Quellensuche (Umlaute/Akzente/Region/Sprache)
 │   │   ├── storyClusters.ts            # Ähnliche Meldungen bündeln
 │   │   ├── swipePhysics.ts             # Wischgesten-Physik („Weniger davon“) mit Scroll-Schutz
+│   │   ├── textSearch.ts               # Gemeinsame Umlaut- und Diakritika-Normalisierung
 │   │   ├── ttsClient.ts                # Multi-Anbieter-TTS je Szenario, WAV-Header & Audio-Cache
-│   │   └── *.test.ts                   # 29 Testdateien
+│   │   └── *.test.ts                   # 30 Testdateien
 │   │
 │   ├── types/news.ts                   # Artikel, Quellen, Profil, KI
 │   ├── App.tsx                         # App-Zustand, Navigation, Feed-Abruf
@@ -400,7 +402,7 @@ NODE_ENV=production npm start
 | `npm start` | `tsx server.ts` | Express starten; mit `NODE_ENV=production` aus `dist/` |
 | `npm run preview` | `vite preview` | Statischen Build ansehen (ohne API) |
 | `npm run lint` | `tsc --noEmit` | TypeScript-Typprüfung |
-| `npm test` | `node --import tsx --test src/lib/*.test.ts` | 151 Unit-Tests |
+| `npm test` | `node --import tsx --test src/lib/*.test.ts` | 157 Unit-Tests |
 | `npm run test:e2e` | `playwright test` | 16 Browsertests |
 | `npm run push:worker` | `tsx scripts/push-news.ts` | Android-Push aus den Standardquellen senden |
 | `node scripts/check-web-budget.mjs` | Node | Prüft das Start-JavaScript gegen 170 KiB gzip |
@@ -499,7 +501,7 @@ Die App ist eine Capacitor-WebView mit `CapacitorHttp` (Feed- und KI-Aufrufe dir
 
 **CI:** Die App-Prüfungen laufen bei Pull Requests gegen `main`.
 
-- **Web CI** (`web-ci.yml`): Typprüfung, 145 Unit-Tests, Build, JavaScript-Budget und 15 Browsertests mit Playwright.
+- **Web CI** (`web-ci.yml`): Typprüfung, 157 Unit-Tests, Build, JavaScript-Budget und 16 Browsertests mit Playwright.
 - **OpenNews Android Test APK** (`android-test-apk.yml`): bei Änderungen an `src/**`, `scripts/**`, `native/android/**`, `public/**` und Build-Dateien sowie manuell über **Actions → Run workflow**. Richtet Node 22 und JDK 21 ein, prüft Typen, führt Unit-Tests und Build aus, erzeugt das Android-Projekt, baut `assembleDebug`, prüft, dass die APK vorhanden ist, lädt sie bei verfügbarem GitHub-Speicher als Artefakt (7 Tage) hoch, prüft bei Pull Requests den AAB-Bau mit einem Einmalschlüssel und veröffentlicht bei manuellem Lauf ein öffentliches Pre-Release `v0.1.0-alpha.<Run-Nummer>`.
 
 **Lokal:**
@@ -541,9 +543,9 @@ Android zeigt für OpenNews-Benachrichtigungen ein eigenes monochromes Symbol in
 
 ## Tests und Qualität
 
-`npm test` führt **145 Unit-Tests** aus 27 Dateien aus: `rssParser.test.ts`, `personalization.test.ts`, `newsFeed.test.ts`, `opml.test.ts`, `nativeFeed.test.ts`, `aiClient.test.ts`, `aiCache.test.ts`, `transcript.test.ts`, `articleMedia.test.ts`, `articleExtraction.test.ts`, `publicHttp.test.ts`, `storyClusters.test.ts`, `scrollNavigation.test.ts`, `pullPhysics.test.ts`, `feedRefresh.test.ts`, `i18n.test.ts`, `sourceSearch.test.ts`, `clipsEngine.test.ts`, `discoverEngine.test.ts`, `localEditorialAI.test.ts`, `dailyBriefingSynth.test.ts`, `keywordFilter.test.ts`, `relatedMedia.test.ts`, `readerExtras.test.ts`, `swipePhysics.test.ts`, `ttsClient.test.ts` und `pagesApi.test.ts`. Abgedeckt sind Parsing und Medien (inkl. großer Podcast-Feeds, Cover-Vererbung und Episodenlaufzeiten), Aufbewahrung, Ranking und Vielfalt, OPML, native URL-Sicherheit, KI-Antwortparsing, Multi-Anbieter-TTS-Konfiguration und WAV-Verpackung, Wischgesten-Physik, Volltext, SSRF-Schutz, Themencluster, Scroll-Navigation, Pull-Physik, priorisiertes Feed-Batching, Mehrsprachigkeit, Quellensuche, Clips- & Medien-Engine, Entdecken-Kuratierung & Umlaut-Suche, lokale Redaktions-KI, Tagesüberblick-Synthese, Stichwort-/Stummschalt-Filter, Themen-Verlinkungen sowie Reader-Fortschritt, Vor/Zurück-Navigation, Paywall-Alternativen & Offline-Logik.
+`npm test` führt **157 Unit-Tests** aus 30 Dateien aus: `rssParser.test.ts`, `personalization.test.ts`, `newsFeed.test.ts`, `opml.test.ts`, `nativeFeed.test.ts`, `aiClient.test.ts`, `aiCache.test.ts`, `transcript.test.ts`, `articleMedia.test.ts`, `articleExtraction.test.ts`, `publicHttp.test.ts`, `storyClusters.test.ts`, `scrollNavigation.test.ts`, `pullPhysics.test.ts`, `feedRefresh.test.ts`, `i18n.test.ts`, `sourceSearch.test.ts`, `clipsEngine.test.ts`, `discoverEngine.test.ts`, `localEditorialAI.test.ts`, `dailyBriefingSynth.test.ts`, `keywordFilter.test.ts`, `relatedMedia.test.ts`, `readerExtras.test.ts`, `swipePhysics.test.ts`, `ttsClient.test.ts`, `textSearch.test.ts`, `radioCatalog.test.ts`, `androidAuto.test.ts` und `pagesApi.test.ts`. Abgedeckt sind Parsing und Medien (inkl. großer Podcast-Feeds, Cover-Vererbung und Episodenlaufzeiten), Live-Nachrichtenradio, Android-Auto-Payloads, Suchtext-Faltung, Aufbewahrung, Ranking und Vielfalt, OPML, native URL-Sicherheit, KI-Antwortparsing, Multi-Anbieter-TTS-Konfiguration und WAV-Verpackung, Wischgesten-Physik, Volltext, SSRF-Schutz, Themencluster, Scroll-Navigation, Pull-Physik, priorisiertes Feed-Batching, Mehrsprachigkeit, Quellensuche, Clips- & Medien-Engine, Entdecken-Kuratierung & Umlaut-Suche, lokale Redaktions-KI, Tagesüberblick-Synthese, Stichwort-/Stummschalt-Filter, Themen-Verlinkungen sowie Reader-Fortschritt, Vor/Zurück-Navigation, Paywall-Alternativen & Offline-Logik.
 
-`npm run test:e2e` startet den Produktionsbuild auf Port `3099` und prüft vierzehn Abläufe gegen einen simulierten Feed. Dazu gehören Feeds, Artikel, Medien, Tagesüberblick, Einstellungen, große Schrift und reduzierte Bewegung. Einmalig `npx playwright install chromium` ausführen.
+`npm run test:e2e` startet den Produktionsbuild auf Port `3099` und prüft 16 Abläufe gegen einen simulierten Feed. Dazu gehören Feeds, Artikel, Medien, Live-Radio, Tagesüberblick, Einstellungen, große Schrift und reduzierte Bewegung. Einmalig `npx playwright install chromium` ausführen.
 
 ```bash
 npm run lint
@@ -628,7 +630,7 @@ OpenNews ist source-available (siehe [LICENSE](LICENSE) und [CONTRIBUTING.md](CO
 | BYOK-KI | Beta, abhängig von Anbieter und Schlüssel |
 | Tagesüberblick | Lokal synthetisiertes Themen-Briefing mit Vorlesen 2.0, optional mit Anbieter-KI |
 | Diagnose | lokal verfügbar, Senden optional |
-| Tests | 126 Unit-Tests und 15 Playwright-Browsertests |
+| Tests | 157 Unit-Tests und 16 Playwright-Browsertests |
 | Eigener Quellcode | Source-Available ([LICENSE](LICENSE)) |
 
 ## Lizenz

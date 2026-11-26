@@ -1,4 +1,5 @@
 import type { NewsArticle } from '../types/news';
+import { foldSearchText } from './textSearch';
 
 export type MuteDuration = '24h' | '7d' | 'forever';
 
@@ -15,14 +16,7 @@ export interface KeywordRadarMatch {
 }
 
 export function normalizeFilterText(value: string | undefined | null): string {
-  return String(value ?? '')
-    .toLowerCase()
-    .replace(/ä/g, 'ae')
-    .replace(/ö/g, 'oe')
-    .replace(/ü/g, 'ue')
-    .replace(/ß/g, 'ss')
-    .normalize('NFD')
-    .replace(/\p{Diacritic}/gu, '')
+  return foldSearchText(String(value ?? ''))
     .replace(/[^\p{L}\p{N}\s]+/gu, ' ')
     .replace(/\s+/g, ' ')
     .trim();

@@ -39,4 +39,8 @@
     <string name="widget_refresh_1h">Cada hora</string>
     <string name="widget_refresh_2h">Cada 2 horas</string>
     <string name="widget_refresh_4h">Cada 4 horas</string>
+    <string name="widget_refreshing">Actualizando…</string>
+    <string name="widget_refresh_now">Actualizar ahora</string>
+    <string name="widget_last_updated">Última actualización: %1$s</string>
+    <string name="widget_never_updated">Aún no actualizado en segundo plano</string>
 </resources>

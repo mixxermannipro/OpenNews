@@ -35,22 +35,50 @@ function jsonResponse(data: unknown, status = 200, extraHeaders?: Record<string,
   });
 }
 
+const SENSITIVE_REDIRECT_HEADERS = [
+  'authorization',
+  'proxy-authorization',
+  'x-api-key',
+  'x-goog-api-key',
+  'xi-api-key',
+  'cookie',
+];
+
+function sanitizeRedirectHeaders(headers: HeadersInit | undefined, fromUrl: string, toUrl: string): Headers {
+  const next = new Headers(headers);
+  try {
+    if (new URL(fromUrl).origin !== new URL(toUrl).origin) {
+      for (const name of SENSITIVE_REDIRECT_HEADERS) {
+        next.delete(name);
+      }
+    }
+  } catch {
+    for (const name of SENSITIVE_REDIRECT_HEADERS) {
+      next.delete(name);
+    }
+  }
+  return next;
+}
+
 async function fetchPublic(
   rawUrl: string,
   options: RequestInit = {},
   fetchImpl: typeof fetch = fetch,
 ): Promise<Response> {
   let url = rawUrl;
+  let requestHeaders = new Headers(options.headers);
   const signal = options.signal ?? AbortSignal.timeout(10_000);
   for (let redirects = 0; redirects <= 5; redirects++) {
     if (!isSafeHttpUrl(url)) throw new Error('Invalid public URL');
-    const response = await fetchImpl(url, { ...options, redirect: 'manual', signal });
+    const response = await fetchImpl(url, { ...options, headers: requestHeaders, redirect: 'manual', signal });
     const location = response.headers.get('location');
     if (options.method === 'POST' || !location || ![301, 302, 303, 307, 308].includes(response.status)) {
       return response;
     }
     await response.body?.cancel();
-    url = new URL(location, url).href;
+    const nextUrl = new URL(location, url).href;
+    requestHeaders = sanitizeRedirectHeaders(requestHeaders, url, nextUrl);
+    url = nextUrl;
   }
   throw new Error('Too many redirects');
 }
@@ -219,7 +247,7 @@ export async function handlePagesApiRequest(
 
     const allArticles = results.flatMap((r) => r.articles);
     const feedStatuses = results.map(({ sourceId, ok, count }) => ({ sourceId, ok, count }));
-    return jsonResponse({ articles: allArticles, feedStatuses });
+    return jsonResponse({ articles: allArticles, feedStatuses }, 200, { 'Cache-Control': 'no-store' });
   }
 
   if (path === '/api/feeds/discover' && method === 'GET') {
@@ -376,22 +404,48 @@ export async function handlePagesApiRequest(
     const body = await readJsonBody(request);
     const provider = String(body?.provider || 'google');
     const apiKey = String(body?.apiKey || '').trim();
-    const model = String(body?.model || '').trim();
-    const prompt = String(body?.prompt || '').trim();
+    const model = typeof body?.model === 'string' ? body.model.trim() : '';
+    const prompt = typeof body?.prompt === 'string' ? body.prompt.trim() : '';
     const customEndpoint = String(body?.customEndpoint || '').trim();
 
     if (!prompt || !model) {
-      return jsonResponse({ error: 'Modell oder Prompt fehlt.' }, 400);
+      return jsonResponse({ error: 'Modell oder Prompt fehlt.' }, 400, { 'Cache-Control': 'no-store' });
+    }
+    if (prompt.length > 60_000) {
+      return jsonResponse({ error: 'Der Prompt überschreitet die maximal erlaubte Länge.' }, 400, {
+        'Cache-Control': 'no-store',
+      });
+    }
+    if (model.length > 120 || !/^[A-Za-z0-9._:/-]+$/.test(model)) {
+      return jsonResponse({ error: 'Ungültiger Modellname.' }, 400, { 'Cache-Control': 'no-store' });
     }
     if (!apiKey) {
-      return jsonResponse({ error: 'Bitte hinterlege deinen API-Key in den Einstellungen.' }, 400);
+      return jsonResponse({ error: 'Bitte hinterlege deinen API-Key in den Einstellungen.' }, 400, {
+        'Cache-Control': 'no-store',
+      });
     }
     if (!['google', 'anthropic', 'openai', 'mistral', 'custom'].includes(provider)) {
-      return jsonResponse({ error: 'Unbekannter KI-Anbieter.' }, 400);
+      return jsonResponse({ error: 'Unbekannter KI-Anbieter.' }, 400, { 'Cache-Control': 'no-store' });
     }
     if (provider === 'custom' && (!isSafeHttpUrl(customEndpoint) || new URL(customEndpoint).protocol !== 'https:')) {
-      return jsonResponse({ error: 'Der eigene KI-Endpunkt benötigt eine öffentliche HTTPS-Adresse.' }, 400);
+      return jsonResponse({ error: 'Der eigene KI-Endpunkt benötigt eine öffentliche HTTPS-Adresse.' }, 400, {
+        'Cache-Control': 'no-store',
+      });
     }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 25_000);
+
+    const safeParseJson = async <T extends Record<string, unknown>>(resp: Response): Promise<T> => {
+      const raw = await readPublicText(resp);
+      if (!raw.trim()) return {} as T;
+      try {
+        const parsed = JSON.parse(raw);
+        return (parsed && typeof parsed === 'object' ? parsed : {}) as T;
+      } catch {
+        return { error: { message: raw.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 200) } } as unknown as T;
+      }
+    };
 
     try {
       if (provider === 'google') {
@@ -400,6 +454,7 @@ export async function handlePagesApiRequest(
           apiUrl,
           {
             method: 'POST',
+            signal: controller.signal,
             headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
             body: JSON.stringify({
               contents: [{ parts: [{ text: prompt }] }],
@@ -408,14 +463,18 @@ export async function handlePagesApiRequest(
           },
           fetchImpl,
         );
-        const json = (JSON.parse(await readPublicText(resp))) as {
+        const json = await safeParseJson<{
           error?: { message?: string };
           candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
-        };
+        }>(resp);
         if (!resp.ok) {
-          return jsonResponse({ error: json.error?.message || 'Google AI Studio Fehler' }, resp.status);
+          return jsonResponse({ error: json.error?.message || 'Google AI Studio Fehler' }, resp.status, {
+            'Cache-Control': 'no-store',
+          });
         }
-        return jsonResponse({ text: json.candidates?.[0]?.content?.parts?.[0]?.text || '' });
+        return jsonResponse({ text: json.candidates?.[0]?.content?.parts?.[0]?.text || '' }, 200, {
+          'Cache-Control': 'no-store',
+        });
       }
 
       if (provider === 'anthropic') {
@@ -423,6 +482,7 @@ export async function handlePagesApiRequest(
           'https://api.anthropic.com/v1/messages',
           {
             method: 'POST',
+            signal: controller.signal,
             headers: {
               'Content-Type': 'application/json',
               'x-api-key': apiKey,
@@ -436,14 +496,16 @@ export async function handlePagesApiRequest(
           },
           fetchImpl,
         );
-        const json = (JSON.parse(await readPublicText(resp))) as {
+        const json = await safeParseJson<{
           error?: { message?: string };
           content?: Array<{ text?: string }>;
-        };
+        }>(resp);
         if (!resp.ok) {
-          return jsonResponse({ error: json.error?.message || 'Anthropic Fehler' }, resp.status);
+          return jsonResponse({ error: json.error?.message || 'Anthropic Fehler' }, resp.status, {
+            'Cache-Control': 'no-store',
+          });
         }
-        return jsonResponse({ text: json.content?.[0]?.text || '' });
+        return jsonResponse({ text: json.content?.[0]?.text || '' }, 200, { 'Cache-Control': 'no-store' });
       }
 
       const endpoint =
@@ -457,6 +519,7 @@ export async function handlePagesApiRequest(
         endpoint,
         {
           method: 'POST',
+          signal: controller.signal,
           headers: {
             'Content-Type': 'application/json',
             ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
@@ -469,16 +532,24 @@ export async function handlePagesApiRequest(
         },
         fetchImpl,
       );
-      const json = (JSON.parse(await readPublicText(resp))) as {
+      const json = await safeParseJson<{
         error?: { message?: string };
         choices?: Array<{ message?: { content?: string } }>;
-      };
+      }>(resp);
       if (!resp.ok) {
-        return jsonResponse({ error: json.error?.message || 'KI-Provider Fehler' }, resp.status);
+        return jsonResponse({ error: json.error?.message || 'KI-Provider Fehler' }, resp.status, {
+          'Cache-Control': 'no-store',
+        });
       }
-      return jsonResponse({ text: json.choices?.[0]?.message?.content || '' });
+      return jsonResponse({ text: json.choices?.[0]?.message?.content || '' }, 200, {
+        'Cache-Control': 'no-store',
+      });
     } catch {
-      return jsonResponse({ error: 'Verbindung zum KI-Anbieter fehlgeschlagen' }, 502);
+      return jsonResponse({ error: 'Verbindung zum KI-Anbieter fehlgeschlagen' }, 502, {
+        'Cache-Control': 'no-store',
+      });
+    } finally {
+      clearTimeout(timeout);
     }
   }
 
