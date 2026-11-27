@@ -19,7 +19,7 @@ Datenschutzfreundliche Nachrichten-App für RSS-, Atom-, JSON- und Podcast-Feeds
 ---
 
 > [!NOTE]
-> **Aktueller Stand (`0.2.0`):** Die [Web-App](https://opennews-app.pages.dev/app/) (inkl. PWA) und die [Produktwebsite](https://opennews-app.pages.dev/) sind produktiv über Cloudflare Pages nutzbar. Die Android-App steht über Google Play / AAB-Release bereit. **iOS / WidgetKit** ist derzeit **nicht gebaut, nicht getestet und nicht verfügbar** (siehe [docs/ios-widget.md](docs/ios-widget.md)).
+> **Aktueller Stand (`0.2.0`):** Die [Web-App](https://opennews-app.pages.dev/app/) (inkl. PWA) und die [Produktwebsite](https://opennews-app.pages.dev/) sind produktiv über Cloudflare Pages nutzbar. Die Android-App steht über Google Play / AAB-Release bereit (inkl. automatisiertem Cloud-Release-Workflow, siehe [PLAY_RELEASE_SETUP.md](PLAY_RELEASE_SETUP.md)). **iOS / WidgetKit** ist derzeit **nicht gebaut, nicht getestet und nicht verfügbar** (siehe [docs/ios-widget.md](docs/ios-widget.md)).
 
 ## Was ist OpenNews?
 

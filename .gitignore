@@ -22,3 +22,5 @@ coverage-summary.txt
 *.keystore
 *.p12
 *.pfx
+keystore.properties
+play-service-account.json

@@ -1,11 +1,72 @@
-// Use the web app version in every Android build. Play uploads pass an explicit code.
+// Read versionCode/versionName from ../version.properties (with explicit property override).
+def versionProps = new Properties()
+def versionPropsFile = rootProject.file('../version.properties')
+if (versionPropsFile.isFile()) {
+    versionPropsFile.withInputStream { versionProps.load(it) }
+}
+
 def packageJson = new groovy.json.JsonSlurper().parse(rootProject.file('../package.json'))
-def releaseCode = providers.gradleProperty('openNewsVersionCode').orElse('1').get()
+def defaultCode = (versionProps.getProperty('versionCode') ?: '1').trim()
+def releaseCode = providers.gradleProperty('openNewsVersionCode').orElse(defaultCode).get()
 if (!(releaseCode ==~ /[1-9][0-9]{0,9}/) || releaseCode.toLong() > 2100000000) {
     throw new GradleException('openNewsVersionCode must be an integer from 1 to 2100000000')
 }
+def releaseName = (versionProps.getProperty('versionName') ?: packageJson.version).trim()
 
-android.defaultConfig {
-    versionName packageJson.version
-    versionCode releaseCode.toInteger()
+def envKeystorePath = System.getenv('SIGNING_KEYSTORE_PATH')
+def envKeyAlias = System.getenv('SIGNING_KEY_ALIAS')
+def envStorePassword = System.getenv('SIGNING_STORE_PASSWORD')
+def envKeyPassword = System.getenv('SIGNING_KEY_PASSWORD')
+
+def hasReleaseSigning = envKeystorePath != null && !envKeystorePath.trim().isEmpty() &&
+    file(envKeystorePath).isFile() &&
+    envKeyAlias != null && !envKeyAlias.trim().isEmpty() &&
+    envStorePassword != null && !envStorePassword.trim().isEmpty() &&
+    envKeyPassword != null && !envKeyPassword.trim().isEmpty()
+
+android {
+    defaultConfig {
+        versionName releaseName
+        versionCode releaseCode.toInteger()
+    }
+
+    signingConfigs {
+        if (hasReleaseSigning) {
+            release {
+                storeFile file(envKeystorePath)
+                storePassword envStorePassword
+                keyAlias envKeyAlias
+                keyPassword envKeyPassword
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            if (hasReleaseSigning) {
+                signingConfig signingConfigs.release
+            }
+        }
+    }
+}
+
+apply plugin: 'com.github.triplet.play'
+
+def playServiceAccountPath = System.getenv('PLAY_SERVICE_ACCOUNT_JSON_PATH')
+def hasPlayServiceAccount = playServiceAccountPath != null &&
+    !playServiceAccountPath.trim().isEmpty() &&
+    file(playServiceAccountPath).isFile()
+def releaseStatusClass = plugins.getPlugin('com.github.triplet.play').class.classLoader
+    .loadClass('com.github.triplet.gradle.androidpublisher.ReleaseStatus')
+def completedStatus = Enum.valueOf(releaseStatusClass, 'COMPLETED')
+
+play {
+    enabled = hasPlayServiceAccount
+    if (hasPlayServiceAccount) {
+        serviceAccountCredentials = file(playServiceAccountPath)
+    }
+    def requestedTrack = System.getenv('PLAY_TRACK')
+    track = (requestedTrack != null && !requestedTrack.trim().isEmpty()) ? requestedTrack.trim() : 'production'
+    releaseStatus = completedStatus
+    defaultToAppBundles = true
 }
