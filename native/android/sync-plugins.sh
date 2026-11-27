@@ -6,6 +6,14 @@ if compgen -G "native/android/test/*.java" > /dev/null; then
   cp native/android/test/*.java android/app/src/test/java/io/opennews/app/
 fi
 gradle=android/app/build.gradle
+root_gradle=android/build.gradle
+if ! grep -q 'gradlePluginPortal()' "$root_gradle"; then
+  sed -i '0,/mavenCentral()/{//a\        gradlePluginPortal()
+}' "$root_gradle"
+fi
+if ! grep -q 'com.github.triplet.gradle:play-publisher' "$root_gradle"; then
+  sed -i "/classpath 'com.android.tools.build:gradle:/a\        classpath 'com.github.triplet.gradle:play-publisher:3.13.0'" "$root_gradle"
+fi
 cp native/android/release-version.gradle android/app/release-version.gradle
 if ! grep -Fxq "apply from: 'release-version.gradle'" "$gradle"; then
   printf "\napply from: 'release-version.gradle'\n" >> "$gradle"

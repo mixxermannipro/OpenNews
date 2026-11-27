@@ -2,6 +2,8 @@
 
 Der Katalogname lautet **OpenNews**. Das Android-Paket heißt `io.opennews.app`. Die deutschen und englischen Beschreibungen stehen im [Store-Entwurf](play-store-listing.md).
 
+> **Cloud-Release über GitHub Actions:** Für automatische Releases in Google Play ohne lokales Signing steht der Workflow [`.github/workflows/play-store-release.yml`](../.github/workflows/play-store-release.yml) inklusive `version.properties` zur Verfügung. Alle benötigten Secrets sind in [PLAY_RELEASE_SETUP.md](../PLAY_RELEASE_SETUP.md) beschrieben.
+
 ## Signiertes Android App Bundle erzeugen
 
 Voraussetzungen unter Linux sind Node.js 22, ein vollständiges JDK 21,
