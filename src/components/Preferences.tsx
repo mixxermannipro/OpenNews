@@ -10,6 +10,7 @@ import {
   Compass,
   Globe,
   History,
+  Info,
   Layers,
   Mail,
   Palette,
@@ -135,6 +136,7 @@ const AUTO_COPY: Record<AppLanguage, {
 const SUPPORT_EMAIL = 'mixxermannipropvp@gmail.com';
 const PRIVACY_URL = 'https://opennews-app.pages.dev/datenschutz/';
 const IMPRINT_URL = 'https://opennews-app.pages.dev/impressum/';
+const SOURCE_URL = (import.meta.env.VITE_SOURCE_URL ?? '').trim() || 'https://github.com/mixxermannipro/OpenNews';
 const DiagnosticsSettings = lazy(() => import('./DiagnosticsSettings').then(module => ({ default: module.DiagnosticsSettings })));
 
 interface AppearanceProps {
@@ -260,7 +262,7 @@ export function Appearance({ theme, onTheme, preferences, onPreferences }: Appea
   );
 }
 
-export type ProfilePage = 'profile' | 'preferences' | 'appearance' | 'feed' | 'reader' | 'motion' | 'playback' | 'privacy' | 'topics' | 'language';
+export type ProfilePage = 'profile' | 'preferences' | 'appearance' | 'feed' | 'reader' | 'motion' | 'playback' | 'privacy' | 'about' | 'topics' | 'language';
 
 export function ProfileView({ page, onPage, onBack, onSaved, onHistory, onSources, onAI, onNotifications, backupControls, autoTranslate, onAutoTranslate, backgroundPlayback, onBackgroundPlayback, androidAutoSettings, onAndroidAutoSettings, onRefreshAndroidAuto, fontSize, fontFamily, onFontSize, onFontFamily, readerTheme, onReaderTheme, newspaperMode, onNewspaperMode, stats, ...appearance }: AppearanceProps & {
   page: ProfilePage;
@@ -305,6 +307,7 @@ export function ProfileView({ page, onPage, onBack, onSaved, onHistory, onSource
     motion: t('settingsMotion'),
     playback: t('settingsPlayback'),
     privacy: t('settingsPrivacy'),
+    about: t('settingsAbout'),
     topics: t('profileTopics'),
     language: t('profileLanguage'),
   };
@@ -411,6 +414,7 @@ export function ProfileView({ page, onPage, onBack, onSaved, onHistory, onSource
           {link(t('settingsNotifications'), <Bell aria-hidden="true" />, onNotifications)}
           {link(t('settingsAI'), <Sparkles aria-hidden="true" />, onAI)}
           {link(labels.privacy, <ShieldCheck aria-hidden="true" />, () => onPage('privacy'))}
+          {link(labels.about, <Info aria-hidden="true" />, () => onPage('about'))}
         </div>
         {!Capacitor.isNativePlatform() && <PWAInstallButton />}
       </>}
@@ -594,6 +598,16 @@ export function ProfileView({ page, onPage, onBack, onSaved, onHistory, onSource
         </p>
         {backupControls}
         <Suspense fallback={null}><DiagnosticsSettings /></Suspense>
+      </div>}
+      {page === 'about' && <div className="settings-group p-5 space-y-3 leading-relaxed">
+        <p className="font-semibold">OpenNews</p>
+        <p className="text-sm text-[var(--muted)]">Copyright (c) 2026 Manuel Blasaditsch</p>
+        <p className="text-sm">{t('settingsAboutLicense')}</p>
+        <p className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+          <a className="underline" href={SOURCE_URL} target="_blank" rel="noopener noreferrer">{t('settingsSourceCode')}</a>
+          <a className="underline" href={PRIVACY_URL} target="_blank" rel="noopener noreferrer">{t('settingsPrivacyPolicy')}</a>
+          <a className="underline" href={IMPRINT_URL} target="_blank" rel="noopener noreferrer">{t('settingsImprint')}</a>
+        </p>
       </div>}
       {page === 'topics' && <TopicChoices topics={preferences.topics} onChange={topics => onPreferences({ ...preferences, topics })} />}
     </section>

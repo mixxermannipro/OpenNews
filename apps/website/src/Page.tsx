@@ -254,7 +254,7 @@ export function Page({ path }: { path: Route }) {
       <div><Brand /><p>Nachrichten aus deinen Quellen.</p></div>
       <nav aria-label="Weitere Links">
         <a href="/kontakt/">Kontakt</a><a href="/datenschutz/">Datenschutz</a><a href="/impressum/">Impressum</a>
-        <a href="/#download">App-Status</a>
+        <a href="/#download">App-Status</a><a href={site.sourceUrl} target="_blank" rel="noopener noreferrer">Quellcode</a>
       </nav>
       <label hidden>Darstellung <select id="theme"><option value="system">System</option><option value="dark">Dunkel</option><option value="light">Hell</option></select></label>
     </footer>

@@ -58,4 +58,4 @@ Den Google-Play-Link erst bei öffentlicher Freigabe als `VITE_PLAY_STORE_URL` s
 
 ## Lizenz
 
-Für eigenen Code und eigene Inhalte gelten die [Source-Available-Bedingungen](../../LICENSE). Bereits erteilte [Apache-2.0-Rechte](../../LICENSES/Apache-2.0.txt) bleiben wirksam. Für Schibsted Grotesk und Source Serif 4 gelten die [beiliegenden OFL-Lizenzen](public/fonts/). Nachrichten, Vorschaubilder und Marken in App-Aufnahmen unterliegen den Rechten der jeweiligen Inhaber.
+Für eigenen Code und eigene Inhalte gilt **AGPL-3.0-or-later** ([LICENSE](../../LICENSE), [LICENSES/AGPL-3.0-or-later.txt](../../LICENSES/AGPL-3.0-or-later.txt)). Bis Commit `d6cd0de2ab7fe5c97678fc9a04e62d2ee5dcd839` war der Code unter [Apache-2.0](../../LICENSES/Apache-2.0.txt) verfügbar und bleibt es in dieser Historie. Name und Logo sind nicht mitlizenziert ([TRADEMARKS.md](../../TRADEMARKS.md)). Für Schibsted Grotesk und Source Serif 4 gelten die [beiliegenden OFL-Lizenzen](public/fonts/) (`OFL-1.1`). Nachrichten, Vorschaubilder und Marken in App-Aufnahmen unterliegen den Rechten der jeweiligen Inhaber.
