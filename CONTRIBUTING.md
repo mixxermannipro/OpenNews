@@ -23,18 +23,9 @@ Für Sicherheitslücken gilt der [vertrauliche Meldeweg](SECURITY.md). Für die 
 
 ## Lizenz und Beiträge
 
-OpenNews ist source-available. Für neu beigesteuerte Projektdateien gelten
-die Bedingungen in [LICENSE](LICENSE). Früher unter Apache-2.0 veröffentlichte
-Bestandteile und separat lizenzierte Inhalte behalten ihre Rechte.
+OpenNews ist Open Source und steht unter **AGPL-3.0-or-later** ([LICENSE](LICENSE), [LICENSES/AGPL-3.0-or-later.txt](LICENSES/AGPL-3.0-or-later.txt)). Bis Commit `d6cd0de2ab7fe5c97678fc9a04e62d2ee5dcd839` war der Code unter [Apache-2.0](LICENSES/Apache-2.0.txt) verfügbar und bleibt es in dieser Historie. Name und Logo sind nicht mitlizenziert ([TRADEMARKS.md](TRADEMARKS.md)).
 
-You retain ownership of your contribution. By intentionally submitting a pull
-request for inclusion, you grant the project maintainer a perpetual,
-worldwide, non-exclusive, royalty-free license to review, reproduce, modify,
-incorporate, maintain and distribute your contribution as part of the project,
-including under the published source-available terms and in the project's
-official releases. Only submit material for which you can grant these
-permissions. Identify any separately licensed portions and their notices
-in the pull request. Previously granted rights remain valid.
+Für Beiträge gilt das **Developer Certificate of Origin (DCO)** in Version 1.1 (<https://developercertificate.org/>). Mit dem Einreichen eines Pull Requests und dem Sign-off deiner Commits (`git commit -s`, erzeugt `Signed-off-by: Name <email>`) bestätigst du, dass du berechtigt bist, den Beitrag unter der Projektlizenz (`AGPL-3.0-or-later`) einzureichen. Kennzeichne separat lizenzierte Inhalte und deren Hinweise im Pull Request.
 
 Entferne vor dem Einreichen Zugangsdaten und personenbezogene Angaben aus
 Logs, Testdaten und Bildschirmfotos. Kennzeichne separat lizenzierte Inhalte.

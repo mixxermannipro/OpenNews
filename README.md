@@ -128,7 +128,7 @@ Alle Details zu Funktionen, API-Routen, Umgebungsvariablen, Datenschutz und Rele
 
 ## Lizenz
 
-Eigener Quellcode von OpenNews steht unter der Source-Available-Lizenz ([LICENSE](LICENSE)); bereits unter [Apache-2.0](LICENSES/Apache-2.0.txt) veröffentlichte Bestandteile behalten ihre Rechte.
+Open Source, **AGPL-3.0-or-later** ([LICENSE](LICENSE), [LICENSES/AGPL-3.0-or-later.txt](LICENSES/AGPL-3.0-or-later.txt)). Copyright (c) 2026 Manuel Blasaditsch. Bis Commit `d6cd0de2ab7fe5c97678fc9a04e62d2ee5dcd839` war der Code unter [Apache-2.0](LICENSES/Apache-2.0.txt) verfügbar und bleibt es in dieser Historie. Name und Logo von OpenNews sind nicht mitlizenziert ([TRADEMARKS.md](TRADEMARKS.md)). Drittschriften und -komponenten behalten ihre jeweiligen Lizenzen ([REUSE.toml](REUSE.toml)).
 
 ---
 

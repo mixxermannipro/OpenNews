@@ -59,6 +59,7 @@ export const site = {
   url: publicUrl?.slice(0, -1) ?? null,
   playStoreUrl,
   webAppUrl: httpsUrl('VITE_WEB_APP_URL'),
+  sourceUrl: httpsUrl('VITE_SOURCE_URL') ?? 'https://github.com/mixxermannipro/OpenNews',
   operator,
   privacyNotice,
   contactEmail: operator.email,

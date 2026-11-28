@@ -2,6 +2,16 @@
 
 Alle wesentlichen Änderungen an **OpenNews** werden in dieser Datei dokumentiert. Das Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und [Semantic Versioning](https://semver.org/lang/de/).
 
+## [Unreleased]
+
+### Geändert
+- **Relizenzierung auf AGPL-3.0-or-later:** Wechsel von „Source Available“ / `UNLICENSED` auf die Open-Source-Lizenz **AGPL-3.0-or-later** (`LICENSE`, `LICENSES/AGPL-3.0-or-later.txt`, `package.json`, `apps/website/package.json`). Bis Commit `d6cd0de2ab7fe5c97678fc9a04e62d2ee5dcd839` bleibt die Historie unter `Apache-2.0`.
+- **Beitragsmodell (DCO):** `CONTRIBUTING.md` auf das Developer Certificate of Origin (`git commit -s`) umgestellt.
+
+### Hinzugefügt
+- **REUSE- & Marken-Dokumentation:** `REUSE.toml`, `LICENSES/OFL-1.1.txt` für die Web-Schriften sowie `TRADEMARKS.md` (Name und Logo von OpenNews bleiben geschützt).
+- **AGPL-§13-Quellcode-Link:** Link „Quellcode“ auf das GitHub-Repository (konfigurierbar über `VITE_SOURCE_URL` in `.env.example`) im Website-Footer sowie in der App unter **Einstellungen → Über** (Web und Android).
+
 ## [0.2.0] - 2026-11-26
 
 ### Hinzugefügt

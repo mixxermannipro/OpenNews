@@ -9,8 +9,7 @@
 - Zugangsdaten und von Capacitor erzeugte Android-Dateien gehören außerhalb von Git.
 - Android-Release-Signierung:
   - `JAVA_HOME="$HOME/.local/share/jdks/temurin-21"` und `ANDROID_HOME="$HOME/Android/sdk"` verwenden.
-  - Aktiver Upload-Keystore: `~/.local/share/opennews-signing/upload-v3.p12` (Alias `opennews-upload`, öffentliches Zertifikat `build/android-release/OpenNews-upload-certificate-v3.pem`).
-  - Das Keystore-Passwort liegt im System-Schlüsselspeicher und wird ohne Ausgabe per `printf '%s\n' "$(secret-tool lookup application OpenNews purpose play-upload-v3)" | ... npm run android:release -- <versionCode>` an das Release-Skript übergeben.
+  - Upload-Keystore und Passwort liegen lokal bzw. im System-Schlüsselspeicher außerhalb von Git und werden ohne Ausgabe an `npm run android:release -- <versionCode>` übergeben.
 
 ## Dokumentation aktuell halten
 

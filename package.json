@@ -67,5 +67,5 @@
     "url": "git+https://github.com/mixxermannipro/OpenNews.git"
   },
   "author": "mixxermannipro",
-  "license": "UNLICENSED"
+  "license": "AGPL-3.0-or-later"
 }
